@@ -42,7 +42,7 @@ runs:
         echo "get_latest_release(prerelease): ${{ steps.get_latest_release.outputs.prerelease }}"
 
     - name: Changelog Version
-      if: v${{ steps.changelog_parser.outputs.version } == ${{ steps.get_latest_release.outputs.tag_name }}
+      if: "v${{ steps.changelog_parser.outputs.version } == ${{ steps.get_latest_release.outputs.tag_name }}"
       # fail the workflow because the versions match
       shell: bash
       run: |
