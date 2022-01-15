@@ -55,7 +55,7 @@ runs:
 outputs:
   changelog_parser_version:
     description: 'Version from the changelog entry with "v" prefix added. Example: v2.1.0'
-    value: ${{ env.NEXT_VERSION }}
+    value: v${{ steps.changelog_parser.outputs.version }}
   changelog_parser_versionMajor:
     description: 'Major version part. Example: 2 for version 2.1.0'
     value: ${{ steps.changelog_parser.outputs.versionMajor }}
