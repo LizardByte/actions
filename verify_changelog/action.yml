@@ -44,7 +44,7 @@ runs:
         echo "get_latest_release(prerelease): ${{ steps.get_latest_release.outputs.prerelease }}"
 
     - name: Changelog Version
-      if: ${{ NEXT_VERSION } == ${{ steps.get_latest_release.outputs.tag_name }}
+      if: ${{ env.NEXT_VERSION == steps.get_latest_release.outputs.tag_name }}
       # fail the workflow because the versions match
       shell: bash
       run: |
@@ -55,7 +55,7 @@ runs:
 outputs:
   changelog_parser_version:
     description: 'Version from the changelog entry with "v" prefix added. Example: v2.1.0'
-    value: $NEXT_VERSION
+    value: ${{ env.NEXT_VERSION }}
   changelog_parser_versionMajor:
     description: 'Major version part. Example: 2 for version 2.1.0'
     value: ${{ steps.changelog_parser.outputs.versionMajor }}
