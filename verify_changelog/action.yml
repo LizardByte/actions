@@ -23,6 +23,8 @@ runs:
         echo "changelog_parser(status): ${{ steps.changelog_parser.outputs.status }}"
         echo "changelog_parser(description): ${{ steps.changelog_parser.outputs.description }}"
 
+        echo "NEXT_VERSION=v${{ steps.changelog_parser.outputs.version }}" >> $GITHUB_ENV
+
     - name: Get last release
       id: get_latest_release
       uses: InsonusK/get-latest-release@v1.0.1  # https://github.com/InsonusK/get-latest-release
@@ -42,7 +44,7 @@ runs:
         echo "get_latest_release(prerelease): ${{ steps.get_latest_release.outputs.prerelease }}"
 
     - name: Changelog Version
-      if: "v${{ steps.changelog_parser.outputs.version } == ${{ steps.get_latest_release.outputs.tag_name }}"
+      if: ${{ NEXT_VERSION } == ${{ steps.get_latest_release.outputs.tag_name }}
       # fail the workflow because the versions match
       shell: bash
       run: |
@@ -53,7 +55,7 @@ runs:
 outputs:
   changelog_parser_version:
     description: 'Version from the changelog entry with "v" prefix added. Example: v2.1.0'
-    value: v${{ steps.changelog_parser.outputs.version }}
+    value: $NEXT_VERSION
   changelog_parser_versionMajor:
     description: 'Major version part. Example: 2 for version 2.1.0'
     value: ${{ steps.changelog_parser.outputs.versionMajor }}
