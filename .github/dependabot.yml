@@ -6,3 +6,9 @@ updates:
       interval: "daily"
     target-branch: "nightly"
     open-pull-requests-limit: 20
+  - package-ecosystem: "github-actions"
+    directory: "verify_changelog"
+    schedule:
+      interval: "daily"
+    target-branch: "nightly"
+    open-pull-requests-limit: 20
