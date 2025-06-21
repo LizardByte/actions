@@ -1,0 +1,2 @@
+-r ./actions/facebook_post/requirements.txt
+-r ./actions/release_homebrew/requirements.txt

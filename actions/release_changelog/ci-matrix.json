@@ -1,0 +1,11 @@
+[
+  {
+    "name": "release_changelog",
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "changelogBranch": "pr-changelogs",
+      "changelogFile": "PR-${ github.event.pull_request.number }-CHANGELOG.md",
+      "token": "${ secrets.GH_BOT_TOKEN }"
+    }
+  }
+]
