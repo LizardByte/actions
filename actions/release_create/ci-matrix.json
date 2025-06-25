@@ -1,0 +1,16 @@
+[
+  {
+    "name": "release_create",
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "allowUpdates": false,
+      "artifacts": "",
+      "body": "Test from PR-${ github.event.pull_request.number }",
+      "generateReleaseNotes": false,
+      "name": "pr-${ github.event.pull_request.number }-${ github.run_id }",
+      "prerelease": true,
+      "tag": "pr-${ github.event.pull_request.number }-${ github.run_id }",
+      "token": "${ secrets.GH_BOT_TOKEN }"
+    }
+  }
+]

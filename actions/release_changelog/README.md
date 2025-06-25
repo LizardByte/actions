@@ -30,5 +30,4 @@ steps:
 
 ## See Also
 
-This action is meant to be used in conjunction with
-[release_setup](../release_setup).
+This action is meant to be used in conjunction with [release_setup](../release_setup).
