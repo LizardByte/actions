@@ -10,10 +10,6 @@ import pytest
 # local imports
 from actions.release_homebrew import main
 
-os.environ['GITHUB_ACTION_PATH'] = os.path.join(os.getcwd(), 'build', 'action_path')
-os.environ['GITHUB_OUTPUT'] = os.path.join(os.getcwd(), 'build', 'github_output.md')
-os.environ['GITHUB_STEP_SUMMARY'] = os.path.join(os.getcwd(), 'build', 'github_step_summary.md')
-os.environ['GITHUB_WORKSPACE'] = os.path.join(os.getcwd(), 'build', 'workspace')
 os.environ['INPUT_FORMULA_FILE'] = os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb')
 os.environ['INPUT_CONTRIBUTE_TO_HOMEBREW_CORE'] = 'true'
 os.environ['INPUT_UPSTREAM_HOMEBREW_CORE_REPO'] = 'Homebrew/homebrew-core'

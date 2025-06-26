@@ -1,0 +1,43 @@
+---
+name: "Setup Release"
+description: "Set up the release parameters."
+author: "LizardByte"
+
+branding:
+  icon: tag
+  color: green
+
+inputs:
+  dotnet:
+    description: "Whether to create a dotnet version (4 components, e.g. yyyy.mmdd.hhmm.ss)."
+    default: 'false'
+    required: false
+  github_token:
+    description: "GitHub token to use for API requests."
+    required: true
+  include_tag_prefix_in_output:
+    description: "Whether to include the tag prefix in the output."
+    default: 'true'
+    required: false
+  tag_prefix:
+    description: "The tag prefix. This will be used when searching for existing releases in GitHub API."
+    default: "v"
+    required: false
+
+outputs:
+  publish_release:
+    description: "Whether to publish a release."
+  release_body:
+    description: "The body for the release."
+  release_commit:
+    description: "The commit hash for the release."
+  release_generate_release_notes:
+    description: "Whether to generate release notes for the release. (Always `true`)"
+  release_tag:
+    description: "The tag for the release (i.e. `release_version` with prefix)"
+  release_version:
+    description: "The version for the release (i.e. `yyyy.mmdd.hhmmss`)"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"

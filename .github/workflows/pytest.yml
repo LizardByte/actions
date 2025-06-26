@@ -1,7 +1,7 @@
 ---
 name: Pytest
 permissions:
-  contents: read
+  contents: write  # write is required for release_setup
 
 on:
   pull_request:
@@ -42,13 +42,17 @@ jobs:
           python-version: ${{ env.INPUT_PYTHON_VERSION }}
 
       - name: Install Python Dependencies
+        shell: bash
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install --upgrade -r requirements.txt
-          python -m pip install --upgrade -r requirements-dev.txt
+          python -m pip install --upgrade \
+            -r requirements.txt \
+            -r requirements-dev.txt
 
       - name: Test with pytest
         id: test
+        env:
+          INPUT_GITHUB_TOKEN: ${{ github.actor == 'dependabot[bot]' && secrets.GH_BOT_TOKEN || secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           echo "::group::Setup Homebrew PATH"

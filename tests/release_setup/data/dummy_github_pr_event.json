@@ -1,0 +1,13 @@
+{
+  "repository": {
+    "default_branch": "master"
+  },
+  "commits": [
+    {
+      "timestamp": "2024-05-13T20:55:03Z"
+    }
+  ],
+  "pull_request": {
+    "_fake_key": "this key isn't used, but needs to be here so `pull_request` doesn't evaluate to `False`"
+  }
+}

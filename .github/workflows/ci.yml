@@ -87,6 +87,7 @@ jobs:
             -e 's|\${ secrets.GH_BOT_EMAIL }|${{ secrets.GH_BOT_EMAIL }}|g' \
             -e 's|\${ secrets.GH_BOT_NAME }|${{ secrets.GH_BOT_NAME }}|g' \
             -e 's|\${ secrets.GH_BOT_TOKEN }|${{ secrets.GH_BOT_TOKEN }}|g' \
+            -e 's|\${ secrets.GITHUB_TOKEN }|${{ secrets.GITHUB_TOKEN }}|g' \
             "with_params.json"
 
           # Output the processed parameters
@@ -113,9 +114,14 @@ jobs:
 
       - name: Test action
         uses: jenseng/dynamic-uses@v1
+        id: action
         with:
           uses: ${{ matrix.action }}
           with: '${{ steps.process-with.outputs.with-params }}'
+
+      - name: Print action outputs
+        shell: bash
+        run: echo "${{ toJSON(steps.action.outputs.outputs) }}"
 
       - name: Run post-CI tests
         env:
