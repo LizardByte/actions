@@ -125,7 +125,10 @@ jobs:
       - name: Print action outputs
         shell: bash
         run: |
-          echo '${{ steps.action.outputs.outputs }}' > outputs.json
+          cat << 'EOF' > outputs.json
+          ${{ steps.action.outputs.outputs }}
+          EOF
+
           echo "Action outputs:"
           jq . outputs.json
 
