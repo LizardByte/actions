@@ -1,0 +1,178 @@
+---
+name: "Create Release"
+description: "A reusable action to create a GitHub release."
+author: "LizardByte"
+
+branding:
+  icon: tag
+  color: green
+
+inputs:
+  allowUpdates:
+    description: 'An optional flag which indicates if we should update a release if it already exists.'
+    required: false
+    default: 'true'
+  artifactErrorsFailBuild:
+    description: 'An optional flag which indicates if we should fail the build if there are errors with the artifacts.'
+    required: false
+    default: 'false'
+  artifacts:
+    description: 'The artifacts to upload.'
+    required: false
+    default: '*artifacts/*'
+  body:
+    description: 'The body of the release.'
+    required: false
+    default: ''
+  deleteOtherPreReleases:
+    description: 'Whether to delete other pre-releases.'
+    required: false
+    default: 'true'
+  deletePreReleaseTags:
+    description: 'Whether to delete other pre-releases tags.'
+    required: false
+    default: 'true'
+  generateReleaseNotes:
+    description: 'Indicates if release notes should be automatically generated.'
+    required: false
+    default: 'true'
+  keepPreReleaseCount:
+    description: 'The number of pre-releases to keep. The default is 2 incase there are in process downloads.'
+    required: false
+    default: '2'
+  name:
+    description: 'The version to create.'
+    required: true
+  prerelease:
+    description: 'Whether the release is a prerelease.'
+    required: false
+    default: 'true'
+  sleepDuration:
+    description: 'The duration to sleep in seconds before deleting tags.'
+    required: false
+    default: '15'
+  tag:
+    description: 'The tag to create.'
+    required: true
+  token:
+    description: 'Github Token.'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create/Update GitHub Release
+      if: >-
+        github.repository == 'LizardByte/actions' ||
+        (github.event_name == 'push' && github.ref == 'refs/heads/master')
+      uses: ncipollo/release-action@v1.16.0
+      with:
+        allowUpdates: ${{ inputs.allowUpdates }}
+        artifactErrorsFailBuild: ${{ inputs.artifactErrorsFailBuild }}
+        artifacts: ${{ inputs.artifacts }}
+        body: ${{ inputs.body }}
+        commit: ${{ github.sha }}
+        generateReleaseNotes: ${{ inputs.generateReleaseNotes }}
+        name: ${{ inputs.name }}
+        prerelease: ${{ inputs.prerelease }}
+        tag: ${{ inputs.tag }}
+        token: ${{ inputs.token }}
+
+    - name: Sleep
+      # wait for the new release to be available in the API
+      if: >-
+        inputs.deleteOtherPreReleases == 'true' &&
+        (github.event_name == 'push' && github.ref == 'refs/heads/master')
+      shell: bash
+      run: sleep 30
+
+    - name: Delete Other PreReleases
+      if: >-
+        inputs.deleteOtherPreReleases == 'true' &&
+        (github.event_name == 'push' && github.ref == 'refs/heads/master')
+      uses: actions/github-script@v7
+      env:
+        DELETE_TAGS: ${{ inputs.deletePreReleaseTags }}
+        KEEP_LATEST: ${{ inputs.keepPreReleaseCount }}
+        SLEEP_DURATION: ${{ inputs.sleepDuration }}
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          // process input
+          const DELETE_TAGS = process.env.DELETE_TAGS.toLowerCase() === 'true';
+          const KEEP_LATEST = parseInt(process.env.KEEP_LATEST, 10);
+          const SLEEP_DURATION = parseInt(process.env.SLEEP_DURATION, 10);
+
+          console.log(`DELETE_TAGS: ${DELETE_TAGS}`);
+          console.log(`KEEP_LATEST: ${KEEP_LATEST}`);
+
+          let regexPattern = new RegExp('^v(\\d{4,})\\.(\\d{1,4})\\.(\\d{1,6})(\\.(\\d{1,2}))?');
+
+          // list releases
+          const repoOpts = github.rest.repos.listReleases.endpoint.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+          });
+          const allReleases = await github.paginate(repoOpts);
+
+          allReleases.forEach(release => {
+            console.log(`Release: ${release.tag_name}`);
+            console.log(`Is pre-release: ${release.prerelease}`);
+            console.log(`Matches regex: ${regexPattern.test(release.tag_name)}`);
+          });
+
+          let preReleases = allReleases.filter(release => release.prerelease && regexPattern.test(release.tag_name));
+          console.log('Matched Pre-release tags:', preReleases.map(release => release.tag_name));
+
+          // sort by tag/version number (e.g. v1.2.3 or v1.2.3.4)
+          preReleases.sort((a, b) => {
+            const aParts = a.tag_name.match(/\d+/g).map(Number);
+            const bParts = b.tag_name.match(/\d+/g).map(Number);
+            for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+              if (aParts[i] === undefined) return -1;
+              if (bParts[i] === undefined) return 1;
+              if (aParts[i] < bParts[i]) return -1;
+              if (aParts[i] > bParts[i]) return 1;
+            }
+            return 0;
+          });
+
+          // Output sorted pre-releases
+          console.log('Sorted Pre-release tags:', preReleases.map(release => release.tag_name));
+
+          // delete all but the last n pre-releases
+          for (let i = 0; i < preReleases.length - KEEP_LATEST; i++) {
+            const release = preReleases[i];
+            console.log(`Deleting release: ${release.tag_name}`);
+            try {
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: release.id
+              });
+            } catch (error) {
+              console.error(`Failed to delete release: ${release.tag_name}`);
+              console.error(error);
+            }
+          }
+
+          // sleep to allow any on release deleted event workflow runs to be created
+          // if the tag is deleted before the workflow run is created, the run will fail to be created
+          await new Promise(resolve => setTimeout(resolve, SLEEP_DURATION * 1000));
+
+          if (DELETE_TAGS) {
+            for (let i = 0; i < preReleases.length - KEEP_LATEST; i++) {
+              const release = preReleases[i];
+              console.log(`Deleting tag: ${release.tag_name}`);
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `tags/${release.tag_name}`
+                });
+              } catch (error) {
+                console.error(`Failed to delete tag: ${release.tag_name}`);
+                console.error(error);
+              }
+            }
+          }

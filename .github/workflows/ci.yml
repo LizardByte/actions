@@ -1,0 +1,137 @@
+---
+name: CI
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build matrix with action paths
+        id: set-matrix
+        run: |
+          entries=()
+          while IFS= read -r file; do
+            action_dir=$(dirname "$file")
+            jq --arg action "$action_dir" '.[] | . + {action: $action}' "$file"
+          done < <(find . -name 'ci-matrix.json') | jq -s '.' > merged-matrix.json
+          echo "matrix=$(cat merged-matrix.json | jq -c .)" >> $GITHUB_OUTPUT
+
+  test:
+    name: ${{ matrix.name || format('{0} ({1}, {2})', matrix.action, matrix.runs-on, toJson(matrix.with)) }}
+    needs: generate-matrix
+    runs-on: ${{ matrix.runs-on }}
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bash (Alpine)
+        shell: bash
+        run: |
+          if [ -f /etc/alpine-release ]; then
+            apk add --no-cache bash
+          fi
+
+      - name: Install sed (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          if ! command -v gsed &> /dev/null; then
+            brew install gnu-sed
+          fi
+          HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-/usr/local}"  # set prefix if not set
+          echo "$HOMEBREW_PREFIX/opt/gnu-sed/libexec/gnubin" >> $GITHUB_PATH
+
+      - name: Process variables in with parameters
+        id: process-with
+        shell: bash
+        run: |
+          # Create a JSON with the original "with" parameters
+          echo '${{ toJson(matrix.with) }}' > with_params.json
+
+          # Process GitHub context variables
+          sed -i \
+            -e 's|\${ github.event.pull_request.number }|${{ github.event.pull_request.number }}|g' \
+            -e 's|\${ github.event.repository.html_url }|${{ github.event.repository.html_url }}|g' \
+            -e 's|\${ github.event.repository.name }|${{ github.event.repository.name }}|g' \
+            -e 's|\${ github.repository }|${{ github.repository }}|g' \
+            -e 's|\${ github.ref_name }|${{ github.ref_name }}|g' \
+            -e 's|\${ github.run_id }|${{ github.run_id }}|g' \
+            -e 's|\${ github.workspace }|${{ github.workspace }}|g' \
+            -e 's|\${ runner.os }|${{ runner.os }}|g' \
+            -e 's|\${ secrets.FACEBOOK_ACCESS_TOKEN }|${{ secrets.FACEBOOK_ACCESS_TOKEN }}|g' \
+            -e 's|\${ secrets.FACEBOOK_PAGE_ID }|${{ secrets.FACEBOOK_PAGE_ID }}|g' \
+            -e 's|\${ secrets.GH_BOT_EMAIL }|${{ secrets.GH_BOT_EMAIL }}|g' \
+            -e 's|\${ secrets.GH_BOT_NAME }|${{ secrets.GH_BOT_NAME }}|g' \
+            -e 's|\${ secrets.GH_BOT_TOKEN }|${{ secrets.GH_BOT_TOKEN }}|g' \
+            -e 's|\${ secrets.GITHUB_TOKEN }|${{ secrets.GITHUB_TOKEN }}|g' \
+            "with_params.json"
+
+          # Output the processed parameters
+          echo "with-params=$(jq -c . with_params.json)" >> $GITHUB_OUTPUT
+
+      - name: Debug matrix
+        shell: bash
+        run: |
+          echo 'Matrix: ${{ toJson(matrix) }}'
+          echo 'Action: ${{ matrix.action }}'
+          echo 'With: ${{ steps.process-with.outputs.with-params }}'
+
+      - name: Run pre-CI setup
+        env:
+          WITH_PARAMS: ${{ steps.process-with.outputs.with-params }}
+        shell: bash
+        run: |
+          if [ -f ${{ matrix.action }}/pre-ci.sh ]; then
+            echo "Running pre-CI setup for ${{ matrix.action }}"
+            bash ${{ matrix.action }}/pre-ci.sh
+          else
+            echo "No pre-CI setup found for ${{ matrix.action }}"
+          fi
+
+      - name: Test action
+        uses: jenseng/dynamic-uses@v1
+        id: action
+        with:
+          uses: ${{ matrix.action }}
+          with: '${{ steps.process-with.outputs.with-params }}'
+
+      - name: Print action outputs
+        shell: bash
+        run: echo "${{ toJSON(steps.action.outputs.outputs) }}"
+
+      - name: Run post-CI tests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_BOT_TOKEN }}
+          WITH_PARAMS: ${{ steps.process-with.outputs.with-params }}
+        shell: bash
+        run: |
+          if [ -f ${{ matrix.action }}/post-ci.sh ]; then
+            echo "Running post-CI tests for ${{ matrix.action }}"
+            bash ${{ matrix.action }}/post-ci.sh
+          else
+            echo "No post-CI tests found for ${{ matrix.action }}"
+          fi

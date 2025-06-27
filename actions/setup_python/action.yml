@@ -1,0 +1,129 @@
+---
+name: "Setup Python"
+description: "Set up a specific version of Python, including Python 2.7, and add the command-line tools to the PATH."
+author: "LizardByte"
+
+branding:
+  icon: code
+  color: green
+
+inputs:
+  python-version:
+    description: |
+      Version range or exact version of Python or PyPy to use, using SemVer's version range syntax.
+      Reads from .python-version if unset.
+    required: true
+  architecture:
+    description: |
+      The target architecture (x86, x64) of the Python or PyPy interpreter.
+      For Python 2.7, this is only supported on Windows.
+    required: false
+    default: "x64"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Python 3+
+      if: ${{ inputs.python-version != '2.7' }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        architecture: ${{ inputs.architecture }}
+
+    - name: Windows Install
+      shell: bash
+      if: ${{ inputs.python-version == '2.7' && runner.os == 'Windows' }}
+      run: |
+        if [[ "${{ inputs.architecture }}" == "x86" ]]; then
+          extra_flags="-x86"
+        fi
+
+        choco install python2 --version=2.7.18 -y --no-progress ${extra_flags}
+
+    - name: Unix Install
+      shell: bash
+      if: ${{ inputs.python-version == '2.7' && (runner.os == 'Linux' || runner.os == 'macOS') }}
+      run: |
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          curl https://pyenv.run | bash
+          export PATH="$HOME/.pyenv/bin:$PATH"
+        elif [[ "${{ runner.os }}" == "macOS" ]]; then
+          # if macos version >= 13
+          if [[ $(sw_vers -productVersion | cut -d '.' -f1) -ge 13 ]]; then
+            echo "macOS version >= 13, relinking python@3.12 to avoid brew error"
+            brew unlink python@3.12
+            brew link --overwrite python@3.12
+          fi
+
+          # install pyenv
+          brew install pyenv
+          export PATH="$(pyenv root)/shims:$(pyenv root)/bin:$PATH"
+        fi
+
+        # install python 2.7
+        pyenv install 2.7.18
+
+    - name: Setup Python Environment
+      if: ${{ inputs.python-version == '2.7' }}
+      shell: bash
+      run: |
+        echo "Current system Python Version:"
+        python --version
+
+        echo "Setting paths"
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          export PATH="/c/Python27:/c/Python27/Scripts:$PATH"
+          echo "moving GitHub installed Python version"
+          mv "/c/hostedtoolcache/windows/Python/3.9.13" "/c/hostedtoolcache/windows/Python/3.9.13-backup"
+
+          # set venv path
+          venv_base_path="/c/tmp/python27/venv"
+          venv_base_path_windows="C:\\tmp\\python27\\venv"
+          venv_dir="Scripts"
+        elif [[ "${{ runner.os }}" == "Linux" || "${{ runner.os }}" == "macOS" ]]; then
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            export PATH="$HOME/.pyenv/bin:$PATH"
+
+            # update alternatives
+            sudo update-alternatives --install /usr/bin/python python $(pyenv root)/shims/python 1
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            export PATH="$(pyenv root)/shims:$(pyenv root)/bin:$PATH"  # use this instead of GITHUB_PATH to be first
+          fi
+          pyenv global 2.7.18
+          # set python to use `$(pyenv root)/versions/2.7.18/bin`
+          # export PATH="$(pyenv root)/versions/2.7.18/bin:$PATH"
+          venv_base_path="/tmp/python27/venv"
+          venv_dir="bin"
+        fi
+
+        echo "New Python version:"
+        python --version
+
+        echo "Bootstrapping pip"
+        curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
+        python get-pip.py
+        rm -f get-pip.py
+
+        echo "Installing virtualenv"
+        python -m pip install virtualenv
+
+        # create venv
+        python -m virtualenv ${venv_base_path}
+
+        # activate venv
+        source ${venv_base_path}/${venv_dir}/activate
+
+        # update
+        python -m pip --no-python-version-warning --disable-pip-version-check install --upgrade pip setuptools
+
+        # update the path environment, so the next steps can use the venv
+        # required to use the shell
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "${venv_base_path_windows}\\${venv_dir}" >> $GITHUB_PATH
+        else
+            echo "${venv_base_path}/${venv_dir}" >> $GITHUB_PATH
+        fi
+
+        # show python version
+        echo "Python venv version:"
+        python --version

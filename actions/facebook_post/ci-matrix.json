@@ -1,0 +1,13 @@
+[
+  {
+    "name": "facebook_post",
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "access_token": "${ secrets.FACEBOOK_ACCESS_TOKEN }",
+      "fail_on_error": true,
+      "message": "${ github.event.repository.name } - ${ github.ref_name } test",
+      "page_id": "${ secrets.FACEBOOK_PAGE_ID }",
+      "url": "${ github.event.repository.html_url }/actions/runs/${ github.run_id }"
+    }
+  }
+]

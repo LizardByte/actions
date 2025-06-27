@@ -1,0 +1,44 @@
+---
+name: Release
+permissions:
+  contents: write
+
+on:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Release
+        id: setup-release
+        uses: ./actions/release_setup
+        with:
+          github_token: ${{ secrets.GH_BOT_TOKEN }}
+
+      - name: Create Release
+        id: action
+        uses: ./actions/release_create
+        with:
+          allowUpdates: false
+          artifacts: ''
+          body: ${{ steps.setup-release.outputs.release_body }}
+          generateReleaseNotes: ${{ steps.setup-release.outputs.release_generate_release_notes }}
+          name: ${{ steps.setup-release.outputs.release_tag }}
+          prerelease: true
+          tag: ${{ steps.setup-release.outputs.release_tag }}
+          token: ${{ secrets.GH_BOT_TOKEN }}
+
+      - name: Update Changelog
+        uses: ./actions/release_changelog
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

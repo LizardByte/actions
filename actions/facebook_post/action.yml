@@ -1,0 +1,29 @@
+---
+name: "Facebook Post Action"
+description: "Post to a facebook page or group."
+author: "LizardByte"
+
+branding:
+  icon: facebook
+  color: green
+
+inputs:
+  page_id:
+    description: "The page/group id to post to, if not set env.FACEBOOK_PAGE_ID will be used."
+    required: false
+  access_token:
+    description: "Facebook access token, if not set env.FACEBOOK_PAGE_ID will be used."
+    required: false
+  message:
+    description: "The message content of the post."
+    required: true
+  url:
+    description: "The url to include with the post."
+    required: false
+  fail_on_error:
+    description: "Set to False to allow the workflow to success for groups that don't have the app installed."
+    required: false
+
+runs:
+  using: "docker"
+  image: "Dockerfile"

@@ -1,0 +1,103 @@
+---
+name: Pytest
+permissions:
+  contents: write  # write is required for release_setup
+
+on:
+  pull_request:
+    branches:
+      - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ${{ matrix.runner }}
+    env:
+      INPUT_PYTHON_VERSION: '3.12'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - macos-latest
+          - ubuntu-latest
+          - windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.INPUT_PYTHON_VERSION }}
+
+      - name: Install Python Dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --upgrade \
+            -r requirements.txt \
+            -r requirements-dev.txt
+
+      - name: Test with pytest
+        id: test
+        env:
+          INPUT_GITHUB_TOKEN: ${{ github.actor == 'dependabot[bot]' && secrets.GH_BOT_TOKEN || secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          echo "::group::Setup Homebrew PATH"
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md#homebrew-note
+            echo "Adding Homebrew to PATH"
+            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Run Tests"
+          python -m pytest \
+            -rxXs \
+            --tb=native \
+            --verbose \
+            --color=yes \
+            --cov=actions \
+            --junitxml=junit.xml \
+            -o junit_family=legacy \
+            tests
+          echo "::endgroup::"
+
+      - name: Upload test results to Codecov
+        # any except canceled or skipped
+        if: >-
+          always() &&
+          (steps.test.outcome == 'success' || steps.test.outcome == 'failure') &&
+          startsWith(github.repository, 'LizardByte/')
+        uses: codecov/test-results-action@v1
+        with:
+          fail_ci_if_error: true
+          files: junit.xml
+          flags: ${{ runner.os }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+      - name: Upload coverage
+        # any except canceled or skipped
+        if: >-
+          always() &&
+          (steps.test.outcome == 'success' || steps.test.outcome == 'failure') &&
+          startsWith(github.repository, 'LizardByte/')
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          flags: ${{ runner.os }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
