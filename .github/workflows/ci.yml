@@ -1,7 +1,7 @@
 ---
 name: CI
 permissions:
-  contents: read
+  contents: write  # needed for setup_release action
 
 on:
   pull_request:
