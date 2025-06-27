@@ -121,13 +121,9 @@ def test_set_github_action_output(github_output_file, outputs):
 
 @pytest.mark.parametrize('version', [
     ('1970.1.1', False),
-    ('2023.1127.235828', True),  # TODO: update with real release from actions repo
+    ('2025.627.5037', True),
 ])
 def test_check_release(version):
-    # TODO: remove this after version number is updated to a real release
-    if version[1]:
-        pytest.xfail(reason="This will fail until we have an initial release to compare against.")
-
     assert main.check_release(version=version[0]) == version[1]
 
 
@@ -167,7 +163,6 @@ def test_process_release_body(release_notes_sample):
     assert result == release_notes_sample[1]
 
 
-@pytest.mark.xfail(reason="This will fail until we have an initial release to compare against.")
 def test_generate_release_body(github_token):
     assert main.generate_release_body(tag_name='test', target_commitish=os.environ['GITHUB_SHA'])
 
