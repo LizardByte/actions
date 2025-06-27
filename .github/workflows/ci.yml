@@ -124,7 +124,10 @@ jobs:
 
       - name: Print action outputs
         shell: bash
-        run: echo "${{ toJSON(steps.action.outputs.outputs) }}"
+        run: |
+          echo '${{ steps.action.outputs.outputs }}' > outputs.json
+          echo "Action outputs:"
+          jq . outputs.json
 
       - name: Run post-CI tests
         env:
