@@ -1,0 +1,72 @@
+---
+# This workflow is designed to be called by other workflows to set up a release easily.
+
+name: Release Setup
+permissions:
+  contents: write  # read does not work to check squash and merge details
+
+on:
+  workflow_call:
+    inputs:
+      dotnet:
+        description: "Whether to create a dotnet version (4 components, e.g. yyyy.mmdd.hhmm.ss)."
+        default: 'false'
+        required: false
+        type: string
+      include_tag_prefix_in_output:
+        description: "Whether to include the tag prefix in the output."
+        default: 'true'
+        required: false
+        type: string
+      tag_prefix:
+        description: "The tag prefix. This will be used when searching for existing releases in GitHub API."
+        default: "v"
+        required: false
+        type: string
+    outputs:
+      publish_release:
+        description: "Whether to publish a release."
+        value: ${{ jobs.release-setup.outputs.publish_release }}
+      release_body:
+        description: "The body for the release."
+        value: ${{ jobs.release-setup.outputs.release_body }}
+      release_commit:
+        description: "The commit hash for the release."
+        value: ${{ jobs.release-setup.outputs.release_commit }}
+      release_generate_release_notes:
+        description: "Whether to generate release notes for the release. (Always `true`)"
+        value: ${{ jobs.release-setup.outputs.release_generate_release_notes }}
+      release_tag:
+        description: "The tag for the release (i.e. `release_version` with prefix)"
+        value: ${{ jobs.release-setup.outputs.release_tag }}
+      release_version:
+        description: "The version for the release (i.e. `yyyy.mmdd.hhmmss`)"
+        value: ${{ jobs.release-setup.outputs.release_version }}
+    secrets:
+      GH_TOKEN:
+        description: "GitHub token to use for API requests."
+        required: true
+
+jobs:
+  release-setup:
+    name: Release Setup
+    outputs:
+      publish_release: ${{ steps.release-setup.outputs.publish_release }}
+      release_body: ${{ steps.release-setup.outputs.release_body }}
+      release_commit: ${{ steps.release-setup.outputs.release_commit }}
+      release_generate_release_notes: ${{ steps.release-setup.outputs.release_generate_release_notes }}
+      release_tag: ${{ steps.release-setup.outputs.release_tag }}
+      release_version: ${{ steps.release-setup.outputs.release_version }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Release Setup
+        id: release-setup
+        uses: LizardByte/actions/actions/release_setup@master
+        with:
+          dotnet: ${{ inputs.dotnet || 'false' }}
+          github_token: ${{ secrets.GH_TOKEN }}
+          include_tag_prefix_in_output: ${{ inputs.include_tag_prefix_in_output || 'true' }}
+          tag_prefix: ${{ inputs.tag_prefix || 'v' }}
