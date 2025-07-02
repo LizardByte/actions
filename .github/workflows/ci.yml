@@ -91,6 +91,7 @@ jobs:
             -e 's|\${ secrets.GH_BOT_NAME }|${{ secrets.GH_BOT_NAME }}|g' \
             -e 's|\${ secrets.GH_BOT_TOKEN }|${{ secrets.GH_BOT_TOKEN }}|g' \
             -e 's|\${ secrets.GITHUB_TOKEN }|${{ secrets.GITHUB_TOKEN }}|g' \
+            -e 's|\${ secrets.VIRUSTOTAL_API_KEY }|${{ secrets.VIRUSTOTAL_API_KEY }}|g' \
             "with_params.json"
 
           # Output the processed parameters
