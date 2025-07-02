@@ -38,6 +38,7 @@ steps:
 | sleepDuration           | The duration to sleep in seconds before deleting tags.                                               | `15`            | `false`  |
 | tag                     | The tag to create.                                                                                   |                 | `true`   |
 | token                   | GitHub Token.                                                                                        |                 | `true`   |
+| virustotal_api_key      | The VirusTotal API key to use for scanning artifacts.                                                |                 | `false`  |
 
 ## See Also
 

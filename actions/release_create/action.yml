@@ -57,10 +57,53 @@ inputs:
   token:
     description: 'Github Token.'
     required: true
+  virustotal_api_key:
+    description: 'The VirusTotal API key to use for scanning the artifacts.'
+    required: false
 
 runs:
   using: "composite"
   steps:
+    - name: VirusTotal
+      if: inputs.virustotal_api_key != ''
+      id: vt
+      uses: cssnr/virustotal-action@v1.3.1
+      with:
+        file_globs: ${{ inputs.artifacts }}
+        summary: true
+        update_release: false
+        vt_api_key: ${{ inputs.virustotal_api_key }}
+
+    - name: Format VirusTotal Results
+      if: inputs.virustotal_api_key != ''
+      id: format-vt
+      shell: bash
+      run: |
+        # Create body file with original content
+        cat > release_body.md << 'BODY_EOF'
+        ${{ inputs.body }}
+        BODY_EOF
+
+        # If we have VT results, append them
+        if [ -n '${{ steps.vt.outputs.json }}' ]; then
+          # Add separator if body exists and isn't empty
+          if [ -s release_body.md ] && [ "$(cat release_body.md | tr -d '[:space:]')" != "" ]; then
+            echo "" >> release_body.md
+          fi
+
+          # Append VirusTotal results
+          echo "---" >> release_body.md
+          echo "🛡️ **VirusTotal Results:**" >> release_body.md
+          printf '%s\n' '${{ steps.vt.outputs.json }}' | jq -r '.[] | "- [\(.name)](\(.link))"' >> release_body.md
+        fi
+
+        # Set output
+        {
+          echo "body<<EOF"
+          cat release_body.md
+          echo "EOF"
+        } >> $GITHUB_OUTPUT
+
     - name: Create/Update GitHub Release
       if: >-
         github.repository == 'LizardByte/actions' ||
@@ -70,7 +113,7 @@ runs:
         allowUpdates: ${{ inputs.allowUpdates }}
         artifactErrorsFailBuild: ${{ inputs.artifactErrorsFailBuild }}
         artifacts: ${{ inputs.artifacts }}
-        body: ${{ inputs.body }}
+        body: ${{ steps.format-vt.outputs.body || inputs.body }}
         commit: ${{ github.sha }}
         generateReleaseNotes: ${{ inputs.generateReleaseNotes }}
         name: ${{ inputs.name }}
