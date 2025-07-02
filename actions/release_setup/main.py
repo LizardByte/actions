@@ -229,6 +229,7 @@ def get_push_event_details() -> dict:
     push_event_details['release_commit'] = github_sha
 
     if is_pull_request:
+        push_event_details['release_version'] = f'0.0.{github_event["number"]}'
         return push_event_details
 
     # this is a push event
