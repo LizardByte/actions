@@ -24,7 +24,7 @@ FAILURES = []
 TEMP_DIRECTORIES = []
 HOMEBREW_BUILDPATH = ""
 
-temp_repo = os.path.join('homebrew-release-action', 'homebrew-test')
+temp_repo = os.path.join('release_homebrew_action', 'homebrew-test')
 
 og_dir = os.getcwd()
 
@@ -130,7 +130,7 @@ def prepare_homebrew_core_fork(
     print('Preparing Homebrew/homebrew-core fork')
 
     # checkout a new branch
-    branch_name = f'homebrew-release-action/{branch_suffix}'
+    branch_name = f'release_homebrew_action/{branch_suffix}'
 
     print(f'Attempt to create new branch {branch_name}')
     result = _run_subprocess(
@@ -229,9 +229,9 @@ def process_input_formula(formula_file: str) -> str:
     )
 
     org_homebrew_repo = os.path.join(
-        os.environ['GITHUB_WORKSPACE'], 'homebrew-release-action', 'org_homebrew_repo')
+        os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action', 'org_homebrew_repo')
     homebrew_core_fork_repo = os.path.join(
-        os.environ['GITHUB_WORKSPACE'], 'homebrew-release-action', 'homebrew_core_fork_repo')
+        os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action', 'homebrew_core_fork_repo')
     print(f'org_homebrew_repo: {org_homebrew_repo}')
     print(f'homebrew_core_fork_repo: {homebrew_core_fork_repo}')
 

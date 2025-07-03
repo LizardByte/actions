@@ -115,7 +115,7 @@ runs:
       with:
         repository: ${{ inputs.org_homebrew_repo }}
         ref: ${{ inputs.org_homebrew_repo_branch }}
-        path: ${{ github.workspace }}/homebrew-release-action/org_homebrew_repo
+        path: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
         persist-credentials: false  # otherwise, the token used is the GITHUB_TOKEN, instead of the personal token
         fetch-depth: 1
 
@@ -124,7 +124,7 @@ runs:
       uses: actions/checkout@v4
       with:
         repository: ${{ inputs.homebrew_core_fork_repo }}
-        path: ${{ github.workspace }}/homebrew-release-action/homebrew_core_fork_repo
+        path: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
         persist-credentials: false  # otherwise, the token used is the GITHUB_TOKEN, instead of the personal token
         fetch-depth: 1
 
@@ -157,7 +157,7 @@ runs:
         author_email: ${{ inputs.git_email }}
         author_name: ${{ inputs.git_username }}
         branch: ${{ inputs.org_homebrew_repo_branch }}  # commit to target branch
-        directory: ${{ github.workspace }}/homebrew-release-action/org_homebrew_repo
+        directory: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
         github_token: ${{ inputs.token }}
         message: "Update ${{ github.repository }} to ${{ github.sha }}"
         repository: ${{ inputs.org_homebrew_repo }}
@@ -169,7 +169,7 @@ runs:
         author_email: ${{ inputs.git_email }}
         author_name: ${{ inputs.git_username }}
         branch: ${{ steps.homebrew-tests.outputs.homebrew_core_branch }}
-        directory: ${{ github.workspace }}/homebrew-release-action/homebrew_core_fork_repo
+        directory: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
         force: true  # need to force since the branch is sometimes reset
         github_token: ${{ inputs.token }}
         message: "Update ${{ github.repository }} to ${{ github.sha }}"
@@ -180,7 +180,7 @@ runs:
         GH_TOKEN: ${{ inputs.token }}
       if: ${{ inputs.contribute_to_homebrew_core == 'true' && inputs.publish == 'true' }}
       shell: bash
-      working-directory: ${{ github.workspace }}/homebrew-release-action/homebrew_core_fork_repo
+      working-directory: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
       run: |
         # Check if a pull request already exists with the same head branch
         PR_EXISTS=$(gh pr list \
@@ -197,7 +197,7 @@ runs:
             --head ${{ steps.homebrew-tests.outputs.homebrew_core_branch }} \
             --title "Update ${{ github.repository }} to ${{ github.sha }}" \
             --body \
-              "Created by [LizardByte/homebrew-release-action](https://github.com/LizardByte/homebrew-release-action)" \
+              "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action" \
             --no-maintainer-edit \
             --repo ${{ inputs.upstream_homebrew_core_repo }}
         else
