@@ -284,11 +284,19 @@ def audit_formula(formula: str) -> bool:
 
 def brew_upgrade() -> bool:
     print('Updating Homebrew')
+    env = dict(
+        HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK='1'
+    )
+
+    # combine with os environment
+    env.update(os.environ)
+
     result = _run_subprocess(
         args_list=[
             'brew',
             'update'
-        ]
+        ],
+        env=env,
     )
     if not result:
         return False
@@ -298,7 +306,8 @@ def brew_upgrade() -> bool:
         args_list=[
             'brew',
             'upgrade'
-        ]
+        ],
+        env=env,
     )
 
 
