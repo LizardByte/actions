@@ -411,11 +411,14 @@ def test_process_input_formula_copy_failure(mock_exists, tmp_path, operating_sys
 
 @patch('actions.release_homebrew.main._run_subprocess')
 def test_brew_upgrade_update_failure(mock_run):
-    # Set up the mock to fail on brew update but not continue to brew upgrade
+    # Set up the mock to fail on brew update
     def side_effect(args_list, *args, **kwargs):
-        if 'update' in args_list:
+        # Check if 'update' is in the args_list (which is a list)
+        if args_list and 'update' in args_list:
+            main.ERROR = True
             return False
-        return True  # Return True for any other commands
+        # Should not reach here for upgrade since update failed
+        return True
 
     mock_run.side_effect = side_effect
 
@@ -425,10 +428,10 @@ def test_brew_upgrade_update_failure(mock_run):
     # Assert that brew_upgrade returns False when update fails
     assert not result
 
-    # Verify that brew update was called
-    update_call_made = any('update' in str(call) for call in mock_run.call_args_list)
-    assert update_call_made
+    # Verify that only one call was made (the update call)
+    assert mock_run.call_count == 1
 
-    # Verify that brew upgrade was NOT called (execution should stop after update fails)
-    upgrade_call_made = any('upgrade' in str(call) for call in mock_run.call_args_list)
-    assert not upgrade_call_made
+    # Verify that the call was for brew update
+    call_args = mock_run.call_args_list[0][1]['args_list']
+    assert 'update' in call_args
+    assert 'upgrade' not in call_args
