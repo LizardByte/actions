@@ -4,8 +4,10 @@
     "runs-on": "ubuntu-latest",
     "with": {
       "allowUpdates": false,
+      "artifactErrorsFailBuild": true,
       "artifacts": "dist/*",
       "body": "Test from PR-${ github.event.pull_request.number }",
+      "deleteOtherPreReleases": false,
       "generateReleaseNotes": false,
       "name": "pr-${ github.event.pull_request.number }-${ github.run_id }",
       "prerelease": true,
