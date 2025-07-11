@@ -76,13 +76,13 @@ def test_get_brew_repository(operating_system):
 
 def test_prepare_homebrew_core_fork(homebrew_core_fork_repo, operating_system):
     main.prepare_homebrew_core_fork(
-        branch_suffix='homebrew-release-action-tests',
+        branch_suffix='release_homebrew_action_tests',
         path=homebrew_core_fork_repo
     )
 
     # assert that the current branch is the branch we created
     branch = get_current_branch(cwd=homebrew_core_fork_repo)
-    assert branch.endswith('homebrew-release-action-tests')
+    assert branch.endswith('release_homebrew_action_tests')
 
 
 def test_process_input_formula(operating_system):
@@ -100,8 +100,8 @@ def test_process_input_formula(operating_system):
     assert formula == 'hello_world'
 
     dirs = [
-        os.path.join(os.environ['GITHUB_WORKSPACE'], 'homebrew-release-action', 'org_homebrew_repo'),
-        os.path.join(os.environ['GITHUB_WORKSPACE'], 'homebrew-release-action', 'homebrew_core_fork_repo'),
+        os.path.join(os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action', 'org_homebrew_repo'),
+        os.path.join(os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action', 'homebrew_core_fork_repo'),
     ]
 
     for d in dirs:
@@ -383,7 +383,7 @@ def test_prepare_homebrew_core_fork_failure(mock_run, homebrew_core_fork_repo, o
     # Test that the function raises SystemExit when both branch operations fail
     with pytest.raises(SystemExit):
         main.prepare_homebrew_core_fork(
-            branch_suffix='homebrew-release-action-tests',
+            branch_suffix='release_homebrew_action_tests',
             path=homebrew_core_fork_repo
         )
 

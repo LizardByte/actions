@@ -1,7 +1,7 @@
 class HelloWorld < Formula
   desc "Simple program that outputs 'Hello, World!'"
   homepage "https://app.lizardbyte.dev"
-  url "https://github.com/LizardByte/homebrew-release-action.git"
+  url "https://github.com/LizardByte/actions.git"
   version "0.0.1"
 
   def install
