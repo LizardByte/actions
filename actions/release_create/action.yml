@@ -80,27 +80,34 @@ runs:
       shell: bash
       run: |
         # Create body file with original content
-        cat > release_body.md << 'BODY_EOF'
+        rb_file=release_body.md
+        cat > ${rb_file} << 'BODY_EOF'
         ${{ inputs.body }}
         BODY_EOF
+
+        VT_HEADER="🛡️ **VirusTotal Results:**"
 
         # If we have VT results, append them
         if [ -n '${{ steps.vt.outputs.json }}' ]; then
           # Add separator if body exists and isn't empty
-          if [ -s release_body.md ] && [ "$(cat release_body.md | tr -d '[:space:]')" != "" ]; then
-            echo "" >> release_body.md
+          if [ -s ${rb_file} ] && [ "$(cat ${rb_file} | tr -d '[:space:]')" != "" ]; then
+            echo "" >> ${rb_file}
+          fi
+
+          # Check if VirusTotal Results header already exists, if not add it
+          if ! grep -qF "$VT_HEADER" ${rb_file}; then
+            echo "---" >> ${rb_file}
+            echo "$VT_HEADER" >> ${rb_file}
           fi
 
           # Append VirusTotal results
-          echo "---" >> release_body.md
-          echo "🛡️ **VirusTotal Results:**" >> release_body.md
-          printf '%s\n' '${{ steps.vt.outputs.json }}' | jq -r '.[] | "- [\(.name)](\(.link))"' >> release_body.md
+          printf '%s\n' '${{ steps.vt.outputs.json }}' | jq -r '.[] | "- [\(.name)](\(.link))"' >> ${rb_file}
         fi
 
         # Set output
         {
           echo "body<<EOF"
-          cat release_body.md
+          cat ${rb_file}
           echo "EOF"
         } >> $GITHUB_OUTPUT
 
