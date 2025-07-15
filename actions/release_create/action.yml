@@ -89,13 +89,13 @@ runs:
 
         # If we have VT results, append them
         if [ -n '${{ steps.vt.outputs.json }}' ]; then
-          # Add separator if body exists and isn't empty
-          if [ -s ${rb_file} ] && [ "$(cat ${rb_file} | tr -d '[:space:]')" != "" ]; then
-            echo "" >> ${rb_file}
-          fi
-
           # Check if VirusTotal Results header already exists, if not add it
           if ! grep -qF "$VT_HEADER" ${rb_file}; then
+            # Add separator if body exists and isn't empty
+            if [ -s ${rb_file} ] && [ "$(cat ${rb_file} | tr -d '[:space:]')" != "" ]; then
+              echo "" >> ${rb_file}
+            fi
+
             echo "---" >> ${rb_file}
             echo "$VT_HEADER" >> ${rb_file}
           fi
