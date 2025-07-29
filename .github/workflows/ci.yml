@@ -31,12 +31,11 @@ jobs:
       - name: Build matrix with action paths
         id: set-matrix
         run: |
-          entries=()
           while IFS= read -r file; do
             action_dir=$(dirname "$file")
             jq --arg action "$action_dir" '.[] | . + {action: $action}' "$file"
           done < <(find . -name 'ci-matrix.json') | jq -s '.' > merged-matrix.json
-          echo "matrix=$(cat merged-matrix.json | jq -c .)" >> $GITHUB_OUTPUT
+          echo "matrix=$(jq -c . merged-matrix.json)" >> "${GITHUB_OUTPUT}"
 
   test:
     name: ${{ matrix.name || format('{0} ({1}, {2})', matrix.action, matrix.runs-on, toJson(matrix.with)) }}
@@ -66,7 +65,7 @@ jobs:
             brew install gnu-sed
           fi
           HOMEBREW_PREFIX="${HOMEBREW_PREFIX:-/usr/local}"  # set prefix if not set
-          echo "$HOMEBREW_PREFIX/opt/gnu-sed/libexec/gnubin" >> $GITHUB_PATH
+          echo "$HOMEBREW_PREFIX/opt/gnu-sed/libexec/gnubin" >> "${GITHUB_PATH}"
 
       - name: Process variables in with parameters
         id: process-with
@@ -95,7 +94,7 @@ jobs:
             "with_params.json"
 
           # Output the processed parameters
-          echo "with-params=$(jq -c . with_params.json)" >> $GITHUB_OUTPUT
+          echo "with-params=$(jq -c . with_params.json)" >> "${GITHUB_OUTPUT}"
 
       - name: Debug matrix
         shell: bash
