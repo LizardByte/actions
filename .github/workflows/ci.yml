@@ -130,12 +130,27 @@ jobs:
           EOF
 
           echo "Action outputs:"
-          jq . outputs.json
+
+          # Process all keys in the JSON, attempting to parse each value as JSON
+          jq 'to_entries | map(
+            if (.value | type) == "string" then
+              try (
+                .value |= (fromjson)
+              ) catch (
+                # If parsing fails, keep the original value
+                .
+              )
+            else
+              # If not a string, keep as-is
+              .
+            end
+          ) | from_entries' outputs.json || jq . outputs.json
 
       - name: Run post-CI tests
         env:
           GITHUB_TOKEN: ${{ secrets.GH_BOT_TOKEN }}
           WITH_PARAMS: ${{ steps.process-with.outputs.with-params }}
+        if: always()  # make sure we do any cleanup even if the job was canceled or failed
         shell: bash
         run: |
           if [ -f ${{ matrix.action }}/post-ci.sh ]; then
@@ -144,3 +159,10 @@ jobs:
           else
             echo "No post-CI tests found for ${{ matrix.action }}"
           fi
+
+  conclude:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Conclude
+        run: echo "All tests passed"

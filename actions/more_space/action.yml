@@ -1,0 +1,120 @@
+---
+name: "More space"
+description: "A reusable action to free up GitHub hosted runner space."
+author: "LizardByte"
+
+branding:
+  icon: hard-drive
+  color: green
+
+inputs:
+  analyze-space-savings:
+    description: "Generate detailed analysis of space savings by each input option"
+    required: false
+    default: "false"
+  clean-all:
+    description: "When true, all inputs except 'safe_packages' are ignored"
+    required: false
+    default: "false"
+  safe-packages:
+    description: "A list of packages to keep. The action will try to find the location of these and preserve them."
+    required: false
+    default: ""
+  remove-android:
+    description: "Remove Android SDK"
+    required: false
+    default: "false"
+  remove-chocolatey:
+    description: "Remove Chocolatey (Windows only)"
+    required: false
+    default: "false"
+  remove-codeql:
+    description: "Remove CodeQL databases"
+    required: false
+    default: "false"
+  remove-docker-images:
+    description: "Remove Docker images"
+    required: false
+    default: "false"
+  remove-docs-linux:
+    description: "Remove /usr/share/doc (Linux only)"
+    required: false
+    default: "false"
+  remove-dotnet:
+    description: "Remove .NET runtime and tools"
+    required: false
+    default: "false"
+  remove-haskell:
+    description: "Remove Haskell"
+    required: false
+    default: "false"
+  remove-homebrew:
+    description: "Remove Homebrew (Linux/macOS only)"
+    required: false
+    default: "false"
+  remove-jvm:
+    description: "Remove JVMs"
+    required: false
+    default: "false"
+  remove-swift:
+    description: "Remove Swift (Linux/macOS only)"
+    required: false
+    default: "false"
+  remove-tool-cache:
+    description: "Remove runner tool cache"
+    required: false
+    default: "false"
+  remove-tools-windows:
+    description: "Remove /c/tools (Windows only)"
+    required: false
+    default: "false"
+  remove-xcode:
+    description: "Remove Xcode (macOS only)"
+    required: false
+    default: "false"
+
+outputs:
+  space-after:
+    description: "Free disk space after cleanup (GB)"
+    value: ${{ steps.cleanup.outputs.space-after }}
+  space-analysis:
+    description: "JSON formatted analysis of space savings by input option (sorted by space saved)"
+    value: ${{ steps.cleanup.outputs.space-analysis }}
+  space-before:
+    description: "Free disk space before cleanup (GB)"
+    value: ${{ steps.cleanup.outputs.space-before }}
+  space-saved:
+    description: "Amount of disk space saved (GB)"
+    value: ${{ steps.cleanup.outputs.space-saved }}
+
+runs:
+  using: "composite"
+  steps:
+    - run: which jq
+      shell: bash
+
+    - name: Make cleanup script executable
+      shell: bash
+      run: chmod +x "${{ github.action_path }}/cleanup.sh"
+
+    - name: Free up disk space
+      id: cleanup
+      shell: bash
+      run: |
+        "${{ github.action_path }}/cleanup.sh" \
+          --analyze-space-savings="${{ inputs.analyze-space-savings }}" \
+          --clean-all="${{ inputs.clean-all }}" \
+          --remove-android="${{ inputs.remove-android }}" \
+          --remove-chocolatey="${{ inputs.remove-chocolatey }}" \
+          --remove-codeql="${{ inputs.remove-codeql }}" \
+          --remove-docker-images="${{ inputs.remove-docker-images }}" \
+          --remove-docs-linux="${{ inputs.remove-docs-linux }}" \
+          --remove-dotnet="${{ inputs.remove-dotnet }}" \
+          --remove-haskell="${{ inputs.remove-haskell }}" \
+          --remove-homebrew="${{ inputs.remove-homebrew }}" \
+          --remove-jvm="${{ inputs.remove-jvm }}" \
+          --remove-swift="${{ inputs.remove-swift }}" \
+          --remove-tool-cache="${{ inputs.remove-tool-cache }}" \
+          --remove-tools-windows="${{ inputs.remove-tools-windows }}" \
+          --remove-xcode="${{ inputs.remove-xcode }}" \
+          --safe-packages="${{ inputs.safe-packages }}"
