@@ -1,0 +1,76 @@
+[
+  {
+    "runs-on": "macos-13",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true
+    }
+  },
+  {
+    "runs-on": "macos-14",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true,
+      "safe-packages": "jq"
+    }
+  },
+  {
+    "runs-on": "macos-15",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true
+    }
+  },
+  {
+    "runs-on": "windows-2022",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true,
+      "safe-packages": "jq"
+    }
+  },
+  {
+    "runs-on": "windows-2025",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true,
+      "safe-packages": "jq"
+    }
+  },
+  {
+    "runs-on": "windows-11-arm",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true,
+      "safe-packages": "jq"
+    }
+  },
+  {
+    "runs-on": "ubuntu-22.04",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true
+    }
+  },
+  {
+    "runs-on": "ubuntu-22.04-arm",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true
+    }
+  },
+  {
+    "runs-on": "ubuntu-24.04",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true
+    }
+  },
+  {
+    "runs-on": "ubuntu-24.04-arm",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true
+    }
+  }
+]
