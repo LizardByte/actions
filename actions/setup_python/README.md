@@ -42,5 +42,5 @@ steps:
 
 The `python-version` input is required.
 
-If the version of Python is not `2.7` the action will use `actions/setup-python` and pass the version to that
-action. Otherwise, it will install Python 2.7 on your platform.
+The python version must be an available option from pyenv. The versions available depend on the operating system and
+architecture. The available versions will be listed in the output of the action.

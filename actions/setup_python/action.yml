@@ -1,6 +1,6 @@
 ---
 name: "Setup Python"
-description: "Set up a specific version of Python, including Python 2.7, and add the command-line tools to the PATH."
+description: "Set up a specific version of Python using pyenv."
 author: "LizardByte"
 
 branding:
@@ -9,62 +9,57 @@ branding:
 
 inputs:
   python-version:
-    description: |
-      Version range or exact version of Python or PyPy to use, using SemVer's version range syntax.
-      Reads from .python-version if unset.
+    description: "The version of Python to set up."
     required: true
-  architecture:
-    description: |
-      The target architecture (x86, x64) of the Python or PyPy interpreter.
-      For Python 2.7, this is only supported on Windows.
-    required: false
-    default: "x64"
 
 runs:
   using: "composite"
   steps:
-    - name: Setup Python 3+
-      if: ${{ inputs.python-version != '2.7' }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ inputs.python-version }}
-        architecture: ${{ inputs.architecture }}
-
-    - name: Windows Install
-      shell: bash
-      if: ${{ inputs.python-version == '2.7' && runner.os == 'Windows' }}
+    - name: Install pyenv (Windows)
+      shell: powershell
+      if: ${{ runner.os == 'Windows' }}
       run: |
-        if [[ "${{ inputs.architecture }}" == "x86" ]]; then
-          extra_flags="-x86"
-        fi
+        Invoke-WebRequest `
+          -UseBasicParsing `
+          -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" `
+          -OutFile "./install-pyenv-win.ps1"
+        &"./install-pyenv-win.ps1"
 
-        choco install python2 --version=2.7.18 -y --no-progress ${extra_flags}
+        "$env:USERPROFILE\.pyenv\pyenv-win\shims" | Add-Content -Path $env:GITHUB_PATH
+        "$env:USERPROFILE\.pyenv\pyenv-win\bin" | Add-Content -Path $env:GITHUB_PATH
 
-    - name: Unix Install
+    - name: Install pyenv (Unix)
       shell: bash
-      if: ${{ inputs.python-version == '2.7' && (runner.os == 'Linux' || runner.os == 'macOS') }}
+      if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
       run: |
-        if [[ "${{ runner.os }}" == "Linux" ]]; then
-          curl https://pyenv.run | bash
-          export PATH="$HOME/.pyenv/bin:$PATH"
-        elif [[ "${{ runner.os }}" == "macOS" ]]; then
-          # if macos version >= 13
-          if [[ $(sw_vers -productVersion | cut -d '.' -f1) -ge 13 ]]; then
-            echo "macOS version >= 13, relinking python@3.12 to avoid brew error"
-            brew unlink python@3.12
-            brew link --overwrite python@3.12
+        curl -fsSL https://pyenv.run | bash
+        echo "${HOME}/.pyenv/bin" >> "${GITHUB_PATH}"
+
+        # Fix git merge issue for pyenv update
+        # https://github.com/pyenv/pyenv-update/issues/22#issuecomment-2757520230
+        # Add origin/HEAD to each git repository in ~/.pyenv
+        for repo in ~/.pyenv/plugins/*/ ~/.pyenv/; do
+          if [[ -d "${repo}/.git" ]]; then
+            cd "${repo}"
+            git remote set-head origin -a
           fi
+        done
 
-          # install pyenv
-          brew install pyenv
-          export PATH="$(pyenv root)/shims:$(pyenv root)/bin:$PATH"
-        fi
+    - name: Update pyenv
+      shell: bash
+      run: pyenv update
 
-        # install python 2.7
-        pyenv install 2.7.18
+    - name: Available Python versions
+      shell: bash
+      run: pyenv install --list
+
+    - name: Install Python
+      shell: bash
+      run: |
+        pyenv install ${{ inputs.python-version }}
+        pyenv global ${{ inputs.python-version }}
 
     - name: Setup Python Environment
-      if: ${{ inputs.python-version == '2.7' }}
       shell: bash
       run: |
         echo "Current system Python Version:"
@@ -72,37 +67,50 @@ runs:
 
         echo "Setting paths"
         if [[ "${{ runner.os }}" == "Windows" ]]; then
-          export PATH="/c/Python27:/c/Python27/Scripts:$PATH"
-          echo "moving GitHub installed Python version"
-          mv "/c/hostedtoolcache/windows/Python/3.9.13" "/c/hostedtoolcache/windows/Python/3.9.13-backup"
-
           # set venv path
-          venv_base_path="/c/tmp/python27/venv"
-          venv_base_path_windows="C:\\tmp\\python27\\venv"
+          venv_base_path="/c/tmp/python/venv"
+          venv_base_path_windows="C:\\tmp\\python\\venv"
           venv_dir="Scripts"
         elif [[ "${{ runner.os }}" == "Linux" || "${{ runner.os }}" == "macOS" ]]; then
           if [[ "${{ runner.os }}" == "Linux" ]]; then
-            export PATH="$HOME/.pyenv/bin:$PATH"
-
             # update alternatives
             sudo update-alternatives --install /usr/bin/python python $(pyenv root)/shims/python 1
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             export PATH="$(pyenv root)/shims:$(pyenv root)/bin:$PATH"  # use this instead of GITHUB_PATH to be first
           fi
-          pyenv global 2.7.18
-          # set python to use `$(pyenv root)/versions/2.7.18/bin`
-          # export PATH="$(pyenv root)/versions/2.7.18/bin:$PATH"
-          venv_base_path="/tmp/python27/venv"
+          venv_base_path="/tmp/python/venv"
           venv_dir="bin"
         fi
 
         echo "New Python version:"
         python --version
 
-        echo "Bootstrapping pip"
-        curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-        python get-pip.py
-        rm -f get-pip.py
+        # bootstrap pip as it's not available in all Python installs (Windows with Python 2.7 mostly)
+        # this only works for python from 2.6 to 3.8
+        pip_exists=false
+        if python -m pip --version >/dev/null 2>&1; then
+          pip_exists=true
+        fi
+
+        # Extract major.minor version (e.g., "2.7.18" -> "2.7", "2.7-win32" -> "2.7", "3.10.5" -> "3.10")
+        python_version_two_digit=$(echo "${{ inputs.python-version }}" | sed -E 's/^([0-9]+\.[0-9]+).*$/\1/')
+
+        # Convert version to comparable format (e.g., "2.7" -> 27, "3.10" -> 310)
+        version_major=$(echo "${python_version_two_digit}" | cut -d. -f1)
+        version_minor=$(echo "${python_version_two_digit}" | cut -d. -f2)
+        version_numeric=$((version_major * 100 + version_minor))
+
+        if [[ "${pip_exists}" == "false" ]] && [[ $version_numeric -ge 206 ]] && [[ $version_numeric -le 308 ]]; then
+          echo "Bootstrapping pip for Python ${python_version_two_digit}"
+
+          # TODO: this isn't working for 2.7-win32 or 2.7 on windows-11-arm runner
+          # Set environment variables to suppress SSL warnings and handle deprecation warnings
+          export PYTHONWARNINGS="ignore:InsecurePlatformWarning"
+
+          curl -fsSL "https://bootstrap.pypa.io/pip/${python_version_two_digit}/get-pip.py" --output get-pip.py
+          python get-pip.py
+          rm -f get-pip.py
+        fi
 
         echo "Installing virtualenv"
         python -m pip install virtualenv
@@ -119,9 +127,9 @@ runs:
         # update the path environment, so the next steps can use the venv
         # required to use the shell
         if [[ "${{ runner.os }}" == "Windows" ]]; then
-            echo "${venv_base_path_windows}\\${venv_dir}" >> $GITHUB_PATH
+            echo "${venv_base_path_windows}\\${venv_dir}" >> "${GITHUB_PATH}"
         else
-            echo "${venv_base_path}/${venv_dir}" >> $GITHUB_PATH
+            echo "${venv_base_path}/${venv_dir}" >> "${GITHUB_PATH}"
         fi
 
         # show python version
