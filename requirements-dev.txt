@@ -1,5 +1,5 @@
 pytest==4.6.11;python_version<"3.5"
 pytest==6.1.2;python_version>="3.5" and python_version<"3.6"
 pytest==7.0.1;python_version>="3.6" and python_version<"3.7"
-pytest==8.4.1;python_version>="3.7"
-pytest-cov==6.2.1;python_version>="3.9"
+pytest==8.4.2;python_version>="3.7"
+pytest-cov==6.3.0;python_version>="3.9"
