@@ -68,13 +68,28 @@ def _run_subprocess(
         for fd in ret[0]:
             if fd == process.stdout.fileno():
                 read = process.stdout.readline()
-                print(read.decode('utf-8'), end='')
+                if read:
+                    print(read.decode('utf-8'), end='')
             if fd == process.stderr.fileno():
                 read = process.stderr.readline()
-                print(read.decode('utf-8'), end='')
+                if read:
+                    print(read.decode('utf-8'), end='')
 
         if process.poll() is not None:
             break
+
+    # Read any remaining output after process ends
+    while True:
+        stdout_line = process.stdout.readline()
+        if not stdout_line:
+            break
+        print(stdout_line.decode('utf-8'), end='')
+
+    while True:
+        stderr_line = process.stderr.readline()
+        if not stderr_line:
+            break
+        print(stderr_line.decode('utf-8'), end='')
 
     # close the file descriptors
     process.stdout.close()
