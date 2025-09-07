@@ -1,12 +1,11 @@
 # standard imports
 import argparse
 import os
-
 import select
 import shutil
 import subprocess
 import sys
-from typing import Optional, Mapping
+from typing import AnyStr, IO, Optional, Mapping
 
 # lib imports
 from dotenv import load_dotenv
@@ -40,15 +39,61 @@ def _parse_args(args_list: list) -> argparse.Namespace:
     return parser.parse_args(args_list)
 
 
-def _run_subprocess(
-        args_list: list,
-        cwd: Optional[str] = None,
-        env: Optional[Mapping] = None,
-        ignore_error: bool = False,
-) -> bool:
-    global ERROR
+def _read_and_print_output(
+        pipe: Optional[IO[AnyStr]],
+        encoding: str = 'utf-8',
+):
+    """Read a line from a pipe and print it if not empty."""
+    line = pipe.readline()
+    if line:
+        print(line.decode(encoding), end='')
+
+
+def _handle_realtime_output(process: subprocess.Popen):
+    """Handle real-time output from process using select."""
+    while True:
+        reads = [process.stdout.fileno(), process.stderr.fileno()]
+        ret = select.select(reads, [], [])
+
+        for fd in ret[0]:
+            if fd == process.stdout.fileno():
+                _read_and_print_output(pipe=process.stdout)
+            elif fd == process.stderr.fileno():
+                _read_and_print_output(pipe=process.stderr)
+
+        if process.poll() is not None:
+            break
+
+
+def _drain_remaining_output(process: subprocess.Popen):
+    """Read and print any remaining output after process completion."""
+    # Drain stdout
+    while True:
+        stdout_line = process.stdout.readline()
+        if not stdout_line:
+            break
+        print(stdout_line.decode('utf-8'), end='')
+
+    # Drain stderr
+    while True:
+        stderr_line = process.stderr.readline()
+        if not stderr_line:
+            break
+        print(stderr_line.decode('utf-8'), end='')
+
+
+def _cleanup_process(process: subprocess.Popen) -> int:
+    """Close file descriptors and get exit code."""
+    process.stdout.close()
+    process.stderr.close()
+    return process.wait()
+
+
+def _setup_process(args_list: list, cwd: Optional[str], env: Optional[Mapping]) -> subprocess.Popen:
+    """Set up and start the subprocess with proper working directory handling."""
     if cwd:
         os.chdir(cwd)  # hack for unit testing on windows
+
     process = subprocess.Popen(
         args=args_list,
         stdout=subprocess.PIPE,
@@ -60,42 +105,20 @@ def _run_subprocess(
     if cwd:
         os.chdir(og_dir)
 
-    # Print stdout and stderr in real-time
-    while True:
-        reads = [process.stdout.fileno(), process.stderr.fileno()]
-        ret = select.select(reads, [], [])
+    return process
 
-        for fd in ret[0]:
-            if fd == process.stdout.fileno():
-                read = process.stdout.readline()
-                if read:
-                    print(read.decode('utf-8'), end='')
-            if fd == process.stderr.fileno():
-                read = process.stderr.readline()
-                if read:
-                    print(read.decode('utf-8'), end='')
 
-        if process.poll() is not None:
-            break
-
-    # Read any remaining output after process ends
-    while True:
-        stdout_line = process.stdout.readline()
-        if not stdout_line:
-            break
-        print(stdout_line.decode('utf-8'), end='')
-
-    while True:
-        stderr_line = process.stderr.readline()
-        if not stderr_line:
-            break
-        print(stderr_line.decode('utf-8'), end='')
-
-    # close the file descriptors
-    process.stdout.close()
-    process.stderr.close()
-
-    exit_code = process.wait()
+def _run_subprocess(
+        args_list: list,
+        cwd: Optional[str] = None,
+        env: Optional[Mapping] = None,
+        ignore_error: bool = False,
+) -> bool:
+    global ERROR
+    process = _setup_process(args_list=args_list, cwd=cwd, env=env)
+    _handle_realtime_output(process=process)
+    _drain_remaining_output(process=process)
+    exit_code = _cleanup_process(process=process)
 
     if exit_code == 0:
         return True
