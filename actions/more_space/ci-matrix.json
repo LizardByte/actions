@@ -22,6 +22,13 @@
     }
   },
   {
+    "runs-on": "macos-26",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true
+    }
+  },
+  {
     "runs-on": "windows-2022",
     "with": {
       "analyze-space-savings": true,

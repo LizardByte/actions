@@ -36,6 +36,18 @@
     }
   },
   {
+    "runs-on": "macos-26",
+    "with": {
+      "python-version": "2.7"
+    }
+  },
+  {
+    "runs-on": "macos-26",
+    "with": {
+      "python-version": "3.12"
+    }
+  },
+  {
     "runs-on": "windows-2022",
     "with": {
       "python-version": "2.7"
