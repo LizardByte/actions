@@ -67,6 +67,7 @@ jobs:
       include:
         - os: macos-14
         - os: macos-15
+        - os: macos-26
         - os: ubuntu-latest
           publish: true
   name: Homebrew (${{ matrix.os }})
