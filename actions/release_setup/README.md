@@ -30,7 +30,7 @@ The action does the following:
 |--------------------------------|----------------------------------------------------------------------------|
 | publish_release                | Whether or not to publish a release                                        |
 | release_body                   | The body for the release                                                   |
-| release_commit                 | The commit hash for the release                                            |
+| release_commit                 | The commit hash for the release. (i.e. `${GITHUB_SHA}`                     |
 | release_generate_release_notes | Whether or not to generate release notes. True if `release_body` is blank. |
 | release_tag                    | The tag for the release (i.e. `release_version` with prefix)               |
 | release_version                | The version for the release (i.e. `yyyy.mmdd.hhmmss`)                      |

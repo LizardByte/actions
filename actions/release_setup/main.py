@@ -220,13 +220,7 @@ def get_push_event_details() -> dict:
 
     is_pull_request = True if github_event.get("pull_request") else False
 
-    try:
-        # set sha to the head sha of the pull request
-        github_sha = github_event["pull_request"]["head"]["sha"]
-    except KeyError:
-        # not a pull request event
-        github_sha = os.environ["GITHUB_SHA"]
-    push_event_details['release_commit'] = github_sha
+    push_event_details['release_commit'] = os.environ["GITHUB_SHA"]
 
     if is_pull_request:
         push_event_details['release_version'] = f'0.0.{github_event["number"]}'
