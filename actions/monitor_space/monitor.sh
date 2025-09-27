@@ -17,9 +17,19 @@ STORAGE_PATH=""
 # Function to get available disk space in GB
 get_disk_space_gb() {
   if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-    # Windows - get free space in GB
-    powershell -Command \
-      "(Get-WmiObject -Class Win32_LogicalDisk | Where-Object {\$_.DeviceID -eq 'C:'}).FreeSpace / 1GB" | tr -d '\r'
+    # Windows - get total free space across all drives
+    echo "Monitoring all Windows drives" >&2
+    powershell -Command "
+      \$totalFreeSpace = 0;
+      Get-WmiObject -Class Win32_LogicalDisk | ForEach-Object {
+        if (\$_.FreeSpace -ne \$null) {
+          Write-Host \"Drive \$(\$_.DeviceID): \$([math]::Round(\$_.FreeSpace / 1GB, 2)) GB free\" -ForegroundColor Cyan;
+          \$totalFreeSpace += \$_.FreeSpace;
+        }
+      };
+      Write-Host \"Total free space across all drives: \$([math]::Round(\$totalFreeSpace / 1GB, 2)) GB\" -ForegroundColor Green;
+      \$totalFreeSpace / 1GB
+    " | tail -1 | tr -d '\r'
   elif [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS - get available space in GB (df reports in 512-byte blocks by default)
     df / | tail -1 | awk '{printf "%.2f", $4/2048/1024}'
@@ -99,6 +109,10 @@ stop_monitoring() {
     exit 1
   fi
 
+  # Wait a moment to capture any final changes before stopping
+  echo -e "${CYAN}Waiting for final monitoring data...${RESET}"
+  sleep 5
+
   # Stop background process if it's still running
   if [[ -f "$pid_file" ]]; then
     local pid
@@ -111,7 +125,7 @@ stop_monitoring() {
   fi
 
   # Process monitoring data
-  local start_time end_time duration current_space min_space max_consumed
+  local start_time end_time duration current_space min_space max_consumed start_space
   start_time=$(head -1 "$monitor_file" | cut -d',' -f1)
   end_time=$(tail -1 "$monitor_file" | cut -d',' -f1)
   duration=$((end_time - start_time))
@@ -120,16 +134,23 @@ stop_monitoring() {
   min_space=$(tail -1 "$monitor_file" | cut -d',' -f3)
 
   # Calculate maximum space consumed (start space - minimum space)
-  local start_space
   start_space=$(head -1 "$monitor_file" | cut -d',' -f2)
   max_consumed=$(awk "BEGIN {printf \"%.2f\", $start_space - $min_space}")
 
   echo -e "${BLUE}Disk Space Monitoring Report${RESET}"
   echo -e "${CYAN}============================${RESET}"
+  echo -e "Start free space: ${GREEN}${start_space} GB${RESET}"
   echo -e "Current free space: ${GREEN}${current_space} GB${RESET}"
   echo -e "Minimum free space: ${GREEN}${min_space} GB${RESET}"
   echo -e "Maximum space consumed: ${GREEN}${max_consumed} GB${RESET}"
   echo -e "Monitoring duration: ${GREEN}${duration} seconds${RESET}"
+  echo -e "Total data points: ${GREEN}$(wc -l < "$monitor_file")${RESET}"
+
+  # Debug: show the last few monitoring entries
+  echo -e "${CYAN}Last few monitoring entries:${RESET}"
+  tail -5 "$monitor_file" | while IFS=',' read -r ts space min_sp; do
+    echo "  $(date -d @"$ts" 2>/dev/null || date -r "$ts" 2>/dev/null || echo "$ts"): ${space} GB (min: ${min_sp} GB)"
+  done
 
   # Set GitHub Actions outputs
   if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
