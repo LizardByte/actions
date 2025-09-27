@@ -1,0 +1,23 @@
+[
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "mode": "stop",
+      "storage-path": ".monitor_space_ci"
+    }
+  },
+  {
+    "runs-on": "windows-latest",
+    "with": {
+      "mode": "stop",
+      "storage-path": ".monitor_space_ci"
+    }
+  },
+  {
+    "runs-on": "macos-latest",
+    "with": {
+      "mode": "stop",
+      "storage-path": ".monitor_space_ci"
+    }
+  }
+]

@@ -1,0 +1,49 @@
+---
+name: "Monitor Space"
+description: "Monitor and track the minimum free disk space during workflow execution."
+author: "LizardByte"
+
+branding:
+  icon: activity
+  color: green
+
+inputs:
+  mode:
+    description: "Operation mode: 'start' to begin monitoring, 'stop' to end and report results"
+    required: true
+  storage-path:
+    description: "Path to store monitoring data (default: GitHub workspace temp directory)"
+    required: false
+    default: ""
+
+outputs:
+  current-space:
+    description: "Current free disk space (GB)"
+    value: ${{ steps.monitor.outputs.current-space }}
+  minimum-space:
+    description: "Minimum free disk space recorded during monitoring (GB)"
+    value: ${{ steps.monitor.outputs.minimum-space }}
+  space-consumed:
+    description: "Maximum space consumed during monitoring (GB)"
+    value: ${{ steps.monitor.outputs.space-consumed }}
+  monitoring-duration:
+    description: "Duration of monitoring session (seconds)"
+    value: ${{ steps.monitor.outputs.monitoring-duration }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Make script executable
+      shell: bash
+      run: chmod +x "${{ github.action_path }}/monitor.sh"
+
+    - name: Monitor disk space
+      id: monitor
+      shell: bash
+      env:
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_STORAGE_PATH: ${{ inputs.storage-path }}
+      run: |
+        "${{ github.action_path }}/monitor.sh" \
+          --mode="${INPUT_MODE}" \
+          --storage-path="${INPUT_STORAGE_PATH}"

@@ -10,6 +10,7 @@ This is a monorepo containing a collection of GitHub Actions maintained by Lizar
 | Action                                                | Description                                  | Type      | Language         |
 |-------------------------------------------------------|----------------------------------------------|-----------|------------------|
 | [facebook_post](actions/facebook_post#readme)         | Post to Facebook page/group using Graph API  | docker    | python           |
+| [monitor_space](actions/monitor_space#readme)         | Monitor and track minimum free disk space    | composite | bash             |
 | [more_space](actions/more_space#readme)               | Free up disk space in GitHub Actions runners | composite | bash             |
 | [release_changelog](actions/release_changelog#readme) | Generate a changelog for the latest release  | composite | javascript       |
 | [release_create](actions/release_create#readme)       | Create a new release                         | composite | bash, javascript |
