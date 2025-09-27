@@ -20,6 +20,10 @@ inputs:
     description: "A list of packages to keep. The action will try to find the location of these and preserve them."
     required: false
     default: ""
+  space-target:
+    description: "Target amount of disk space to free in GB. The action will stop once this amount is reached."
+    required: false
+    default: ""
   remove-android:
     description: "Remove Android SDK"
     required: false
@@ -104,6 +108,7 @@ runs:
         "${{ github.action_path }}/cleanup.sh" \
           --analyze-space-savings="${{ inputs.analyze-space-savings }}" \
           --clean-all="${{ inputs.clean-all }}" \
+          --space-target="${{ inputs.space-target }}" \
           --remove-android="${{ inputs.remove-android }}" \
           --remove-chocolatey="${{ inputs.remove-chocolatey }}" \
           --remove-codeql="${{ inputs.remove-codeql }}" \

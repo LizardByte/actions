@@ -347,6 +347,7 @@ BOLD="\033[1m"
 # Default values
 ANALYZE_SPACE_SAVINGS="false"
 CLEAN_ALL="false"
+SPACE_TARGET=""
 REMOVE_ANDROID="false"
 REMOVE_CHOCOLATEY="false"
 REMOVE_CODEQL="false"
@@ -362,15 +363,15 @@ REMOVE_TOOLS_WINDOWS="false"
 REMOVE_XCODE="false"
 SAFE_PACKAGES=""
 
+# Array to store space analysis data
+declare -a SPACE_ANALYSIS_DATA
+
 # Set OS specific variables
 SUDO_CMD=$([[ "$EUID" -ne 0 ]] && command -v sudo &>/dev/null && echo "sudo" || echo "")
 HOSTEDTOOLCACHE=$(convert_to_unix_path "${AGENT_TOOLSDIRECTORY}")
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
   SUDO_CMD=""  # sudo not needed on Windows, and it's disabled on arm
 fi
-
-# Array to store space analysis data
-declare -a SPACE_ANALYSIS_DATA
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -381,6 +382,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --clean-all=*)
       CLEAN_ALL="${1#*=}"
+      shift
+      ;;
+    --space-target=*)
+      SPACE_TARGET="${1#*=}"
       shift
       ;;
     --remove-android=*)
@@ -463,67 +468,127 @@ if [[ "$CLEAN_ALL" == "true" ]]; then
   REMOVE_XCODE="true"
 fi
 
+# Validate space target if provided
+if [[ -n "$SPACE_TARGET" ]]; then
+  echo -e "${BOLD}${YELLOW}==> Validating space target${RESET}"
+
+  # Check if space target is a valid positive number
+  if ! [[ "$SPACE_TARGET" =~ ^[0-9]+\.?[0-9]*$ ]] || (( $(awk "BEGIN {print ($SPACE_TARGET <= 0)}") )); then
+    echo -e "${RED}Error: space-target must be a positive number (got: '$SPACE_TARGET')${RESET}"
+    exit 1
+  fi
+
+  echo -e "${YELLOW}Space target set to: ${SPACE_TARGET} GB${RESET}"
+fi
+
 echo -e "${BOLD}${YELLOW}==> Initial disk space${RESET}"
 get_disk_space
 INITIAL_SPACE=$(get_disk_space_gb)
 echo -e "${YELLOW}Initial free space: ${INITIAL_SPACE} GB${RESET}"
 
+# Function to check if space target has been reached (defined after INITIAL_SPACE is set)
+check_space_target() {
+  # If no space target is set, never skip cleanup operations
+  if [[ -z "$SPACE_TARGET" ]]; then
+    return
+  fi
+
+  local current_space total_saved
+  current_space=$(get_disk_space_gb)
+
+  total_saved=$(awk "BEGIN {printf \"%.2f\", $current_space - $INITIAL_SPACE}" 2>/dev/null || echo "0.00")
+
+  # Use awk to safely compare the numbers - ensure SPACE_TARGET is valid
+  if [[ -z "$SPACE_TARGET" ]] || ! [[ "$SPACE_TARGET" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+    echo "Invalid space target value: $SPACE_TARGET"
+    return 1
+  fi
+
+  local target_reached
+  target_reached=$(awk "BEGIN {print ($total_saved >= $SPACE_TARGET) ? 1 : 0}" 2>/dev/null || echo "0")
+
+  if [[ "$target_reached" == "1" ]]; then
+    echo -e "${BOLD}${GREEN}==> Space target reached! ${total_saved} GB freed (target: ${SPACE_TARGET} GB)${RESET}"
+    echo -e "${YELLOW}Skipping remaining cleanup operations${RESET}"
+    SPACE_TARGET_REACHED=true
+    return 0
+  fi
+  return
+}
+
+# Flag to track if space target has been reached
+SPACE_TARGET_REACHED=false
+
 # Execute cleanup functions based on inputs
-if [[ "$REMOVE_ANDROID" == "true" ]]; then
+if [[ "$REMOVE_ANDROID" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Android SDK" remove_android
+  check_space_target
 fi
 
-if [[ "$REMOVE_CHOCOLATEY" == "true" && ("$OSTYPE" == "msys" || "$OSTYPE" == "win32") ]]; then
+if [[ "$REMOVE_CHOCOLATEY" == "true" && ("$OSTYPE" == "msys" || "$OSTYPE" == "win32") && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Chocolatey" remove_chocolatey
+  check_space_target
 fi
 
-if [[ "$REMOVE_DOCKER_IMAGES" == "true" ]]; then
+if [[ "$REMOVE_DOCKER_IMAGES" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Docker images" remove_docker_images
+  check_space_target
 fi
 
-if [[ "$REMOVE_CODEQL" == "true" ]]; then
+if [[ "$REMOVE_CODEQL" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove CodeQL" remove_codeql
+  check_space_target
 fi
 
-if [[ "$REMOVE_DOCS_LINUX" == "true" && "$OSTYPE" == "linux-gnu" ]]; then
+if [[ "$REMOVE_DOCS_LINUX" == "true" && "$OSTYPE" == "linux-gnu" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove documentation" remove_docs_linux
+  check_space_target
 fi
 
-if [[ "$REMOVE_DOTNET" == "true" ]]; then
+if [[ "$REMOVE_DOTNET" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove .NET" remove_dotnet
+  check_space_target
 fi
 
-if [[ "$REMOVE_HASKELL" == "true" ]]; then
+if [[ "$REMOVE_HASKELL" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Haskell" remove_haskell
+  check_space_target
 fi
 
-if [[ "$REMOVE_HOMEBREW" == "true" && ("$OSTYPE" == "darwin"* || "$OSTYPE" == "linux-gnu") ]]; then
+if [[ "$REMOVE_HOMEBREW" == "true" && ("$OSTYPE" == "darwin"* || "$OSTYPE" == "linux-gnu") && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Homebrew" remove_homebrew
+  check_space_target
 fi
 
-if [[ "$REMOVE_JVM" == "true" ]]; then
+if [[ "$REMOVE_JVM" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove JVM" remove_jvm
+  check_space_target
 fi
 
-if [[ "$REMOVE_SWIFT" == "true" && ("$OSTYPE" == "darwin"* || "$OSTYPE" == "linux-gnu") ]]; then
+if [[ "$REMOVE_SWIFT" == "true" && ("$OSTYPE" == "darwin"* || "$OSTYPE" == "linux-gnu") && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Swift" remove_swift
+  check_space_target
 fi
 
-if [[ "$REMOVE_TOOL_CACHE" == "true" ]]; then
+if [[ "$REMOVE_TOOL_CACHE" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove tool cache" remove_tool_cache
+  check_space_target
 fi
 
-if [[ "$REMOVE_TOOLS_WINDOWS" == "true" && ("$OSTYPE" == "msys" || "$OSTYPE" == "win32") ]]; then
+if [[ "$REMOVE_TOOLS_WINDOWS" == "true" && ("$OSTYPE" == "msys" || "$OSTYPE" == "win32") && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Windows tools" remove_tools_windows
+  check_space_target
 fi
 
-if [[ "$REMOVE_XCODE" == "true" && "$OSTYPE" == "darwin"* ]]; then
+if [[ "$REMOVE_XCODE" == "true" && "$OSTYPE" == "darwin"* && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Xcode" remove_xcode
+  check_space_target
 fi
 
 # Always perform Linux package cleanup if on Linux
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
+if [[ "$OSTYPE" == "linux-gnu" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Linux package cleanup" linux_package_cleanup
+  check_space_target
 fi
 
 echo -e "${BOLD}${YELLOW}==> Final disk space${RESET}"

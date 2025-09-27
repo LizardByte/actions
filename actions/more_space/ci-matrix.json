@@ -79,5 +79,30 @@
       "analyze-space-savings": true,
       "clean-all": true
     }
+  },
+  {
+    "runs-on": "macos-latest",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true,
+      "space-target": "1"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true,
+      "space-target": "1"
+    }
+  },
+  {
+    "runs-on": "windows-latest",
+    "with": {
+      "analyze-space-savings": true,
+      "clean-all": true,
+      "safe-packages": "jq",
+      "space-target": "1"
+    }
   }
 ]
