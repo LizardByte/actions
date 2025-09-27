@@ -75,6 +75,8 @@ runs:
         vt_api_key: ${{ inputs.virustotal_api_key }}
 
     - name: Format VirusTotal Results
+      env:
+        INPUT_BODY: ${{ inputs.body }}
       if: inputs.virustotal_api_key != ''
       id: format-vt
       shell: bash
@@ -82,7 +84,7 @@ runs:
         # Create body file with original content
         rb_file=release_body.md
         cat > ${rb_file} << 'BODY_EOF'
-        ${{ inputs.body }}
+        ${INPUT_BODY}
         BODY_EOF
 
         VT_HEADER="🛡️ **VirusTotal Results:**"
@@ -132,12 +134,12 @@ runs:
       run: sleep 30
 
     - name: Delete Other PreReleases
-      if: inputs.deleteOtherPreReleases == 'true'
-      uses: actions/github-script@v7
       env:
         DELETE_TAGS: ${{ inputs.deletePreReleaseTags }}
         KEEP_LATEST: ${{ inputs.keepPreReleaseCount }}
         SLEEP_DURATION: ${{ inputs.sleepDuration }}
+      if: inputs.deleteOtherPreReleases == 'true'
+      uses: actions/github-script@v7
       with:
         github-token: ${{ inputs.token }}
         script: |

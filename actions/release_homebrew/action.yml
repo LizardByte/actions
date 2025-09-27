@@ -178,14 +178,16 @@ runs:
     - name: Create Pull Request
       env:
         GH_TOKEN: ${{ inputs.token }}
+        HOMEBREW_CORE_BRANCH: ${{ steps.homebrew-tests.outputs.homebrew_core_branch }}
+        INPUT_UPSTREAM_HOMEBREW_CORE_REPO: ${{ inputs.upstream_homebrew_core_repo }}
       if: ${{ inputs.contribute_to_homebrew_core == 'true' && inputs.publish == 'true' }}
       shell: bash
       working-directory: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
       run: |
         # Check if a pull request already exists with the same head branch
         PR_EXISTS=$(gh pr list \
-          --head ${{ steps.homebrew-tests.outputs.homebrew_core_branch }} \
-          --repo ${{ inputs.upstream_homebrew_core_repo }})
+          --head ${HOMEBREW_CORE_BRANCH} \
+          --repo ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO})
 
         # If the pull request does not exist, create it
         if [[ -z "$PR_EXISTS" ]]; then
@@ -194,12 +196,12 @@ runs:
           # https://cli.github.com/manual/gh_pr_create
           gh pr create \
             --base master \
-            --head ${{ steps.homebrew-tests.outputs.homebrew_core_branch }} \
+            --head ${HOMEBREW_CORE_BRANCH} \
             --title "Update ${{ github.repository }} to ${{ github.sha }}" \
             --body \
               "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action" \
             --no-maintainer-edit \
-            --repo ${{ inputs.upstream_homebrew_core_repo }}
+            --repo ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO}
         else
           echo "Pull request already exists"
         fi
