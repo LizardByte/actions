@@ -22,6 +22,15 @@ steps:
       analyze-space-savings: true
       clean-all: true
       safe-packages: "jq,git"
+
+  - name: Free Up Roughly 5GB of Space
+    uses: LizardByte/actions/actions/more_space@master
+    with:
+      space-target: "5.0"
+      remove-docker-images: true
+      remove-dotnet: true
+      remove-tool-cache: true
+      remove-android: true
 ```
 
 ## Inputs
@@ -31,6 +40,7 @@ steps:
 | analyze-space-savings | Generate detailed analysis of space savings by each input option                             | `false` | `false`  |
 | clean-all             | When true, all inputs except 'safe-packages' are ignored and all cleanup options are enabled | `false` | `false`  |
 | safe-packages         | A list of packages to keep. If found the cleanup step where found will be sipped             |         | `false`  |
+| space-target          | Target amount of disk space to free in GB. The action will stop once this amount is reached  |         | `false`  |
 | remove-android        | Remove Android SDK                                                                           | `false` | `false`  |
 | remove-chocolatey     | Remove Chocolatey (Windows only)                                                             | `false` | `false`  |
 | remove-codeql         | Remove CodeQL databases                                                                      | `false` | `false`  |
