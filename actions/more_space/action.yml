@@ -16,14 +16,6 @@ inputs:
     description: "When true, all inputs except 'safe_packages' are ignored"
     required: false
     default: "false"
-  safe-packages:
-    description: "A list of packages to keep. The action will try to find the location of these and preserve them."
-    required: false
-    default: ""
-  space-target:
-    description: "Target amount of disk space to free in GB. The action will stop once this amount is reached."
-    required: false
-    default: ""
   remove-android:
     description: "Remove Android SDK"
     required: false
@@ -76,6 +68,14 @@ inputs:
     description: "Remove Xcode (macOS only)"
     required: false
     default: "false"
+  safe-packages:
+    description: "A list of packages to keep. The action will try to find the location of these and preserve them."
+    required: false
+    default: ""
+  space-target:
+    description: "Target amount of disk space to free in GB. The action will stop once this amount is reached."
+    required: false
+    default: ""
 
 outputs:
   space-after:
@@ -102,24 +102,42 @@ runs:
       run: chmod +x "${{ github.action_path }}/cleanup.sh"
 
     - name: Free up disk space
+      env:
+        INPUT_ANALYZE_SPACE_SAVINGS: ${{ inputs.analyze-space-savings }}
+        INPUT_CLEAN_ALL: ${{ inputs.clean-all }}
+        INPUT_REMOVE_ANDROID: ${{ inputs.remove-android }}
+        INPUT_REMOVE_CHOCOLATEY: ${{ inputs.remove-chocolatey }}
+        INPUT_REMOVE_CODEQL: ${{ inputs.remove-codeql }}
+        INPUT_REMOVE_DOCKER_IMAGES: ${{ inputs.remove-docker-images }}
+        INPUT_REMOVE_DOCS_LINUX: ${{ inputs.remove-docs-linux }}
+        INPUT_REMOVE_DOTNET: ${{ inputs.remove-dotnet }}
+        INPUT_REMOVE_HASKELL: ${{ inputs.remove-haskell }}
+        INPUT_REMOVE_HOMEBREW: ${{ inputs.remove-homebrew }}
+        INPUT_REMOVE_JVM: ${{ inputs.remove-jvm }}
+        INPUT_REMOVE_SWIFT: ${{ inputs.remove-swift }}
+        INPUT_REMOVE_TOOL_CACHE: ${{ inputs.remove-tool-cache }}
+        INPUT_REMOVE_TOOLS_WINDOWS: ${{ inputs.remove-tools-windows }}
+        INPUT_REMOVE_XCODE: ${{ inputs.remove-xcode }}
+        INPUT_SAFE_PACKAGES: ${{ inputs.safe-packages }}
+        INPUT_SPACE_TARGET: ${{ inputs.space-target }}
       id: cleanup
       shell: bash
       run: |
         "${{ github.action_path }}/cleanup.sh" \
-          --analyze-space-savings="${{ inputs.analyze-space-savings }}" \
-          --clean-all="${{ inputs.clean-all }}" \
-          --space-target="${{ inputs.space-target }}" \
-          --remove-android="${{ inputs.remove-android }}" \
-          --remove-chocolatey="${{ inputs.remove-chocolatey }}" \
-          --remove-codeql="${{ inputs.remove-codeql }}" \
-          --remove-docker-images="${{ inputs.remove-docker-images }}" \
-          --remove-docs-linux="${{ inputs.remove-docs-linux }}" \
-          --remove-dotnet="${{ inputs.remove-dotnet }}" \
-          --remove-haskell="${{ inputs.remove-haskell }}" \
-          --remove-homebrew="${{ inputs.remove-homebrew }}" \
-          --remove-jvm="${{ inputs.remove-jvm }}" \
-          --remove-swift="${{ inputs.remove-swift }}" \
-          --remove-tool-cache="${{ inputs.remove-tool-cache }}" \
-          --remove-tools-windows="${{ inputs.remove-tools-windows }}" \
-          --remove-xcode="${{ inputs.remove-xcode }}" \
-          --safe-packages="${{ inputs.safe-packages }}"
+          --analyze-space-savings="${INPUT_ANALYZE_SPACE_SAVINGS}" \
+          --clean-all="${INPUT_CLEAN_ALL}" \
+          --remove-android="${INPUT_REMOVE_ANDROID}" \
+          --remove-chocolatey="${INPUT_REMOVE_CHOCOLATEY}" \
+          --remove-codeql="${INPUT_REMOVE_CODEQL}" \
+          --remove-docker-images="${INPUT_REMOVE_DOCKER_IMAGES}" \
+          --remove-docs-linux="${INPUT_REMOVE_DOCS_LINUX}" \
+          --remove-dotnet="${INPUT_REMOVE_DOTNET}" \
+          --remove-haskell="${INPUT_REMOVE_HASKELL}" \
+          --remove-homebrew="${INPUT_REMOVE_HOMEBREW}" \
+          --remove-jvm="${INPUT_REMOVE_JVM}" \
+          --remove-swift="${INPUT_REMOVE_SWIFT}" \
+          --remove-tool-cache="${INPUT_REMOVE_TOOL_CACHE}" \
+          --remove-tools-windows="${INPUT_REMOVE_TOOLS_WINDOWS}" \
+          --remove-xcode="${INPUT_REMOVE_XCODE}" \
+          --safe-packages="${INPUT_SAFE_PACKAGES}" \
+          --space-target="${INPUT_SPACE_TARGET}"

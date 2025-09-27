@@ -38,11 +38,11 @@ runs:
       run: chmod +x "${{ github.action_path }}/monitor.sh"
 
     - name: Monitor disk space
-      id: monitor
-      shell: bash
       env:
         INPUT_MODE: ${{ inputs.mode }}
         INPUT_STORAGE_PATH: ${{ inputs.storage-path }}
+      id: monitor
+      shell: bash
       run: |
         "${{ github.action_path }}/monitor.sh" \
           --mode="${INPUT_MODE}" \
