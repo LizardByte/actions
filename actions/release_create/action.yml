@@ -83,7 +83,7 @@ runs:
       run: |
         # Create body file with original content
         rb_file=release_body.md
-        cat > ${rb_file} << 'BODY_EOF'
+        cat > ${rb_file} << BODY_EOF
         ${INPUT_BODY}
         BODY_EOF
 
