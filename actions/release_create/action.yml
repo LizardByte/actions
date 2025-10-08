@@ -81,6 +81,7 @@ runs:
     - name: Format VirusTotal Results
       env:
         INPUT_BODY: ${{ inputs.body }}
+        INPUT_TAG: ${{ inputs.tag }}
       if: inputs.virustotal_api_key != ''
       id: format-vt
       shell: bash
@@ -106,18 +107,21 @@ runs:
               echo "---"
               echo "$ASSETS_HEADER"
               echo ""
-              echo "| Asset Name | Download | VirusTotal |"
-              echo "|------------|----------|------------|"
+              echo "| ⬇️ Download | #️⃣ Downloads | 🛡️ VirusTotal |"
+              echo "|-------------|--------------|---------------|"
             } >> ${rb_file}
           fi
 
           # Append VirusTotal results as table rows
-          printf '%s\n' '${{ steps.vt.outputs.json }}' | jq -r \
-            '.[] |
-            "| \(.name) | " +
-            "[⬇️ Download](https://github.com/${{ github.repository }}/" +
-              "releases/download/${{ inputs.tag }}/\(.name)) | " +
-            "[🛡️ Results](\(.link)) |"' \
+          printf '%s\n' '${{ steps.vt.outputs.json }}' | \
+            jq -r \
+              --arg repo "${{ github.repository }}" \
+              --arg tag "${INPUT_TAG}" \
+              '.[] |
+              "| [\(.name)](https://github.com/\($repo)/releases/download/\($tag)/\(.name)) | " +
+              "![Downloads](https://img.shields.io/github/downloads/\($repo)/\($tag)/\(.name)" +
+                "?style=flat-square&label=&displayAssetName=false) | " +
+              "[![VirusTotal](https://badges.cssnr.com/vt/id/\(.id)?style=flat-square&logo=virustotal)](\(.link)) |"' \
             >> ${rb_file}
         fi
 
