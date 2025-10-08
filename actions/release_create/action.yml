@@ -91,23 +91,34 @@ runs:
         ${INPUT_BODY}
         BODY_EOF
 
-        VT_HEADER="🛡️ **VirusTotal Results:**"
+        ASSETS_HEADER="📦 **Assets:**"
 
-        # If we have VT results, append them
+        # If we have existing results, append them
         if [ -n '${{ steps.vt.outputs.json }}' ]; then
-          # Check if VirusTotal Results header already exists, if not add it
-          if ! grep -qF "$VT_HEADER" ${rb_file}; then
+          # Check if Assets header already exists, if not add it
+          if ! grep -qF "$ASSETS_HEADER" ${rb_file}; then
             # Add separator if body exists and isn't empty
             if [ -s ${rb_file} ] && [ "$(cat ${rb_file} | tr -d '[:space:]')" != "" ]; then
               echo "" >> ${rb_file}
             fi
 
-            echo "---" >> ${rb_file}
-            echo "$VT_HEADER" >> ${rb_file}
+            {
+              echo "---"
+              echo "$ASSETS_HEADER"
+              echo ""
+              echo "| Asset Name | Download | VirusTotal |"
+              echo "|------------|----------|------------|"
+            } >> ${rb_file}
           fi
 
-          # Append VirusTotal results
-          printf '%s\n' '${{ steps.vt.outputs.json }}' | jq -r '.[] | "- [\(.name)](\(.link))"' >> ${rb_file}
+          # Append VirusTotal results as table rows
+          printf '%s\n' '${{ steps.vt.outputs.json }}' | jq -r \
+            '.[] |
+            "| \(.name) | " +
+            "[⬇️ Download](https://github.com/${{ github.repository }}/" +
+              "releases/download/${{ inputs.tag }}/\(.name)) | " +
+            "[🛡️ Results](\(.link)) |"' \
+            >> ${rb_file}
         fi
 
         # Set output
