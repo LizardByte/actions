@@ -107,8 +107,8 @@ runs:
               echo "---"
               echo "$ASSETS_HEADER"
               echo ""
-              echo "| ⬇️ Download | #️⃣ Downloads | 🛡️ VirusTotal |"
-              echo "|-------------|--------------|---------------|"
+              echo "| ⬇️ Download | #️⃣ Download Count | 🛡️ VirusTotal |"
+              echo "|-------------|-------------------|---------------|"
             } >> ${rb_file}
           fi
 
@@ -121,7 +121,8 @@ runs:
               "| [\(.name)](https://github.com/\($repo)/releases/download/\($tag)/\(.name)) | " +
               "![Downloads](https://img.shields.io/github/downloads/\($repo)/\($tag)/\(.name)" +
                 "?style=flat-square&label=&displayAssetName=false) | " +
-              "[![VirusTotal](https://badges.cssnr.com/vt/id/\(.id)?style=flat-square&logo=virustotal)](\(.link)) |"' \
+              "[![VirusTotal](https://badges.cssnr.com/vt/id/\(.id)" +
+                "?style=flat-square&icon=virustotal&label=)](\(.link)) |"' \
             >> ${rb_file}
         fi
 
