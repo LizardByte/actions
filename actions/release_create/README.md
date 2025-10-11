@@ -31,6 +31,7 @@ steps:
 | body                    | The body of the release.                                                                             |                 | `false`  |
 | deleteOtherPreReleases  | Whether to delete other pre-releases.                                                                | `true`          | `false`  |
 | deletePreReleaseTags    | Whether to delete other pre-release tags.                                                            | `true`          | `false`  |
+| draft                   | Whether the release is a draft.                                                                      | `false`         | `false`  |
 | generateReleaseNotes    | Indicates if release notes should be automatically generated.                                        | `true`          | `false`  |
 | keepPreReleaseCount     | The number of pre-releases to keep.                                                                  | `2`             | `false`  |
 | name                    | The version to create.                                                                               |                 | `true`   |

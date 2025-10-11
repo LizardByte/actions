@@ -32,6 +32,10 @@ inputs:
     description: 'Whether to delete other pre-releases tags.'
     required: false
     default: 'true'
+  draft:
+    description: 'Whether the release is a draft.'
+    required: false
+    default: 'false'
   generateReleaseNotes:
     description: 'Indicates if release notes should be automatically generated.'
     required: false
@@ -121,6 +125,7 @@ runs:
         artifacts: ${{ inputs.artifacts }}
         body: ${{ steps.format-vt.outputs.body || inputs.body }}
         commit: ${{ github.sha }}
+        draft: ${{ inputs.draft }}
         generateReleaseNotes: ${{ inputs.generateReleaseNotes }}
         name: ${{ inputs.name }}
         prerelease: ${{ inputs.prerelease }}
@@ -136,6 +141,7 @@ runs:
     - name: Delete Other PreReleases
       env:
         DELETE_TAGS: ${{ inputs.deletePreReleaseTags }}
+        IS_DRAFT: ${{ inputs.draft }}
         KEEP_LATEST: ${{ inputs.keepPreReleaseCount }}
         SLEEP_DURATION: ${{ inputs.sleepDuration }}
       if: inputs.deleteOtherPreReleases == 'true'
@@ -145,10 +151,12 @@ runs:
         script: |
           // process input
           const DELETE_TAGS = process.env.DELETE_TAGS.toLowerCase() === 'true';
+          const IS_DRAFT = process.env.IS_DRAFT.toLowerCase() === 'true';
           const KEEP_LATEST = parseInt(process.env.KEEP_LATEST, 10);
           const SLEEP_DURATION = parseInt(process.env.SLEEP_DURATION, 10);
 
           console.log(`DELETE_TAGS: ${DELETE_TAGS}`);
+          console.log(`IS_DRAFT: ${IS_DRAFT}`);
           console.log(`KEEP_LATEST: ${KEEP_LATEST}`);
 
           let regexPattern = new RegExp('^v(\\d{4,})\\.(\\d{1,4})\\.(\\d{1,6})(\\.(\\d{1,2}))?');
@@ -163,31 +171,48 @@ runs:
           allReleases.forEach(release => {
             console.log(`Release: ${release.tag_name}`);
             console.log(`Is pre-release: ${release.prerelease}`);
+            console.log(`Is draft: ${release.draft}`);
             console.log(`Matches regex: ${regexPattern.test(release.tag_name)}`);
           });
 
-          let preReleases = allReleases.filter(release => release.prerelease && regexPattern.test(release.tag_name));
-          console.log('Matched Pre-release tags:', preReleases.map(release => release.tag_name));
+          let releasesToDelete = [];
 
-          // sort by tag/version number (e.g. v1.2.3 or v1.2.3.4)
-          preReleases.sort((a, b) => {
-            const aParts = a.tag_name.match(/\d+/g).map(Number);
-            const bParts = b.tag_name.match(/\d+/g).map(Number);
-            for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-              if (aParts[i] === undefined) return -1;
-              if (bParts[i] === undefined) return 1;
-              if (aParts[i] < bParts[i]) return -1;
-              if (aParts[i] > bParts[i]) return 1;
-            }
-            return 0;
-          });
+          if (IS_DRAFT) {
+            // When creating a draft, delete all other draft releases
+            releasesToDelete = allReleases.filter(release => release.draft && regexPattern.test(release.tag_name));
+            console.log('Matched Draft releases:', releasesToDelete.map(release => release.tag_name));
 
-          // Output sorted pre-releases
-          console.log('Sorted Pre-release tags:', preReleases.map(release => release.tag_name));
+            // For drafts, we delete all others (don't keep any)
+            // No need to sort since we're deleting all
+          } else {
+            // When creating a non-draft pre-release, use existing behavior
+            releasesToDelete = allReleases.filter(release => release.prerelease && regexPattern.test(release.tag_name));
+            console.log('Matched Pre-release tags:', releasesToDelete.map(release => release.tag_name));
 
-          // delete all but the last n pre-releases
-          for (let i = 0; i < preReleases.length - KEEP_LATEST; i++) {
-            const release = preReleases[i];
+            // sort by tag/version number (e.g. v1.2.3 or v1.2.3.4)
+            releasesToDelete.sort((a, b) => {
+              const aParts = a.tag_name.match(/\d+/g).map(Number);
+              const bParts = b.tag_name.match(/\d+/g).map(Number);
+              for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+                if (aParts[i] === undefined) return -1;
+                if (bParts[i] === undefined) return 1;
+                if (aParts[i] < bParts[i]) return -1;
+                if (aParts[i] > bParts[i]) return 1;
+              }
+              return 0;
+            });
+
+            // Output sorted pre-releases
+            console.log('Sorted Pre-release tags:', releasesToDelete.map(release => release.tag_name));
+
+            // Keep only the releases to delete (remove the latest N from the list)
+            releasesToDelete = releasesToDelete.slice(0, -KEEP_LATEST);
+          }
+
+          console.log('Releases to delete:', releasesToDelete.map(release => release.tag_name));
+
+          // delete the releases
+          for (const release of releasesToDelete) {
             console.log(`Deleting release: ${release.tag_name}`);
             try {
               await github.rest.repos.deleteRelease({
@@ -206,8 +231,7 @@ runs:
           await new Promise(resolve => setTimeout(resolve, SLEEP_DURATION * 1000));
 
           if (DELETE_TAGS) {
-            for (let i = 0; i < preReleases.length - KEEP_LATEST; i++) {
-              const release = preReleases[i];
+            for (const release of releasesToDelete) {
               console.log(`Deleting tag: ${release.tag_name}`);
               try {
                 await github.rest.git.deleteRef({
