@@ -6,6 +6,7 @@ export default [
   pluginJs.configs.recommended,
   {
     ignores: [
+      "build/**",
       "coverage/**",
       "node_modules/**",
       "**/node_modules/**",
