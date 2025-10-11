@@ -511,13 +511,10 @@ describe('Audit Repositories', () => {
       const orgError = new Error('Not Found');
       orgError.status = 404;
 
-      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      setupStandardMocks();
       mockGithub.paginate
         .mockRejectedValueOnce(orgError)
         .mockResolvedValueOnce([createRepoListItem()]);
-      mockGithub.rest.repos.get.mockResolvedValue({ data: createRepoData() });
-      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({ data: { files: {} } });
-      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
 
       await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
       expect(consoleOutput.some(line => line.includes('Not an organization, trying as user'))).toBe(true);
@@ -528,15 +525,11 @@ describe('Audit Repositories', () => {
       process.env.INPUT_CHECK_COMMUNITY_FILES = 'true';
       process.env.INPUT_CHECK_README = 'true';
 
-      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
-      mockGithub.paginate.mockResolvedValue([createRepoListItem()]);
-      mockGithub.rest.repos.get.mockResolvedValue({ data: createRepoData() });
-
+      setupStandardMocks();
       const apiError = new Error('API rate limit exceeded');
       mockGithub.rest.repos.getCommunityProfileMetrics
         .mockRejectedValueOnce({ status: 404 })
         .mockRejectedValueOnce(apiError);
-      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
 
       await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
       expect(consoleOutput.some(line => line.includes('⚠️  Could not fetch community health for repo1'))).toBe(true);
