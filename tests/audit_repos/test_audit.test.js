@@ -97,6 +97,15 @@ async function expectAuditFailure(expectedMessage) {
   }
 }
 
+// Helper function to setup mocks for repository filtering tests
+function setupFilteringMocks(repoList) {
+  mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+  mockGithub.paginate.mockResolvedValue(repoList);
+  mockGithub.rest.repos.get.mockResolvedValue({ data: createRepoData() });
+  mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({ data: { files: {} } });
+  mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+}
+
 beforeEach(() => {
   // Reset mocks before each test
   jest.clearAllMocks();
@@ -317,14 +326,10 @@ describe('Audit Repositories', () => {
     });
 
     test('should filter out archived repositories when not included', async () => {
-      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
-      mockGithub.paginate.mockResolvedValue([
+      setupFilteringMocks([
         createRepoListItem({ name: 'repo1', archived: false }),
         createRepoListItem({ name: 'repo2', archived: true }),
       ]);
-      mockGithub.rest.repos.get.mockResolvedValue({ data: createRepoData() });
-      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({ data: { files: {} } });
-      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
 
       await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
       expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1);
@@ -338,14 +343,10 @@ describe('Audit Repositories', () => {
     });
 
     test('should filter out forked repositories when not included', async () => {
-      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
-      mockGithub.paginate.mockResolvedValue([
+      setupFilteringMocks([
         createRepoListItem({ name: 'repo1', fork: false }),
         createRepoListItem({ name: 'repo2', fork: true }),
       ]);
-      mockGithub.rest.repos.get.mockResolvedValue({ data: createRepoData() });
-      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({ data: { files: {} } });
-      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
 
       await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
       expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1);
@@ -360,15 +361,11 @@ describe('Audit Repositories', () => {
 
     test('should filter out excluded repositories', async () => {
       process.env.INPUT_EXCLUDED_REPOS = 'repo2, repo3';
-      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
-      mockGithub.paginate.mockResolvedValue([
+      setupFilteringMocks([
         createRepoListItem({ name: 'repo1' }),
         createRepoListItem({ name: 'repo2' }),
         createRepoListItem({ name: 'repo3' }),
       ]);
-      mockGithub.rest.repos.get.mockResolvedValue({ data: createRepoData() });
-      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({ data: { files: {} } });
-      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
 
       await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
       expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1);
