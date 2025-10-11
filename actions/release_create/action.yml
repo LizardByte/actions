@@ -32,6 +32,10 @@ inputs:
     description: 'Whether to delete other pre-releases tags.'
     required: false
     default: 'true'
+  draft:
+    description: 'Whether the release is a draft.'
+    required: false
+    default: 'false'
   generateReleaseNotes:
     description: 'Indicates if release notes should be automatically generated.'
     required: false
@@ -121,6 +125,7 @@ runs:
         artifacts: ${{ inputs.artifacts }}
         body: ${{ steps.format-vt.outputs.body || inputs.body }}
         commit: ${{ github.sha }}
+        draft: ${{ inputs.draft }}
         generateReleaseNotes: ${{ inputs.generateReleaseNotes }}
         name: ${{ inputs.name }}
         prerelease: ${{ inputs.prerelease }}

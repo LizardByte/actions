@@ -32,6 +32,7 @@ jobs:
           allowUpdates: false
           artifacts: ''
           body: ${{ steps.setup-release.outputs.release_body }}
+          draft: true
           generateReleaseNotes: ${{ steps.setup-release.outputs.release_generate_release_notes }}
           name: ${{ steps.setup-release.outputs.release_tag }}
           prerelease: true
