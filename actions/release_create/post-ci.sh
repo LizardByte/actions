@@ -9,7 +9,11 @@ if [ -n "$WITH_PARAMS" ]; then
   sleep 60
 
   # delete the release
-  gh release delete "${RELEASE_TAG}" --cleanup-tag --yes
+  gh_release_extra_args=""
+  if [[ "${RELEASE_TAG}" != *"-draft" ]]; then
+    gh_release_extra_args="--cleanup-tag"
+  fi
+  gh release delete "${RELEASE_TAG}" ${gh_release_extra_args} --yes
 else
   echo "Error: WITH_PARAMS environment variable not set"
   exit 1

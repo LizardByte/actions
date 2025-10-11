@@ -1,6 +1,5 @@
 [
   {
-    "name": "release_create",
     "runs-on": "ubuntu-latest",
     "with": {
       "allowUpdates": false,
@@ -12,6 +11,23 @@
       "name": "pr-${ github.event.pull_request.number }-${ github.run_id }",
       "prerelease": true,
       "tag": "pr-${ github.event.pull_request.number }-${ github.run_id }",
+      "token": "${ secrets.GH_BOT_TOKEN }",
+      "virustotal_api_key": "${ secrets.VIRUSTOTAL_API_KEY }"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "allowUpdates": false,
+      "artifactErrorsFailBuild": true,
+      "artifacts": "dist/*",
+      "body": "Test from PR-${ github.event.pull_request.number }-draft",
+      "deleteOtherPreReleases": false,
+      "draft": true,
+      "generateReleaseNotes": false,
+      "name": "pr-${ github.event.pull_request.number }-${ github.run_id }-draft",
+      "prerelease": true,
+      "tag": "pr-${ github.event.pull_request.number }-${ github.run_id }-draft",
       "token": "${ secrets.GH_BOT_TOKEN }",
       "virustotal_api_key": "${ secrets.VIRUSTOTAL_API_KEY }"
     }
