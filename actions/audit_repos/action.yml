@@ -23,6 +23,10 @@ inputs:
     description: 'Include forked repositories in the audit.'
     required: false
     default: 'true'
+  includePrivate:
+    description: 'Include private repositories in the audit.'
+    required: false
+    default: 'false'
   excludedRepos:
     description: 'Comma-separated list of repository names to exclude from the audit.'
     required: false
@@ -96,6 +100,7 @@ runs:
         INPUT_GITHUB_ORG: ${{ inputs.githubOrg }}
         INPUT_INCLUDE_ARCHIVED: ${{ inputs.includeArchived }}
         INPUT_INCLUDE_FORKED: ${{ inputs.includeForked }}
+        INPUT_INCLUDE_PRIVATE: ${{ inputs.includePrivate }}
         INPUT_EXCLUDED_REPOS: ${{ inputs.excludedRepos }}
         INPUT_CHECK_DESCRIPTION: ${{ inputs.checkDescription }}
         INPUT_CHECK_SETTINGS: ${{ inputs.checkSettings }}

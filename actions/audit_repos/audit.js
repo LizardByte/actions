@@ -8,6 +8,7 @@ module.exports = async ({ github, context, core }) => {
   const githubOrg = process.env.INPUT_GITHUB_ORG || context.repo.owner;
   const includeArchived = process.env.INPUT_INCLUDE_ARCHIVED.toLowerCase() === 'true';
   const includeForked = process.env.INPUT_INCLUDE_FORKED.toLowerCase() === 'true';
+  const includePrivate = process.env.INPUT_INCLUDE_PRIVATE.toLowerCase() === 'true';
   const excludedRepos = process.env.INPUT_EXCLUDED_REPOS
     .split(',')
     .map(repo => repo.trim())
@@ -227,6 +228,7 @@ module.exports = async ({ github, context, core }) => {
     console.log(`Organization/User: ${owner}`);
     console.log(`Include Archived: ${includeArchived}`);
     console.log(`Include Forked: ${includeForked}`);
+    console.log(`Include Private: ${includePrivate}`);
     console.log(`Excluded Repos: ${excludedRepos.length > 0 ? excludedRepos.join(', ') : 'None'}\n`);
 
     // Try to fetch as org first, fall back to user repos
@@ -262,6 +264,11 @@ module.exports = async ({ github, context, core }) => {
     // Filter forked repos
     if (!includeForked) {
       repos = repos.filter(repo => !repo.fork);
+    }
+
+    // Filter private repos
+    if (!includePrivate) {
+      repos = repos.filter(repo => !repo.private);
     }
 
     // Filter excluded repos
