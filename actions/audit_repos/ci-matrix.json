@@ -1,0 +1,8 @@
+[
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "token": "${ secrets.GH_BOT_TOKEN }"
+    }
+  }
+]

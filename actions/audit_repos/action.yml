@@ -1,0 +1,55 @@
+---
+name: "Audit Repos"
+description: "A reusable action to audit repositories in an organization."
+author: "LizardByte"
+
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  token:
+    description: 'GitHub Token with permissions to read organization repositories.'
+    required: true
+  githubOrg:
+    description: 'GitHub organization or user to audit. Defaults to the current repository owner.'
+    required: false
+    default: ''
+  includeArchived:
+    description: 'Include archived repositories in the audit.'
+    required: false
+    default: 'false'
+  includeForked:
+    description: 'Include forked repositories in the audit.'
+    required: false
+    default: 'true'
+  excludedRepos:
+    description: 'Comma-separated list of repository names to exclude from the audit.'
+    required: false
+    default: ''
+  checkDescription:
+    description: 'Run the repository description validation check.'
+    required: false
+    default: 'true'
+  checkSettings:
+    description: 'Run the repository settings validation check.'
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run repository audits
+      env:
+        INPUT_GITHUB_ORG: ${{ inputs.githubOrg }}
+        INPUT_INCLUDE_ARCHIVED: ${{ inputs.includeArchived }}
+        INPUT_INCLUDE_FORKED: ${{ inputs.includeForked }}
+        INPUT_EXCLUDED_REPOS: ${{ inputs.excludedRepos }}
+        INPUT_CHECK_DESCRIPTION: ${{ inputs.checkDescription }}
+        INPUT_CHECK_SETTINGS: ${{ inputs.checkSettings }}
+      uses: actions/github-script@v8
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const script = require('${{ github.action_path }}/audit.js');
+          await script({ github, context, core });
