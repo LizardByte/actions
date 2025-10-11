@@ -106,6 +106,18 @@ function setupFilteringMocks(repoList) {
   mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
 }
 
+// Helper function to setup mocks for forked repository tests
+function setupForkedRepoMocks(repoName = 'forked-repo') {
+  mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+  mockGithub.paginate.mockResolvedValue([
+    createRepoListItem({ name: repoName, fork: true }),
+  ]);
+  mockGithub.rest.repos.get.mockResolvedValue({
+    data: createRepoData({ name: repoName, fork: true }),
+  });
+  mockGithub.rest.repos.getCommunityProfileMetrics.mockRejectedValueOnce({ status: 404 });
+}
+
 beforeEach(() => {
   // Reset mocks before each test
   jest.clearAllMocks();
@@ -423,15 +435,7 @@ describe('Audit Repositories', () => {
     });
 
     test('should check README and LICENSE for forked repos', async () => {
-      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
-      mockGithub.paginate.mockResolvedValue([
-        createRepoListItem({ name: 'forked-repo', fork: true }),
-      ]);
-      mockGithub.rest.repos.get.mockResolvedValue({
-        data: createRepoData({ name: 'forked-repo', fork: true }),
-      });
-      mockGithub.rest.repos.getCommunityProfileMetrics.mockRejectedValueOnce({ status: 404 });
-
+      setupForkedRepoMocks();
       let getContentCallCount = 0;
       mockGithub.rest.repos.getContent.mockImplementation(() => {
         getContentCallCount++;
@@ -455,15 +459,7 @@ describe('Audit Repositories', () => {
     });
 
     test('should find README in alternate locations', async () => {
-      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
-      mockGithub.paginate.mockResolvedValue([
-        createRepoListItem({ name: 'forked-repo', fork: true }),
-      ]);
-      mockGithub.rest.repos.get.mockResolvedValue({
-        data: createRepoData({ name: 'forked-repo', fork: true }),
-      });
-      mockGithub.rest.repos.getCommunityProfileMetrics.mockRejectedValueOnce({ status: 404 });
-
+      setupForkedRepoMocks();
       let getContentCallCount = 0;
       mockGithub.rest.repos.getContent.mockImplementation(() => {
         getContentCallCount++;
