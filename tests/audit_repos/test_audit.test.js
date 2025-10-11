@@ -392,6 +392,177 @@ describe('Audit Repositories', () => {
       expect(mockCore.setFailed).toHaveBeenCalled();
       expect(consoleOutput.some(line => line.includes('Merge commits should be disabled'))).toBe(true);
     });
+
+    test('should fail when merge commit should be enabled but is disabled', async () => {
+      process.env.INPUT_ALLOW_MERGE_COMMIT = 'enabled';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('Merge commits should be enabled'))).toBe(true);
+    });
+
+    test('should fail when squash merge should be disabled but is enabled', async () => {
+      process.env.INPUT_ALLOW_SQUASH_MERGE = 'disabled';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('Squash merge should be disabled'))).toBe(true);
+    });
+
+    test('should fail when squash merge should be enabled but is disabled', async () => {
+      process.env.INPUT_ALLOW_SQUASH_MERGE = 'enabled';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: false,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('Squash merge should be enabled'))).toBe(true);
+    });
+
+    test('should fail when rebase merge should be disabled but is enabled', async () => {
+      process.env.INPUT_ALLOW_REBASE_MERGE = 'enabled';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('Rebase merge should be enabled'))).toBe(true);
+    });
+
+    test('should fail when rebase merge should be enabled but is disabled', async () => {
+      process.env.INPUT_ALLOW_REBASE_MERGE = 'enabled';
+      process.env.INPUT_ALLOW_REBASE_MERGE = 'disabled';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: true,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('Rebase merge should be disabled'))).toBe(true);
+    });
   });
 
   describe('Discussions Validation', () => {
@@ -493,6 +664,74 @@ describe('Audit Repositories', () => {
       await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
 
       expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    test('should pass when repo discussions are enabled for repo-wide discussions', async () => {
+      process.env.INPUT_CHECK_DISCUSSIONS = 'repo';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: true,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('✅ All Discussions checks passed!'))).toBe(true);
+    });
+
+    test('should fail when repo discussions are disabled but should be enabled', async () => {
+      process.env.INPUT_CHECK_DISCUSSIONS = 'repo';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('Repository discussions should be enabled'))).toBe(true);
     });
   });
 
@@ -631,11 +870,77 @@ describe('Audit Repositories', () => {
       expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1);
     });
 
+    test('should include archived repositories when requested', async () => {
+      process.env.INPUT_INCLUDE_ARCHIVED = 'true';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: true, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1);
+    });
+
     test('should filter out forked repositories when not included', async () => {
       mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
       mockGithub.paginate.mockResolvedValue([
         { name: 'repo1', archived: false, fork: false, private: false },
         { name: 'repo2', archived: false, fork: true, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1);
+    });
+
+    test('should include private repositories when requested', async () => {
+      process.env.INPUT_INCLUDE_PRIVATE = 'true';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: true },
       ]);
 
       mockGithub.rest.repos.get.mockResolvedValue({
@@ -699,6 +1004,270 @@ describe('Audit Repositories', () => {
     });
   });
 
+  describe('Default Fallback Values', () => {
+    beforeEach(() => {
+      // Clear all environment variables to test fallback values
+      delete process.env.INPUT_GITHUB_ORG;
+      delete process.env.INPUT_ORG_DISCUSSIONS_REPO;
+      process.env.INPUT_CHECK_DESCRIPTION = 'false';
+      process.env.INPUT_CHECK_SETTINGS = 'false';
+      process.env.INPUT_CHECK_MERGE_TYPES = 'false';
+      process.env.INPUT_CHECK_DISCUSSIONS = 'off';
+      process.env.INPUT_CHECK_COMMUNITY_FILES = 'false';
+      process.env.INPUT_INCLUDE_ARCHIVED = 'false';
+      process.env.INPUT_INCLUDE_FORKED = 'false';
+      process.env.INPUT_INCLUDE_PRIVATE = 'false';
+      process.env.INPUT_EXCLUDED_REPOS = '';
+      process.env.INPUT_ALLOW_MERGE_COMMIT = 'disabled';
+      process.env.INPUT_ALLOW_SQUASH_MERGE = 'enabled';
+      process.env.INPUT_ALLOW_REBASE_MERGE = 'disabled';
+      process.env.INPUT_CHECK_README = 'false';
+      process.env.INPUT_CHECK_LICENSE = 'false';
+      process.env.INPUT_CHECK_CODE_OF_CONDUCT = 'false';
+      process.env.INPUT_CHECK_CONTRIBUTING = 'false';
+      process.env.INPUT_CHECK_SECURITY = 'false';
+      process.env.INPUT_CHECK_SPONSORS = 'false';
+    });
+
+    test('should use context.repo.owner when INPUT_GITHUB_ORG is not set', async () => {
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      // Should use 'test-org' from mockContext.repo.owner
+      expect(mockGithub.paginate).toHaveBeenCalled();
+    });
+
+    test('should use .github as default org discussions repo', async () => {
+      process.env.INPUT_CHECK_DISCUSSIONS = 'org';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: '.github', archived: false, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: '.github',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/.github',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: true,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      // Should allow discussions on .github repo (the default)
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Fork Handling', () => {
+    beforeEach(() => {
+      process.env.INPUT_CHECK_DESCRIPTION = 'false';
+      process.env.INPUT_CHECK_COMMUNITY_FILES = 'true';
+      process.env.INPUT_CHECK_README = 'true';
+      process.env.INPUT_CHECK_LICENSE = 'true';
+      process.env.INPUT_INCLUDE_FORKED = 'true';
+    });
+
+    test('should check README and LICENSE for forked repos', async () => {
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'forked-repo', archived: false, fork: true, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'forked-repo',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/forked-repo',
+          has_issues: true,
+          fork: true,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics
+        .mockRejectedValueOnce({ status: 404 });
+
+      // Mock getContent to return README found, LICENSE not found
+      let getContentCallCount = 0;
+      mockGithub.rest.repos.getContent.mockImplementation(() => {
+        getContentCallCount++;
+        if (getContentCallCount === 1) {
+          // org FUNDING.yml
+          return Promise.reject({ status: 404 });
+        } else if (getContentCallCount === 2) {
+          // README.md found
+          return Promise.resolve({ data: {} });
+        } else {
+          // LICENSE not found and repo FUNDING.yml
+          return Promise.reject({ status: 404 });
+        }
+      });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('Missing LICENSE file'))).toBe(true);
+    });
+  });
+
+  describe('File Existence Checks', () => {
+    beforeEach(() => {
+      process.env.INPUT_CHECK_DESCRIPTION = 'false';
+      process.env.INPUT_CHECK_COMMUNITY_FILES = 'true';
+      process.env.INPUT_CHECK_README = 'true';
+      process.env.INPUT_CHECK_LICENSE = 'true';
+      process.env.INPUT_CHECK_SPONSORS = 'true';
+    });
+
+    test('should find README in alternate locations', async () => {
+      process.env.INPUT_INCLUDE_FORKED = 'true';
+      process.env.INPUT_CHECK_SPONSORS = 'false';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'forked-repo', archived: false, fork: true, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'forked-repo',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/forked-repo',
+          has_issues: true,
+          fork: true,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics
+        .mockRejectedValueOnce({ status: 404 });
+
+      // Mock getContent - README found in .github/ folder (second location), LICENSE found
+      let getContentCallCount = 0;
+      mockGithub.rest.repos.getContent.mockImplementation(() => {
+        getContentCallCount++;
+        if (getContentCallCount === 1) {
+          // org FUNDING.yml
+          return Promise.reject({ status: 404 });
+        } else if (getContentCallCount === 2) {
+          // README.md not found in root
+          return Promise.reject({ status: 404 });
+        } else if (getContentCallCount === 3) {
+          // README not found in root
+          return Promise.reject({ status: 404 });
+        } else if (getContentCallCount === 4) {
+          // README.rst not found in root
+          return Promise.reject({ status: 404 });
+        } else if (getContentCallCount === 5) {
+          // README.txt not found in root
+          return Promise.reject({ status: 404 });
+        } else if (getContentCallCount === 6) {
+          // .github/README.md found!
+          return Promise.resolve({ data: {} });
+        } else if (getContentCallCount === 7) {
+          // LICENSE found
+          return Promise.resolve({ data: {} });
+        } else {
+          // repo FUNDING.yml
+          return Promise.reject({ status: 404 });
+        }
+      });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+
+    test('should handle repo fetch errors gracefully', async () => {
+      process.env.INPUT_CHECK_SPONSORS = 'false';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: false },
+        { name: 'repo2', archived: false, fork: false, private: false },
+      ]);
+
+      // First repo fails to fetch details, second succeeds
+      let getCallCount = 0;
+      mockGithub.rest.repos.get.mockImplementation(() => {
+        getCallCount++;
+        if (getCallCount === 1) {
+          return Promise.reject(new Error('Repository access denied'));
+        } else {
+          return Promise.resolve({
+            data: {
+              name: 'repo2',
+              description: 'Valid description.',
+              html_url: 'https://github.com/test-org/repo2',
+              has_issues: true,
+              fork: false,
+              allow_merge_commit: false,
+              allow_squash_merge: true,
+              allow_rebase_merge: false,
+              has_discussions: false,
+            },
+          });
+        }
+      });
+
+      mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
+        data: { files: {} },
+      });
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(consoleOutput.some(line => line.includes('⚠️  Could not fetch details for repo1'))).toBe(true);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Error Handling', () => {
     test('should handle API errors gracefully', async () => {
       mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
@@ -746,6 +1315,42 @@ describe('Audit Repositories', () => {
 
       expect(consoleOutput.some(line => line.includes('Not an organization, trying as user'))).toBe(true);
       expect(mockGithub.rest.repos.listForUser.endpoint.merge).toHaveBeenCalled();
+    });
+
+    test('should handle community health API errors gracefully', async () => {
+      process.env.INPUT_CHECK_COMMUNITY_FILES = 'true';
+      process.env.INPUT_CHECK_README = 'true';
+
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([
+        { name: 'repo1', archived: false, fork: false, private: false },
+      ]);
+
+      mockGithub.rest.repos.get.mockResolvedValue({
+        data: {
+          name: 'repo1',
+          description: 'Valid description.',
+          html_url: 'https://github.com/test-org/repo1',
+          has_issues: true,
+          fork: false,
+          allow_merge_commit: false,
+          allow_squash_merge: true,
+          allow_rebase_merge: false,
+          has_discussions: false,
+        },
+      });
+
+      const apiError = new Error('API rate limit exceeded');
+      mockGithub.rest.repos.getCommunityProfileMetrics
+        .mockRejectedValueOnce({ status: 404 }) // org .github
+        .mockRejectedValueOnce(apiError); // repo community health
+
+      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+
+      await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(consoleOutput.some(line => line.includes('⚠️  Could not fetch community health for repo1'))).toBe(true);
+      expect(mockCore.setFailed).toHaveBeenCalled(); // Should fail because README is missing
     });
   });
 });
