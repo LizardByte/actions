@@ -35,6 +35,58 @@ inputs:
     description: 'Run the repository settings validation check.'
     required: false
     default: 'true'
+  checkMergeTypes:
+    description: 'Run the merge types validation check.'
+    required: false
+    default: 'true'
+  allowMergeCommit:
+    description: 'Allow merge commits. Options: disabled, enabled, any.'
+    required: false
+    default: 'disabled'
+  allowSquashMerge:
+    description: 'Allow squash merge. Options: disabled, enabled, any.'
+    required: false
+    default: 'enabled'
+  allowRebaseMerge:
+    description: 'Allow rebase merge. Options: disabled, enabled, any.'
+    required: false
+    default: 'any'
+  checkDiscussions:
+    description: 'Run the discussions validation check. Options: disabled, org, repo.'
+    required: false
+    default: 'disabled'
+  orgDiscussionsRepo:
+    description: 'Repository name allowed to have discussions when using org-wide discussions (checkDiscussions=org).'
+    required: false
+    default: '.github'
+  checkCommunityFiles:
+    description: 'Run the community health files validation check.'
+    required: false
+    default: 'true'
+  checkReadme:
+    description: 'Check if README exists.'
+    required: false
+    default: 'true'
+  checkLicense:
+    description: 'Check if LICENSE exists.'
+    required: false
+    default: 'true'
+  checkCodeOfConduct:
+    description: 'Check if CODE_OF_CONDUCT exists.'
+    required: false
+    default: 'true'
+  checkContributing:
+    description: 'Check if CONTRIBUTING exists.'
+    required: false
+    default: 'true'
+  checkSecurity:
+    description: 'Check if SECURITY policy exists.'
+    required: false
+    default: 'true'
+  checkSponsors:
+    description: 'Check if sponsors are activated.'
+    required: false
+    default: 'true'
 
 runs:
   using: "composite"
@@ -47,6 +99,19 @@ runs:
         INPUT_EXCLUDED_REPOS: ${{ inputs.excludedRepos }}
         INPUT_CHECK_DESCRIPTION: ${{ inputs.checkDescription }}
         INPUT_CHECK_SETTINGS: ${{ inputs.checkSettings }}
+        INPUT_CHECK_MERGE_TYPES: ${{ inputs.checkMergeTypes }}
+        INPUT_ALLOW_MERGE_COMMIT: ${{ inputs.allowMergeCommit }}
+        INPUT_ALLOW_SQUASH_MERGE: ${{ inputs.allowSquashMerge }}
+        INPUT_ALLOW_REBASE_MERGE: ${{ inputs.allowRebaseMerge }}
+        INPUT_CHECK_DISCUSSIONS: ${{ inputs.checkDiscussions }}
+        INPUT_ORG_DISCUSSIONS_REPO: ${{ inputs.orgDiscussionsRepo }}
+        INPUT_CHECK_COMMUNITY_FILES: ${{ inputs.checkCommunityFiles }}
+        INPUT_CHECK_README: ${{ inputs.checkReadme }}
+        INPUT_CHECK_LICENSE: ${{ inputs.checkLicense }}
+        INPUT_CHECK_CODE_OF_CONDUCT: ${{ inputs.checkCodeOfConduct }}
+        INPUT_CHECK_CONTRIBUTING: ${{ inputs.checkContributing }}
+        INPUT_CHECK_SECURITY: ${{ inputs.checkSecurity }}
+        INPUT_CHECK_SPONSORS: ${{ inputs.checkSponsors }}
       uses: actions/github-script@v8
       with:
         github-token: ${{ inputs.token }}
