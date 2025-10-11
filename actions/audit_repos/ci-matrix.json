@@ -2,6 +2,7 @@
   {
     "runs-on": "ubuntu-latest",
     "with": {
+      "allowEmptyDescription": true,
       "orgDiscussionsRepo": "community",
       "token": "${ secrets.GH_BOT_TOKEN }"
     }

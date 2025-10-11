@@ -6,9 +6,10 @@
 /**
  * Validate repository description
  * @param {Object} repo - Repository object
+ * @param {boolean} allowEmptyDescription - Allow empty descriptions
  * @returns {Array} Array of issue strings
  */
-function validateDescription(repo) {
+function validateDescription(repo, allowEmptyDescription = false) {
   const issues = [];
 
   // Check if the description exists
@@ -27,7 +28,7 @@ function validateDescription(repo) {
     if (repo.description.length < 10) {
       issues.push('Description is too short (less than 10 characters)');
     }
-  } else {
+  } else if (!allowEmptyDescription) {
     issues.push('Missing description');
   }
 
@@ -515,6 +516,7 @@ async function auditRepositories({ github, context, core }) {
     .map(repo => repo.trim())
     .filter(repo => repo.length > 0);
   const checkDescription = process.env.INPUT_CHECK_DESCRIPTION.toLowerCase() === 'true';
+  const allowEmptyDescription = process.env.INPUT_ALLOW_EMPTY_DESCRIPTION.toLowerCase() === 'true';
   const checkSettings = process.env.INPUT_CHECK_SETTINGS.toLowerCase() === 'true';
   const checkMergeTypes = process.env.INPUT_CHECK_MERGE_TYPES.toLowerCase() === 'true';
   const allowMergeCommit = process.env.INPUT_ALLOW_MERGE_COMMIT.toLowerCase();
@@ -544,7 +546,7 @@ async function auditRepositories({ github, context, core }) {
 
   // Run audits
   if (checkDescription) {
-    runAudit(core, repositories, 'Description', validateDescription);
+    runAudit(core, repositories, 'Description', (repo) => validateDescription(repo, allowEmptyDescription));
   }
 
   if (checkSettings) {

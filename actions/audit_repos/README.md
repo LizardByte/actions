@@ -35,28 +35,29 @@ steps:
 
 ## Inputs
 
-| Name                | Description                                                                  | Default    | Required |
-|---------------------|------------------------------------------------------------------------------|------------|----------|
-| token               | GitHub Token with permissions to read organization repositories.             |            | `true`   |
-| githubOrg           | GitHub organization or user to audit. Defaults to current repo owner.        | `""`       | `false`  |
-| includeArchived     | Include archived repositories in the audit.                                  | `false`    | `false`  |
-| includeForked       | Include forked repositories in the audit.                                    | `true`     | `false`  |
-| excludedRepos       | Comma-separated list of repository names to exclude from the audit.          | `""`       | `false`  |
-| checkDescription    | Run the repository description validation check.                             | `true`     | `false`  |
-| checkSettings       | Run the repository settings validation check.                                | `true`     | `false`  |
-| checkMergeTypes     | Run the merge types validation check.                                        | `true`     | `false`  |
-| allowMergeCommit    | Allow merge commits. Options: `disabled`, `enabled`, `any`.                  | `disabled` | `false`  |
-| allowSquashMerge    | Allow squash merge. Options: `disabled`, `enabled`, `any`.                   | `enabled`  | `false`  |
-| allowRebaseMerge    | Allow rebase merge. Options: `disabled`, `enabled`, `any`.                   | `any`      | `false`  |
-| checkDiscussions    | Run discussions validation. Options: `disabled`, `org`, `repo`.              | `disabled` | `false`  |
-| orgDiscussionsRepo  | Repository name allowed to have discussions when using org-wide discussions. | `.github`  | `false`  |
-| checkCommunityFiles | Run the community health files validation check.                             | `true`     | `false`  |
-| checkReadme         | Check if README exists.                                                      | `true`     | `false`  |
-| checkLicense        | Check if LICENSE exists.                                                     | `true`     | `false`  |
-| checkCodeOfConduct  | Check if CODE_OF_CONDUCT exists.                                             | `true`     | `false`  |
-| checkContributing   | Check if CONTRIBUTING exists.                                                | `true`     | `false`  |
-| checkSecurity       | Check if SECURITY policy exists.                                             | `true`     | `false`  |
-| checkSponsors       | Check if sponsors are activated (FUNDING.yml exists).                        | `true`     | `false`  |
+| Name                  | Description                                                                     | Default    | Required |
+|-----------------------|---------------------------------------------------------------------------------|------------|----------|
+| token                 | GitHub Token with permissions to read organization repositories.                |            | `true`   |
+| githubOrg             | GitHub organization or user to audit. Defaults to current repo owner.           | `""`       | `false`  |
+| includeArchived       | Include archived repositories in the audit.                                     | `false`    | `false`  |
+| includeForked         | Include forked repositories in the audit.                                       | `true`     | `false`  |
+| excludedRepos         | Comma-separated list of repository names to exclude from the audit.             | `""`       | `false`  |
+| checkDescription      | Run the repository description validation check.                                | `true`     | `false`  |
+| allowEmptyDescription | Allow repositories to have empty descriptions when checkDescription is enabled. | `false`    | `false`  |
+| checkSettings         | Run the repository settings validation check.                                   | `true`     | `false`  |
+| checkMergeTypes       | Run the merge types validation check.                                           | `true`     | `false`  |
+| allowMergeCommit      | Allow merge commits. Options: `disabled`, `enabled`, `any`.                     | `disabled` | `false`  |
+| allowSquashMerge      | Allow squash merge. Options: `disabled`, `enabled`, `any`.                      | `enabled`  | `false`  |
+| allowRebaseMerge      | Allow rebase merge. Options: `disabled`, `enabled`, `any`.                      | `any`      | `false`  |
+| checkDiscussions      | Run discussions validation. Options: `disabled`, `org`, `repo`.                 | `disabled` | `false`  |
+| orgDiscussionsRepo    | Repository name allowed to have discussions when using org-wide discussions.    | `.github`  | `false`  |
+| checkCommunityFiles   | Run the community health files validation check.                                | `true`     | `false`  |
+| checkReadme           | Check if README exists.                                                         | `true`     | `false`  |
+| checkLicense          | Check if LICENSE exists.                                                        | `true`     | `false`  |
+| checkCodeOfConduct    | Check if CODE_OF_CONDUCT exists.                                                | `true`     | `false`  |
+| checkContributing     | Check if CONTRIBUTING exists.                                                   | `true`     | `false`  |
+| checkSecurity         | Check if SECURITY policy exists.                                                | `true`     | `false`  |
+| checkSponsors         | Check if sponsors are activated (FUNDING.yml exists).                           | `true`     | `false`  |
 
 ## Outputs
 
@@ -66,10 +67,13 @@ with detailed logs showing which repositories and checks failed.
 ## Audit Checks
 
 ### Repository Descriptions
-- Checks if description exists
+When `checkDescription` is enabled, the following validations are performed:
+- Checks if description exists (unless `allowEmptyDescription` is set to `true`)
 - Ensures description does not have leading or trailing whitespace
 - Ensures description ends with a period
 - Ensures description is at least 10 characters long
+
+Set `allowEmptyDescription: true` to skip the missing description check while still validating format rules for repositories that do have descriptions.
 
 ### Repository Settings
 - Ensures issues are enabled
@@ -201,6 +205,18 @@ steps:
       checkMergeTypes: false
       checkDiscussions: disabled
       checkCommunityFiles: true
+```
+
+### Allow Empty Descriptions
+
+```yaml
+steps:
+  - name: Audit with Optional Descriptions
+    uses: LizardByte/actions/actions/audit_repos@master
+    with:
+      token: ${{ secrets.GH_TOKEN }}
+      checkDescription: true
+      allowEmptyDescription: true  # Allows repos without descriptions, but validates format if present
 ```
 
 ## Notes

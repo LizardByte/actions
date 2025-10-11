@@ -133,6 +133,7 @@ beforeEach(() => {
   process.env.INPUT_INCLUDE_PRIVATE = 'false';
   process.env.INPUT_EXCLUDED_REPOS = '';
   process.env.INPUT_CHECK_DESCRIPTION = 'true';
+  process.env.INPUT_ALLOW_EMPTY_DESCRIPTION = 'false';
   process.env.INPUT_CHECK_SETTINGS = 'false';
   process.env.INPUT_CHECK_MERGE_TYPES = 'false';
   process.env.INPUT_ALLOW_MERGE_COMMIT = 'disabled';
@@ -168,7 +169,25 @@ describe('Audit Repositories', () => {
       await expectAuditFailure('Missing description');
     });
 
+    test('should pass when description is missing but allowEmptyDescription is true', async () => {
+      process.env.INPUT_ALLOW_EMPTY_DESCRIPTION = 'true';
+      setupStandardMocks({ description: null });
+      await expectAuditSuccess('Description');
+    });
+
+    test('should pass when description is empty string but allowEmptyDescription is true', async () => {
+      process.env.INPUT_ALLOW_EMPTY_DESCRIPTION = 'true';
+      setupStandardMocks({ description: '' });
+      await expectAuditSuccess('Description');
+    });
+
     test('should fail when description does not end with period', async () => {
+      setupStandardMocks({ description: 'This is a description without period' });
+      await expectAuditFailure('Description does not end with a period');
+    });
+
+    test('should fail when description does not end with period even with allowEmptyDescription', async () => {
+      process.env.INPUT_ALLOW_EMPTY_DESCRIPTION = 'true';
       setupStandardMocks({ description: 'This is a description without period' });
       await expectAuditFailure('Description does not end with a period');
     });
