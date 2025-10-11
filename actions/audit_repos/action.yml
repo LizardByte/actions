@@ -1,0 +1,130 @@
+---
+name: "Audit Repos"
+description: "A reusable action to audit repositories in an organization."
+author: "LizardByte"
+
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  token:
+    description: 'GitHub Token with permissions to read organization repositories.'
+    required: true
+  githubOrg:
+    description: 'GitHub organization or user to audit. Defaults to the current repository owner.'
+    required: false
+    default: ''
+  includeArchived:
+    description: 'Include archived repositories in the audit.'
+    required: false
+    default: 'false'
+  includeForked:
+    description: 'Include forked repositories in the audit.'
+    required: false
+    default: 'true'
+  includePrivate:
+    description: 'Include private repositories in the audit.'
+    required: false
+    default: 'false'
+  excludedRepos:
+    description: 'Comma-separated list of repository names to exclude from the audit.'
+    required: false
+    default: ''
+  checkDescription:
+    description: 'Run the repository description validation check.'
+    required: false
+    default: 'true'
+  allowEmptyDescription:
+    description: 'Allow repositories to have empty descriptions when checkDescription is enabled.'
+    required: false
+    default: 'false'
+  checkSettings:
+    description: 'Run the repository settings validation check.'
+    required: false
+    default: 'true'
+  checkMergeTypes:
+    description: 'Run the merge types validation check.'
+    required: false
+    default: 'true'
+  allowMergeCommit:
+    description: 'Allow merge commits. Options: disabled, enabled, any.'
+    required: false
+    default: 'disabled'
+  allowSquashMerge:
+    description: 'Allow squash merge. Options: disabled, enabled, any.'
+    required: false
+    default: 'enabled'
+  allowRebaseMerge:
+    description: 'Allow rebase merge. Options: disabled, enabled, any.'
+    required: false
+    default: 'any'
+  checkDiscussions:
+    description: 'Run the discussions validation check. Options: disabled, org, repo.'
+    required: false
+    default: 'disabled'
+  orgDiscussionsRepo:
+    description: 'Repository name allowed to have discussions when using org-wide discussions (checkDiscussions=org).'
+    required: false
+    default: '.github'
+  checkCommunityFiles:
+    description: 'Run the community health files validation check.'
+    required: false
+    default: 'true'
+  checkReadme:
+    description: 'Check if README exists.'
+    required: false
+    default: 'true'
+  checkLicense:
+    description: 'Check if LICENSE exists.'
+    required: false
+    default: 'true'
+  checkCodeOfConduct:
+    description: 'Check if CODE_OF_CONDUCT exists.'
+    required: false
+    default: 'true'
+  checkContributing:
+    description: 'Check if CONTRIBUTING exists.'
+    required: false
+    default: 'true'
+  checkSecurity:
+    description: 'Check if SECURITY policy exists.'
+    required: false
+    default: 'true'
+  checkSponsors:
+    description: 'Check if sponsors are activated.'
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run repository audits
+      env:
+        INPUT_GITHUB_ORG: ${{ inputs.githubOrg }}
+        INPUT_INCLUDE_ARCHIVED: ${{ inputs.includeArchived }}
+        INPUT_INCLUDE_FORKED: ${{ inputs.includeForked }}
+        INPUT_INCLUDE_PRIVATE: ${{ inputs.includePrivate }}
+        INPUT_EXCLUDED_REPOS: ${{ inputs.excludedRepos }}
+        INPUT_CHECK_DESCRIPTION: ${{ inputs.checkDescription }}
+        INPUT_ALLOW_EMPTY_DESCRIPTION: ${{ inputs.allowEmptyDescription }}
+        INPUT_CHECK_SETTINGS: ${{ inputs.checkSettings }}
+        INPUT_CHECK_MERGE_TYPES: ${{ inputs.checkMergeTypes }}
+        INPUT_ALLOW_MERGE_COMMIT: ${{ inputs.allowMergeCommit }}
+        INPUT_ALLOW_SQUASH_MERGE: ${{ inputs.allowSquashMerge }}
+        INPUT_ALLOW_REBASE_MERGE: ${{ inputs.allowRebaseMerge }}
+        INPUT_CHECK_DISCUSSIONS: ${{ inputs.checkDiscussions }}
+        INPUT_ORG_DISCUSSIONS_REPO: ${{ inputs.orgDiscussionsRepo }}
+        INPUT_CHECK_COMMUNITY_FILES: ${{ inputs.checkCommunityFiles }}
+        INPUT_CHECK_README: ${{ inputs.checkReadme }}
+        INPUT_CHECK_LICENSE: ${{ inputs.checkLicense }}
+        INPUT_CHECK_CODE_OF_CONDUCT: ${{ inputs.checkCodeOfConduct }}
+        INPUT_CHECK_CONTRIBUTING: ${{ inputs.checkContributing }}
+        INPUT_CHECK_SECURITY: ${{ inputs.checkSecurity }}
+        INPUT_CHECK_SPONSORS: ${{ inputs.checkSponsors }}
+      uses: actions/github-script@v8
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const script = require('${{ github.action_path }}/audit.js');
+          await script({ github, context, core });

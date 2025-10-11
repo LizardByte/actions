@@ -9,6 +9,7 @@ This is a monorepo containing a collection of GitHub Actions maintained by Lizar
 
 | Action                                                | Description                                  | Type      | Language         |
 |-------------------------------------------------------|----------------------------------------------|-----------|------------------|
+| [audit_repos](actions/audit_repos#readme)             | Audit repositories in an organization        | composite | javascript       |
 | [facebook_post](actions/facebook_post#readme)         | Post to Facebook page/group using Graph API  | docker    | python           |
 | [monitor_space](actions/monitor_space#readme)         | Monitor and track minimum free disk space    | composite | bash             |
 | [more_space](actions/more_space#readme)               | Free up disk space in GitHub Actions runners | composite | bash             |
