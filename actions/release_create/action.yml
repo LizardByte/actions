@@ -81,6 +81,7 @@ runs:
     - name: Format VirusTotal Results
       env:
         INPUT_BODY: ${{ inputs.body }}
+        INPUT_TAG: ${{ inputs.tag }}
       if: inputs.virustotal_api_key != ''
       id: format-vt
       shell: bash
@@ -91,23 +92,38 @@ runs:
         ${INPUT_BODY}
         BODY_EOF
 
-        VT_HEADER="🛡️ **VirusTotal Results:**"
+        ASSETS_HEADER="📦 **Assets:**"
 
-        # If we have VT results, append them
+        # If we have existing results, append them
         if [ -n '${{ steps.vt.outputs.json }}' ]; then
-          # Check if VirusTotal Results header already exists, if not add it
-          if ! grep -qF "$VT_HEADER" ${rb_file}; then
+          # Check if Assets header already exists, if not add it
+          if ! grep -qF "$ASSETS_HEADER" ${rb_file}; then
             # Add separator if body exists and isn't empty
             if [ -s ${rb_file} ] && [ "$(cat ${rb_file} | tr -d '[:space:]')" != "" ]; then
               echo "" >> ${rb_file}
             fi
 
-            echo "---" >> ${rb_file}
-            echo "$VT_HEADER" >> ${rb_file}
+            {
+              echo "---"
+              echo "$ASSETS_HEADER"
+              echo ""
+              echo "| ⬇️ Download | #️⃣ Download Count | 🛡️ VirusTotal |"
+              echo "|-------------|-------------------|---------------|"
+            } >> ${rb_file}
           fi
 
-          # Append VirusTotal results
-          printf '%s\n' '${{ steps.vt.outputs.json }}' | jq -r '.[] | "- [\(.name)](\(.link))"' >> ${rb_file}
+          # Append VirusTotal results as table rows
+          printf '%s\n' '${{ steps.vt.outputs.json }}' | \
+            jq -r \
+              --arg repo "${{ github.repository }}" \
+              --arg tag "${INPUT_TAG}" \
+              '.[] |
+              "| [\(.name)](https://github.com/\($repo)/releases/download/\($tag)/\(.name)) | " +
+              "![Downloads](https://img.shields.io/github/downloads/\($repo)/\($tag)/\(.name)" +
+                "?style=flat-square&label=&displayAssetName=false) | " +
+              "[![VirusTotal](https://badges.cssnr.com/vt/id/\(.id)" +
+                "?style=flat-square&icon=virustotal&label=)](\(.link)) |"' \
+            >> ${rb_file}
         fi
 
         # Set output
