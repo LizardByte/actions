@@ -1,0 +1,44 @@
+{
+  "name": "lizardbyte-actions",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LizardByte/actions.git"
+  },
+  "version": "0.0.0",
+  "description": "Reusable actions for GitHub workflows.",
+  "license": "MIT",
+  "funding": "https://app.lizardbyte.dev",
+  "homepage": "https://github.com/LizardByte/actions#readme",
+  "bugs": {
+    "url": "https://github.com/LizardByte/actions/issues"
+  },
+  "keywords": [
+    "github",
+    "actions"
+  ],
+  "devDependencies": {
+    "@eslint/js": "9.37.0",
+    "@jest/globals": "30.2.0",
+    "eslint": "9.37.0",
+    "eslint-plugin-jest": "29.0.1",
+    "globals": "^16.4.0",
+    "jest": "29.7.0",
+    "jest-junit": "16.0.0",
+    "npm-run-all": "4.1.5"
+  },
+  "scripts": {
+    "test": "npm-run-all test:unit test:report test:lint",
+    "test:unit": "jest --coverage",
+    "test:report": "jest --reporters=jest-junit",
+    "test:lint": "eslint ."
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "actions/**/*.js"
+    ],
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
+  }
+}
