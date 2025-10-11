@@ -11,7 +11,7 @@
 function validateDescription(repo) {
   const issues = [];
 
-  // Check if description exists
+  // Check if the description exists
   if (repo.description) {
     // Ensure the description does not begin or end with whitespace
     if (repo.description !== repo.description.trim()) {
@@ -385,7 +385,7 @@ async function fetchRepositoryDetails(github, owner, repo, orgCommunityHealth, o
 /**
  * Fetch all repositories from the organization or user
  * @param {Object} github - GitHub API object
- * @param {string} owner - Organization or user name
+ * @param {string} owner - Organization or username
  * @param {boolean} includeArchived - Include archived repositories
  * @param {boolean} includeForked - Include forked repositories
  * @param {boolean} includePrivate - Include private repositories
@@ -530,7 +530,7 @@ async function auditRepositories({ github, context, core }) {
   const checkSecurity = process.env.INPUT_CHECK_SECURITY.toLowerCase() === 'true';
   const checkSponsors = process.env.INPUT_CHECK_SPONSORS.toLowerCase() === 'true';
 
-  // Start audit process
+  // Start the audit process
   console.log(`=== Repository Audit for ${githubOrg} ===\n`);
 
   // Fetch repositories
