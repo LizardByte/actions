@@ -42,7 +42,7 @@ jobs:
           python-version: ${{ env.INPUT_PYTHON_VERSION }}
 
       - name: Set up Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: latest
 
