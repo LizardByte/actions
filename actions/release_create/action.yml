@@ -71,9 +71,10 @@ runs:
     - name: VirusTotal
       if: inputs.virustotal_api_key != ''
       id: vt
-      uses: cssnr/virustotal-action@v1.3.1
+      uses: cssnr/virustotal-action@v1.7.0
       with:
         file_globs: ${{ inputs.artifacts }}
+        sha256: true
         summary: true
         update_release: false
         vt_api_key: ${{ inputs.virustotal_api_key }}
@@ -121,7 +122,7 @@ runs:
               "| [\(.name)](https://github.com/\($repo)/releases/download/\($tag)/\(.name)) | " +
               "![Downloads](https://img.shields.io/github/downloads/\($repo)/\($tag)/\(.name)" +
                 "?style=flat-square&label=&displayAssetName=false) | " +
-              "[![VirusTotal](https://badges.cssnr.com/vt/id/\(.id)" +
+              "[![VirusTotal](https://badges.cssnr.com/vt/id/sha256:\(.sha256)" +
                 "?style=flat-square&icon=virustotal&label=)](\(.link)) |"' \
             >> ${rb_file}
         fi
