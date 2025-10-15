@@ -95,7 +95,9 @@ Validates discussions configuration:
 - **org**: Ensures repo discussions are disabled (assuming org-wide discussions)
 - **repo**: Ensures every repo has discussions enabled
 
-> Note**: When using org-wide discussions, the repository specified in `orgDiscussionsRepo` will be allowed to have discussions even if org-wide discussions are enforced.
+> [!NOTE]
+> When using org-wide discussions, the repository specified in `orgDiscussionsRepo` will be allowed to have discussions even
+> if org-wide discussions are enforced.
 
 ### Community Health Files
 Checks for the presence of community health files:
@@ -108,9 +110,12 @@ Checks for the presence of community health files:
 
 Each file check can be individually enabled/disabled.
 
-> **Note**: Community health metrics are not available for forked repositories via the GitHub API, so forks will skip these checks and default to passing.
+> [!NOTE]
+> Community health metrics are not available for forked repositories via the GitHub API, so forks will skip these checks and default to passing.
 
-> **Note**: FUNDING.yml is checked at both the repository level and organization level. If your organization has a `.github` repository with `FUNDING.yml`, all repositories will inherit this and pass the sponsors check unless explicitly overridden at the repository level.
+> [!NOTE]
+> FUNDING.yml is checked at both the repository level and organization level. If your organization has a `.github` repository with `FUNDING.yml`,
+> all repositories will inherit this and pass the sponsors check unless explicitly overridden at the repository level.
 
 ## Example Workflows
 
