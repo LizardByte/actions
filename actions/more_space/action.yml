@@ -1,6 +1,6 @@
 ---
-name: "More space"
-description: "A reusable action to free up GitHub hosted runner space."
+name: "More Space"
+description: "A reusable action to free up disk space on GitHub Actions runners."
 author: "LizardByte"
 
 branding:

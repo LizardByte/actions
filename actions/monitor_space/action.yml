@@ -1,6 +1,6 @@
 ---
 name: "Monitor Space"
-description: "Monitor and track the minimum free disk space during workflow execution."
+description: "A reusable action to monitor disk space usage during workflow execution."
 author: "LizardByte"
 
 branding:

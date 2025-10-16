@@ -1,0 +1,31 @@
+---
+name: "Template"
+description: "A reusable action to ..."
+author: "LizardByte"
+
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  name:
+    description: 'Name to greet'
+    required: false
+
+outputs:
+  greeting:
+    description: 'The greeting'
+    value: ${{ steps.hello.outputs.greeting }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Hello
+      env:
+        INPUT_NAME: ${{ inputs.name || 'World' }}
+      id: hello
+      shell: bash
+      run:
+        message="Hello, ${INPUT_NAME}!"
+        echo "${message}"
+        echo "greeting=${message}" >> "${GITHUB_OUTPUT}"

@@ -1,23 +1,22 @@
 # release_homebrew
 
 A reusable action to audit, install, test, and publish homebrew formulas to a tap.
-This action is tailored to the @LizardByte organization, but can be used by anyone if they follow the same conventions.
 
-## Basic Usage
+This action is designed to work with formulas supplied by the upstream repository, instead of the tap repository.
+This works better for projects where the build process often changes, and formulas are more challenging to update.
 
-See [action.yml](action.yml)
-
-The intent here is that the formulas are supplied by the upstream repository, instead of the tap repository.
-This works better for projects where the build process changes often, and formulas are more difficult to update.
-
-As part of an automated release workflow, this action can be used to audit, install, test and publish the supplied
+As part of an automated release workflow, this action can be used to audit, install, test, and publish the supplied
 formulas to the tap repository.
 
-Additionally, this action can be used to contribute the formula to an upstream homebrew-core repository, by
-creating a pull request to the upstream repository. This feature is disabled by default. To use it you must
+Additionally, this action can be used to contribute the formula to an upstream homebrew-core repository by
+creating a pull request to the upstream repository. This feature is disabled by default. To use it, you must
 fork [Homebrew/homebrew-core](https://github.com/Homebrew/homebrew-core) and provide the `homebrew_core_fork_repo`.
 You must also enable the `contribute_to_homebrew_core` input. Finally, you can modify the `upstream_homebrew_core_repo`
 to point to a different repository if you are not using the official Homebrew/homebrew-core repository.
+
+## 🚀 Basic Usage
+
+See [action.yml](action.yml)
 
 ```yaml
 steps:
@@ -30,6 +29,35 @@ steps:
       git_username: ${{ secrets.GIT_USERNAME }}
       org_homebrew_repo: repo_owner/repo_name
 ```
+
+## 📥 Inputs
+
+| Name                        | Description                                                                             | Default                        | Required |
+|-----------------------------|-----------------------------------------------------------------------------------------|--------------------------------|----------|
+| contribute_to_homebrew_core | Whether to contribute to homebrew-core.                                                 | `false`                        | `false`  |
+| formula_file                | The full path to the formula file.                                                      |                                | `true`   |
+| git_email                   | The email to use for the commit.                                                        |                                | `true`   |
+| git_username                | The username to use for the commit.                                                     |                                | `true`   |
+| homebrew_core_fork_repo     | The forked homebrew-core repository to publish to.                                      | `LizardByte/homebrew-core`     | `false`  |
+| org_homebrew_repo           | The target repository to publish to.                                                    | `LizardByte/homebrew-homebrew` | `false`  |
+| org_homebrew_repo_branch    | The target repository branch to publish to.                                             |                                | `false`  |
+| publish                     | Whether to publish the release.                                                         | `false`                        | `false`  |
+| token                       | GitHub Token. This is required when `publish` is enabled.                               |                                | `false`  |
+| upstream_homebrew_core_repo | The upstream homebrew-core repository that the fork is based on. Must be a GitHub repo. | `Homebrew/homebrew-core`       | `false`  |
+| validate                    | Whether to validate the formula.                                                        | `true`                         | `false`  |
+
+> [!NOTE]
+> `org_homebrew_repo` repo name should conform to the documentation.
+> See: https://docs.brew.sh/Taps#repository-naming-conventions-and-assumptions
+
+## 📤 Outputs
+
+| Name      | Description                                       |
+|-----------|---------------------------------------------------|
+| buildpath | The path to Homebrew's temporary build directory. |
+| testpath  | The path to Homebrew's temporary test directory.  |
+
+## 🧰 Advanced Usage
 
 It's possible to overwrite the defaults by providing additional inputs:
 
@@ -51,6 +79,8 @@ steps:
       validate: false  # skip the audit and install steps
 ```
 
+## 📝 Notes
+
 > [!Warning]
 > This action is only compatible with Linux and macOS runners, and will intentionally fail on Windows runners.
 
@@ -62,40 +92,33 @@ steps:
 jobs:
   publish:
     strategy:
-    fail-fast: false  # false to test all, true to fail entire job if any fail
-    matrix:
-      include:
-        - os: macos-14
-        - os: macos-15
-        - os: macos-26
-        - os: ubuntu-latest
-          publish: true
-  name: Homebrew (${{ matrix.os }})
-  runs-on: ${{ matrix.os }}
-  steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      fail-fast: false  # false to test all, true to cancel the remaining jobs if any fail
+      matrix:
+        include:
+          - os: macos-14
+          - os: macos-15
+          - os: macos-26
+          - os: ubuntu-latest
+            publish: true
+    name: Homebrew (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Generate Formula
-      shell: bash
-      run: |
-        # whatever you need to do to generate the formula
+      - name: Generate Formula
+        shell: bash
+        run: |
+          # whatever you need to do to generate the formula
 
-    - name: Validate and Publish Homebrew Formula
-      uses: LizardByte/actions/actions/release_homebrew@master
-      with:
-        formula_file: "${{ github.workspace }}/build/hello_world.rb"
-        git_email: ${{ secrets.GIT_EMAIL }}
-        git_username: ${{ secrets.GIT_USERNAME }}
-        org_homebrew_repo: repo_owner/repo_name
-        org_homebrew_repo_branch: main
-        publish: ${{ matrix.publish }}
-        token: ${{ secrets.PAT }}
+      - name: Validate and Publish Homebrew Formula
+        uses: LizardByte/actions/actions/release_homebrew@master
+        with:
+          formula_file: "${{ github.workspace }}/build/hello_world.rb"
+          git_email: ${{ secrets.GIT_EMAIL }}
+          git_username: ${{ secrets.GIT_USERNAME }}
+          org_homebrew_repo: repo_owner/repo_name
+          org_homebrew_repo_branch: main
+          publish: ${{ matrix.publish }}
+          token: ${{ secrets.PAT }}
 ```
-
-### Outputs
-
-| Name      | Description                                       |
-|-----------|---------------------------------------------------|
-| buildpath | The path to Homebrew's temporary build directory. |
-| testpath  | The path to Homebrew's temporary test directory.  |

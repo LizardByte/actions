@@ -1,8 +1,11 @@
 # monitor_space
 
-A reusable action to monitor and track the minimum free disk space during workflow execution. This action can run in the background to continuously monitor disk space usage and report the minimum free space encountered.
+A reusable action to monitor disk space usage during workflow execution.
 
-## Basic Usage
+This action can track disk space consumption by starting a background monitoring process at the beginning of your
+workflow and stopping it later to generate a comprehensive report of space usage.
+
+## 🚀 Basic Usage
 
 See [action.yml](action.yml)
 
@@ -24,7 +27,23 @@ steps:
       mode: stop
 ```
 
-## Complete Workflow Example
+## 📥 Inputs
+
+| Name          | Description                                                            | Default                              | Required |
+|---------------|------------------------------------------------------------------------|--------------------------------------|----------|
+| mode          | Operation mode: 'start' to begin monitoring, 'stop' to end and report  |                                      | `true`   |
+| storage-path  | Path to store monitoring data (default: GitHub workspace temp dir)     | `${GITHUB_WORKSPACE}/.monitor_space` | `false`  |
+
+## 📤 Outputs
+
+| Name                 | Description                                             |
+|----------------------|---------------------------------------------------------|
+| current-space        | Current free disk space (GB)                            |
+| minimum-space        | Minimum free disk space recorded during monitoring (GB) |
+| space-consumed       | Maximum space consumed during monitoring (GB)           |
+| monitoring-duration  | Duration of monitoring session (seconds)                |
+
+## 🧰 Advanced Usage
 
 ```yaml
 steps:
@@ -67,23 +86,9 @@ steps:
       echo "Monitoring duration: ${{ steps.space-monitor.outputs.monitoring-duration }} seconds"
 ```
 
-## Inputs
+## 📝 Notes
 
-| Name         | Description                                                           | Default | Required |
-|--------------|-----------------------------------------------------------------------|---------|----------|
-| mode         | Operation mode: 'start' to begin monitoring, 'stop' to end and report |         | `true`   |
-| storage-path | Path to store monitoring data (default: GitHub workspace temp dir)    | `""`    | `false`  |
-
-## Outputs
-
-| Name                | Description                                             |
-|---------------------|---------------------------------------------------------|
-| current-space       | Current free disk space (GB)                            |
-| minimum-space       | Minimum free disk space recorded during monitoring (GB) |
-| space-consumed      | Maximum space consumed during monitoring (GB)           |
-| monitoring-duration | Duration of monitoring session (seconds)                |
-
-## Features
+### Features
 
 - **Cross-platform**: Works on Linux, Windows, and macOS
 - **Background monitoring**: Continuously tracks disk space every 5 seconds
@@ -91,7 +96,7 @@ steps:
 - **Safe cleanup**: Automatically stops background processes
 - **Detailed reporting**: Provides comprehensive space usage statistics
 
-## How It Works
+### How It Works
 
 1. **Start Mode**:
    - Records initial free disk space
@@ -105,15 +110,19 @@ steps:
    - Outputs comprehensive report
    - Cleans up temporary monitoring files
 
-## Platform Support
+### Platform Support
 
 - **Linux**: Uses `df` command to get disk space information
 - **macOS**: Uses `df` command with macOS-specific formatting
 - **Windows**: Uses PowerShell `Get-WmiObject` to query disk space
 
-## Error Handling
+### Error Handling
 
 - Validates that monitoring was started before attempting to stop
 - Gracefully handles background process cleanup
 - Provides clear error messages for invalid usage
 - Automatically creates the necessary directories for data storage
+
+## 🔗 See Also
+
+This action can be used in conjunction with [more_space](../more_space).

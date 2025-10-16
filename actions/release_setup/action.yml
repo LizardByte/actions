@@ -1,6 +1,6 @@
 ---
-name: "Setup Release"
-description: "Set up the release parameters."
+name: "Release Setup"
+description: "A reusable action to prepare release information for GitHub releases."
 author: "LizardByte"
 
 branding:

@@ -1,6 +1,6 @@
 ---
 name: "Setup Python"
-description: "Set up a specific version of Python using pyenv."
+description: "A reusable action to set up Python using pyenv on GitHub Actions runners."
 author: "LizardByte"
 
 branding:
