@@ -1,6 +1,6 @@
 ---
-name: "Facebook Post Action"
-description: "Post to a facebook page or group."
+name: "Facebook Post"
+description: "GitHub Action for posting to a Facebook page or group."
 author: "LizardByte"
 
 branding:
@@ -9,10 +9,10 @@ branding:
 
 inputs:
   page_id:
-    description: "The page/group id to post to, if not set env.FACEBOOK_PAGE_ID will be used."
+    description: "The page/group id to post to."
     required: false
   access_token:
-    description: "Facebook access token, if not set env.FACEBOOK_PAGE_ID will be used."
+    description: "The permanent Facebook access token."
     required: false
   message:
     description: "The message content of the post."
@@ -21,7 +21,7 @@ inputs:
     description: "The url to include with the post."
     required: false
   fail_on_error:
-    description: "Set to False to allow the workflow to success for groups that don't have the app installed."
+    description: "Set to False to allow the workflow to succeed for groups that don't have the app installed."
     required: false
 
 runs:

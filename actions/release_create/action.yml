@@ -1,6 +1,6 @@
 ---
-name: "Create Release"
-description: "A reusable action to create a GitHub release."
+name: "Release Create"
+description: "A reusable action to create GitHub releases with optional VirusTotal scanning and automated cleanup."
 author: "LizardByte"
 
 branding:

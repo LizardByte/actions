@@ -9,7 +9,9 @@ This action fetches repositories from an organization or user and runs various v
 - Discussions configuration (org-wide vs. repo-specific)
 - Community health files (README, LICENSE, CODE_OF_CONDUCT, CONTRIBUTING, SECURITY, sponsors)
 
-## Token Requirements
+## 🛠️ Prep Work
+
+### Token Requirements
 
 This action works with the default `GITHUB_TOKEN` **only for public repositories in the current organization**.
 For full functionality, especially when auditing:
@@ -21,7 +23,7 @@ You will need a **Personal Access Token (PAT)** with the following scopes:
 - `repo` (for private repositories)
 - `read:org` (for organization repositories)
 
-## Basic Usage
+## 🚀 Basic Usage
 
 See [action.yml](action.yml)
 
@@ -33,33 +35,34 @@ steps:
       token: ${{ secrets.GH_TOKEN }}
 ```
 
-## Inputs
+## 📥 Inputs
 
 | Name                  | Description                                                                     | Default    | Required |
 |-----------------------|---------------------------------------------------------------------------------|------------|----------|
-| token                 | GitHub Token with permissions to read organization repositories.                |            | `true`   |
-| githubOrg             | GitHub organization or user to audit. Defaults to current repo owner.           | `""`       | `false`  |
+| allowEmptyDescription | Allow repositories to have empty descriptions when checkDescription is enabled. | `false`    | `false`  |
+| allowMergeCommit      | Allow merge commits. Options: `disabled`, `enabled`, `any`.                     | `disabled` | `false`  |
+| allowRebaseMerge      | Allow rebase merge. Options: `disabled`, `enabled`, `any`.                      | `any`      | `false`  |
+| allowSquashMerge      | Allow squash merge. Options: `disabled`, `enabled`, `any`.                      | `enabled`  | `false`  |
+| checkCodeOfConduct    | Check if CODE_OF_CONDUCT exists.                                                | `true`     | `false`  |
+| checkCommunityFiles   | Run the community health files validation check.                                | `true`     | `false`  |
+| checkContributing     | Check if CONTRIBUTING exists.                                                   | `true`     | `false`  |
+| checkDescription      | Run the repository description validation check.                                | `true`     | `false`  |
+| checkDiscussions      | Run discussions validation. Options: `disabled`, `org`, `repo`.                 | `disabled` | `false`  |
+| checkLicense          | Check if LICENSE exists.                                                        | `true`     | `false`  |
+| checkMergeTypes       | Run the merge types validation check.                                           | `true`     | `false`  |
+| checkReadme           | Check if README exists.                                                         | `true`     | `false`  |
+| checkSecurity         | Check if SECURITY policy exists.                                                | `true`     | `false`  |
+| checkSettings         | Run the repository settings validation check.                                   | `true`     | `false`  |
+| checkSponsors         | Check if sponsors are activated (FUNDING.yml exists).                           | `true`     | `false`  |
+| excludedRepos         | Comma-separated list of repository names to exclude from the audit.             |            | `false`  |
+| githubOrg             | GitHub organization or user to audit. Defaults to current repo owner.           |            | `false`  |
 | includeArchived       | Include archived repositories in the audit.                                     | `false`    | `false`  |
 | includeForked         | Include forked repositories in the audit.                                       | `true`     | `false`  |
-| excludedRepos         | Comma-separated list of repository names to exclude from the audit.             | `""`       | `false`  |
-| checkDescription      | Run the repository description validation check.                                | `true`     | `false`  |
-| allowEmptyDescription | Allow repositories to have empty descriptions when checkDescription is enabled. | `false`    | `false`  |
-| checkSettings         | Run the repository settings validation check.                                   | `true`     | `false`  |
-| checkMergeTypes       | Run the merge types validation check.                                           | `true`     | `false`  |
-| allowMergeCommit      | Allow merge commits. Options: `disabled`, `enabled`, `any`.                     | `disabled` | `false`  |
-| allowSquashMerge      | Allow squash merge. Options: `disabled`, `enabled`, `any`.                      | `enabled`  | `false`  |
-| allowRebaseMerge      | Allow rebase merge. Options: `disabled`, `enabled`, `any`.                      | `any`      | `false`  |
-| checkDiscussions      | Run discussions validation. Options: `disabled`, `org`, `repo`.                 | `disabled` | `false`  |
+| includePrivate        | Include private repositories in the audit.                                      | `false`    | `false`  |
 | orgDiscussionsRepo    | Repository name allowed to have discussions when using org-wide discussions.    | `.github`  | `false`  |
-| checkCommunityFiles   | Run the community health files validation check.                                | `true`     | `false`  |
-| checkReadme           | Check if README exists.                                                         | `true`     | `false`  |
-| checkLicense          | Check if LICENSE exists.                                                        | `true`     | `false`  |
-| checkCodeOfConduct    | Check if CODE_OF_CONDUCT exists.                                                | `true`     | `false`  |
-| checkContributing     | Check if CONTRIBUTING exists.                                                   | `true`     | `false`  |
-| checkSecurity         | Check if SECURITY policy exists.                                                | `true`     | `false`  |
-| checkSponsors         | Check if sponsors are activated (FUNDING.yml exists).                           | `true`     | `false`  |
+| token                 | GitHub Token with permissions to read organization repositories.                |            | `true`   |
 
-## Outputs
+## 📤 Outputs
 
 This action does not produce outputs. It will fail the workflow if any audits fail,
 with detailed logs showing which repositories and checks failed.
@@ -67,18 +70,22 @@ with detailed logs showing which repositories and checks failed.
 ## Audit Checks
 
 ### Repository Descriptions
+
 When `checkDescription` is enabled, the following validations are performed:
 - Checks if description exists (unless `allowEmptyDescription` is set to `true`)
 - Ensures description does not have leading or trailing whitespace
 - Ensures description ends with a period
 - Ensures description is at least 10 characters long
 
-Set `allowEmptyDescription: true` to skip the missing description check while still validating format rules for repositories that do have descriptions.
+Set `allowEmptyDescription: true` to skip the missing description check while still validating format rules for
+repositories that do have descriptions.
 
 ### Repository Settings
+
 - Ensures issues are enabled
 
 ### Merge Types
+
 Validates merge type settings according to your preferences:
 - **disabled**: The merge type should be disabled
 - **enabled**: The merge type should be enabled
@@ -90,16 +97,18 @@ Default configuration:
 - Rebase merge: `any`
 
 ### Discussions
+
 Validates discussions configuration:
 - **disabled**: Skip discussions check
 - **org**: Ensures repo discussions are disabled (assuming org-wide discussions)
 - **repo**: Ensures every repo has discussions enabled
 
 > [!NOTE]
-> When using org-wide discussions, the repository specified in `orgDiscussionsRepo` will be allowed to have discussions even
-> if org-wide discussions are enforced.
+> When using org-wide discussions, the repository specified in `orgDiscussionsRepo` will be allowed to have
+> discussions even if org-wide discussions are enforced.
 
 ### Community Health Files
+
 Checks for the presence of community health files:
 - README file
 - LICENSE file
@@ -111,13 +120,15 @@ Checks for the presence of community health files:
 Each file check can be individually enabled/disabled.
 
 > [!NOTE]
-> Community health metrics are not available for forked repositories via the GitHub API, so forks will skip these checks and default to passing.
+> Community health metrics are not available for forked repositories via the GitHub API, so forks will skip these
+> checks and default to passing.
 
 > [!NOTE]
-> FUNDING.yml is checked at both the repository level and organization level. If your organization has a `.github` repository with `FUNDING.yml`,
-> all repositories will inherit this and pass the sponsors check unless explicitly overridden at the repository level.
+> FUNDING.yml is checked at both the repository level and organization level. If your organization has a `.github`
+> repository with `FUNDING.yml`, all repositories will inherit this and pass the sponsors check unless explicitly
+> overridden at the repository level.
 
-## Example Workflows
+## 🖥 Example Workflows
 
 ### Basic - Audit Current Organization
 
@@ -224,7 +235,7 @@ steps:
       allowEmptyDescription: true  # Allows repos without descriptions, but validates format if present
 ```
 
-## Notes
+## 📝 Notes
 
 - **Token**: Use a PAT with appropriate permissions for full functionality. `GITHUB_TOKEN` has limited access.
 - **Filters**: By default, archived repositories are excluded, but forked repositories are included

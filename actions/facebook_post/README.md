@@ -1,13 +1,43 @@
 # facebook_post
 
-GitHub Action for posting to a facebook page or group.
+GitHub Action for posting to a Facebook page or group.
 
-## 🎒 Prep Work
+## 🛠️ Prep Work
+
 1. Get a facebook permanent access token (explained below) using a facebook account that owns the page where you want
    to post messages.
 2. Find the ID of the page or group that you want to post messages in (explained below).
 
-## 🖥 Workflow example
+## 🚀 Basic Usage
+
+See [action.yml](action.yml)
+
+```yaml
+steps:
+  - name: Facebook Post
+    uses: LizardByte/actions/actions/facebook_post@master
+    with:
+      access_token: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
+      page_id: ${{ secrets.FACEBOOK_PAGE_ID }}
+      message: "Hello World!"
+```
+
+## 📥 Inputs
+
+| Name          | Description                                                                                 | Default | Required |
+|---------------|---------------------------------------------------------------------------------------------|---------|----------|
+| access_token  | The permanent Facebook access token.                                                        |         | `false`  |
+| fail_on_error | Set to False to allow the workflow to succeed for groups that don't have the app installed. | `true`  | `false`  |
+| message       | The message content of the post.                                                            |         | `true`   |
+| page_id       | The page/group id to post to, if not set env.FACEBOOK_PAGE_ID will be used.                 |         | `false`  |
+| url           | The url to include with the post.                                                           |         | `false`  |
+
+## 📤 Outputs
+
+This action does not produce outputs.
+
+## 🧰 Advanced Usage
+
 ```yaml
 name: Facebook Post Action
 
@@ -32,24 +62,16 @@ jobs:
           url: ${{ github.event.release.html_url }}
 ```
 
-## 🤫 Inputs
+## 📝 Notes
 
-| Name          | Description                                                                                                                                                                                               | Default | Required |
-|---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|----------|
-| ACCESS_TOKEN  | The permanent facebook access token                                                                                                                                                                       |         | `true`   |
-| FAIL_ON_ERROR | Fail the workflow on error. Group posts will fail if the facebook app is not installed to the group; however, the message will be posted, setting this to False will allow the workflow to be successful. | true    | `false`  |
-| MESSAGE       | The content to post                                                                                                                                                                                       |         | `false`  |
-| PAGE_ID       | The page ID where you want to post                                                                                                                                                                        |         | `true`   |
-| URL           | The url to embed with the post                                                                                                                                                                            |         | `false`  |
-
-## 👥 How to get a Facebook permanent access token
+### How to get a Facebook permanent access token
 
 Following the instructions laid out in Facebook's [extending page tokens documentation][1] I was able to get a page
 access token that does not expire.
 
 I suggest using the [Graph API Explorer][2] for all of these steps except where otherwise stated.
 
-### 1. Create Facebook App
+#### 1. Create Facebook App
 
 **If you already have an app**, skip to the next step.
 
@@ -60,7 +82,7 @@ I suggest using the [Graph API Explorer][2] for all of these steps except where 
 You don't need to change its permissions or anything. You just need an app that won't go away before you're done with
 your access token.
 
-### 2. Get User Short-Lived Access Token
+#### 2. Get User Short-Lived Access Token
 
 1. Go to the [Graph API Explorer][2].
 2. Select the application you want to get the access token for (in the "Meta App" drop-down menu).
@@ -72,7 +94,7 @@ your access token.
 
 The token that appears in the "Access Token" field is your short-lived access token.
 
-### 3. Generate Long-Lived Access Token
+#### 3. Generate Long-Lived Access Token
 
 Following [these instructions][4] from the Facebook docs, make a GET request to
 
@@ -95,7 +117,7 @@ The response should look like this:
 "ABC123" will be your long-lived access token. You can put it into the [Access Token Debugger][5] to verify.
 Under "Expires" it should have something like "2 months". If it says "Never", you can skip the rest of the steps.
 
-### 4. Get User ID
+#### 4. Get User ID
 
 Using the long-lived access token, make a GET request to
 
@@ -105,7 +127,7 @@ https://graph.facebook.com/me?access_token=**{long_lived_access_token}**
 
 The `id` field is your account ID. You'll need it for the next step.
 
-### 5. Get Permanent Page Access Token
+#### 5. Get Permanent Page Access Token
 
 Make a GET request to
 
@@ -117,7 +139,7 @@ The JSON response should have a `data` field under which is an array of items th
 Find the item for the page you want the permanent access token from. The `access_token` field should have your
 permanent access token. Copy it and test it in the [Access Token Debugger][5]. Under "Expires" it should say "Never".
 
-## 👥 How to get a Facebook page ID
+### How to get a Facebook page ID
 
 To find your Page ID:
 

@@ -1,8 +1,11 @@
 # release_changelog
 
-A reusable action to update a changelog, based on the contents of the GitHub releases.
+A reusable action to generate a changelog from GitHub releases.
 
-## Basic Usage
+This action automatically generates a comprehensive changelog by aggregating all non-draft, non-prerelease releases
+and committing it to a dedicated branch.
+
+## 🚀 Basic Usage
 
 See [action.yml](action.yml)
 
@@ -14,20 +17,20 @@ steps:
       token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-## Inputs
+## 📥 Inputs
 
-| Name                   | Description                            | Default         | Required |
-|------------------------|----------------------------------------|-----------------|----------|
-| changelogBranch        | The branch to store the changelog in.  | `changelog`     | `false`  |
-| changelogFile          | The file to store the changelog in.    | `CHANGELOG.md`  | `false`  |
-| token                  | GitHub Token.                          |                 | `true`   |
+| Name            | Description                           | Default        | Required |
+|-----------------|---------------------------------------|----------------|----------|
+| changelogBranch | The branch to store the changelog in. | `changelog`    | `false`  |
+| changelogFile   | The file to store the changelog in.   | `CHANGELOG.md` | `false`  |
+| token           | GitHub Token.                         |                | `true`   |
 
-## Outputs
+## 📤 Outputs
 
 | Name      | Description                              |
 |-----------|------------------------------------------|
 | changelog | The contents of the generated changelog. |
 
-## See Also
+## 🔗 See Also
 
 This action is meant to be used in conjunction with [release_setup](../release_setup).

@@ -1,8 +1,11 @@
 # more_space
 
-A reusable action to free up GitHub hosted runner space by removing unnecessary files and components.
+A reusable action to free up disk space on GitHub Actions runners.
 
-## Basic Usage
+This action provides granular control over cleaning up various components on GitHub Actions runners to free disk space.
+You can target specific components or use the `clean-all` option to maximize available space.
+
+## 🚀 Basic Usage
 
 See [action.yml](action.yml)
 
@@ -12,7 +15,38 @@ steps:
     uses: LizardByte/actions/actions/more_space@master
 ```
 
-## Advanced Usage
+## 📥 Inputs
+
+| Name                  | Description                                                                                  | Default | Required |
+|-----------------------|----------------------------------------------------------------------------------------------|---------|----------|
+| analyze-space-savings | Generate detailed analysis of space savings by each input option                             | `false` | `false`  |
+| clean-all             | When true, all inputs except 'safe-packages' are ignored and all cleanup options are enabled | `false` | `false`  |
+| remove-android        | Remove Android SDK                                                                           | `false` | `false`  |
+| remove-chocolatey     | Remove Chocolatey (Windows only)                                                             | `false` | `false`  |
+| remove-codeql         | Remove CodeQL databases                                                                      | `false` | `false`  |
+| remove-docker-images  | Remove Docker images                                                                         | `false` | `false`  |
+| remove-docs-linux     | Remove /usr/share/doc (Linux only)                                                           | `false` | `false`  |
+| remove-dotnet         | Remove .NET runtime and tools                                                                | `false` | `false`  |
+| remove-haskell        | Remove Haskell                                                                               | `false` | `false`  |
+| remove-homebrew       | Remove Homebrew (Linux/macOS only)                                                           | `false` | `false`  |
+| remove-jvm            | Remove JVMs                                                                                  | `false` | `false`  |
+| remove-swift          | Remove Swift (Linux/macOS only)                                                              | `false` | `false`  |
+| remove-tool-cache     | Remove runner tool cache                                                                     | `false` | `false`  |
+| remove-tools-windows  | Remove /c/tools (Windows only)                                                               | `false` | `false`  |
+| remove-xcode          | Remove Xcode (macOS only)                                                                    | `false` | `false`  |
+| safe-packages         | A list of packages to keep. If found the cleanup step where found will be skipped            |         | `false`  |
+| space-target          | Target amount of disk space to free in GB. The action will stop once this amount is reached  |         | `false`  |
+
+## 📤 Outputs
+
+| Name           | Description                                                                      |
+|----------------|----------------------------------------------------------------------------------|
+| space-after    | Free disk space after cleanup (GB)                                               |
+| space-analysis | JSON formatted analysis of space savings by input option (sorted by space saved) |
+| space-before   | Free disk space before cleanup (GB)                                              |
+| space-saved    | Amount of disk space saved (GB)                                                  |
+
+## 🧰 Advanced Usage
 
 ```yaml
 steps:
@@ -33,38 +67,9 @@ steps:
       remove-android: true
 ```
 
-## Inputs
+## 📝 Notes
 
-| Name                  | Description                                                                                  | Default | Required |
-|-----------------------|----------------------------------------------------------------------------------------------|---------|----------|
-| analyze-space-savings | Generate detailed analysis of space savings by each input option                             | `false` | `false`  |
-| clean-all             | When true, all inputs except 'safe-packages' are ignored and all cleanup options are enabled | `false` | `false`  |
-| safe-packages         | A list of packages to keep. If found the cleanup step where found will be sipped             |         | `false`  |
-| space-target          | Target amount of disk space to free in GB. The action will stop once this amount is reached  |         | `false`  |
-| remove-android        | Remove Android SDK                                                                           | `false` | `false`  |
-| remove-chocolatey     | Remove Chocolatey (Windows only)                                                             | `false` | `false`  |
-| remove-codeql         | Remove CodeQL databases                                                                      | `false` | `false`  |
-| remove-docker-images  | Remove Docker images                                                                         | `false` | `false`  |
-| remove-docs-linux     | Remove /usr/share/doc (Linux only)                                                           | `false` | `false`  |
-| remove-dotnet         | Remove .NET runtime and tools                                                                | `false` | `false`  |
-| remove-haskell        | Remove Haskell                                                                               | `false` | `false`  |
-| remove-homebrew       | Remove Homebrew (Linux/macOS only)                                                           | `false` | `false`  |
-| remove-jvm            | Remove JVMs                                                                                  | `false` | `false`  |
-| remove-swift          | Remove Swift  (Linux/macOS only)                                                             | `false` | `false`  |
-| remove-tool-cache     | Remove runner tool cache                                                                     | `false` | `false`  |
-| remove-tools-windows  | Remove /c/tools (Windows only)                                                               | `false` | `false`  |
-| remove-xcode          | Remove Xcode (macOS only)                                                                    | `false` | `false`  |
-
-## Outputs
-
-| Name           | Description                                                                      |
-|----------------|----------------------------------------------------------------------------------|
-| space-after    | Free disk space after cleanup (GB)                                               |
-| space-analysis | JSON formatted analysis of space savings by input option (sorted by space saved) |
-| space-before   | Free disk space before cleanup (GB)                                              |
-| space-saved    | Amount of disk space saved (GB)                                                  |
-
-## Expected Space Savings
+### Expected Space Savings
 
 The following table shows the expected space savings for each cleanup option across different runner types. Values are in GB.
 
@@ -86,7 +91,18 @@ The following table shows the expected space savings for each cleanup option acr
 | Linux package cleanup  | 0.08         | 0.18             | 0.03         | 0.13             | -            | -            | -              | -        | -        | -        | -        |
 | Total saved            | 28.88        | 7.55             | 24.74        | 4.07             | 38.98        | 15.20        | 18.81          | 76.10    | 65.83    | 59.31    | 29.97    |
 
-## Examples
+### Safe Package Protection
+
+When using `safe-packages`, the action will:
+
+1. Locate the specified packages using system commands (`which`, `where`)
+2. Check if any cleanup target contains these packages
+3. Skip removal of directories containing protected packages
+4. Continue with other cleanup operations
+
+This ensures critical tools remain available after cleanup.
+
+## 🖥 Example Workflows
 
 ### Clean Everything
 
@@ -121,13 +137,6 @@ The following table shows the expected space savings for each cleanup option acr
   run: echo '${{ steps.cleanup.outputs.space-analysis }}'
 ```
 
-## Safe Package Protection
+## 🔗 See Also
 
-When using `safe-packages`, the action will:
-
-1. Locate the specified packages using system commands (`which`, `where`)
-2. Check if any cleanup target contains these packages
-3. Skip removal of directories containing protected packages
-4. Continue with other cleanup operations
-
-This ensures critical tools remain available after cleanup.
+This action can be used in conjunction with [monitor_space](../monitor_space).

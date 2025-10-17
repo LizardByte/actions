@@ -1,5 +1,5 @@
 ---
-name: "Release changelog"
+name: "Release Changelog"
 description: "A reusable action to automatically update a changelog based on GitHub releases."
 author: "LizardByte"
 

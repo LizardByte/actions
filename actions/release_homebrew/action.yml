@@ -1,5 +1,5 @@
 ---
-name: "Homebrew Release"
+name: "Release Homebrew"
 description: "A reusable action to audit, install, test, and publish a Homebrew formula."
 author: "LizardByte"
 
