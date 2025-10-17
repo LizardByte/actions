@@ -176,9 +176,11 @@ async function createOrphanedBranch(github, context, changelogContent, changelog
  * @param {string} changelogContent - Content of the changelog
  * @param {string} changelogBranch - Branch name
  * @param {string} changelogFile - File name for the changelog
+ * @returns {Promise<boolean>} True if file was updated, false if content was unchanged
  */
 async function updateChangelogFile(github, context, changelogContent, changelogBranch, changelogFile) {
   let sha = null;
+  let currentContent = null;
 
   // Try to fetch the SHA of the existing file
   try {
@@ -189,11 +191,19 @@ async function updateChangelogFile(github, context, changelogContent, changelogB
       ref: changelogBranch
     });
     sha = fileData.data.sha;
+    // Decode the current content to compare
+    currentContent = Buffer.from(fileData.data.content, 'base64').toString('utf-8');
   } catch (getFileError) {
     if (getFileError.status !== 404) {
       throw new Error(`Failed to fetch the file: ${getFileError.message}`);
     }
     // If 404, sha remains null and we'll create a new file
+  }
+
+  // Check if content has changed
+  if (currentContent !== null && currentContent === changelogContent) {
+    console.log(`No changes detected in ${changelogFile}, skipping commit`);
+    return false;
   }
 
   // Create or update the file
@@ -206,6 +216,8 @@ async function updateChangelogFile(github, context, changelogContent, changelogB
     sha: sha, // if sha is null, it'll create a new file
     branch: changelogBranch
   });
+
+  return true;
 }
 
 /**
@@ -239,8 +251,12 @@ async function generateReleaseChangelog({ github, context, core }) {
     } catch (e) {
       if (e.status === 422 && e.message.includes("Reference already exists")) {
         console.log(`Branch ${changelogBranch} already exists, updating...`);
-        await updateChangelogFile(github, context, changelog, changelogBranch, changelogFile);
-        console.log(`✅ Updated ${changelogFile} in ${changelogBranch}`);
+        const updated = await updateChangelogFile(github, context, changelog, changelogBranch, changelogFile);
+        if (updated) {
+          console.log(`✅ Updated ${changelogFile} in ${changelogBranch}`);
+        } else {
+          console.log(`No changes detected, ${changelogFile} not updated`);
+        }
       } else {
         throw new Error(`Failed to create or update changelog: ${e.message}`);
       }
