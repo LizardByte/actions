@@ -8,11 +8,72 @@ branding:
   color: green
 
 inputs:
-  token:
-    description: 'GitHub Token with permissions to read organization repositories.'
-    required: true
+  allowEmptyDescription:
+    description: 'Allow repositories to have empty descriptions when checkDescription is enabled.'
+    required: false
+    default: 'false'
+  allowMergeCommit:
+    description: 'Allow merge commits. Options: disabled, enabled, any.'
+    required: false
+    default: 'disabled'
+  allowRebaseMerge:
+    description: 'Allow rebase merge. Options: disabled, enabled, any.'
+    required: false
+    default: 'any'
+  allowSquashMerge:
+    description: 'Allow squash merge. Options: disabled, enabled, any.'
+    required: false
+    default: 'enabled'
   githubOrg:
     description: 'GitHub organization or user to audit. Defaults to the current repository owner.'
+    required: false
+    default: ''
+  checkCodeOfConduct:
+    description: 'Check if CODE_OF_CONDUCT exists.'
+    required: false
+    default: 'true'
+  checkCommunityFiles:
+    description: 'Run the community health files validation check.'
+    required: false
+    default: 'true'
+  checkContributing:
+    description: 'Check if CONTRIBUTING exists.'
+    required: false
+    default: 'true'
+  checkDescription:
+    description: 'Run the repository description validation check.'
+    required: false
+    default: 'true'
+  checkDiscussions:
+    description: 'Run the discussions validation check. Options: disabled, org, repo.'
+    required: false
+    default: 'disabled'
+  checkLicense:
+    description: 'Check if LICENSE exists.'
+    required: false
+    default: 'true'
+  checkMergeTypes:
+    description: 'Run the merge types validation check.'
+    required: false
+    default: 'true'
+  checkReadme:
+    description: 'Check if README exists.'
+    required: false
+    default: 'true'
+  checkSecurity:
+    description: 'Check if SECURITY policy exists.'
+    required: false
+    default: 'true'
+  checkSettings:
+    description: 'Run the repository settings validation check.'
+    required: false
+    default: 'true'
+  checkSponsors:
+    description: 'Check if sponsors are activated.'
+    required: false
+    default: 'true'
+  excludedRepos:
+    description: 'Comma-separated list of repository names to exclude from the audit.'
     required: false
     default: ''
   includeArchived:
@@ -27,74 +88,13 @@ inputs:
     description: 'Include private repositories in the audit.'
     required: false
     default: 'false'
-  excludedRepos:
-    description: 'Comma-separated list of repository names to exclude from the audit.'
-    required: false
-    default: ''
-  checkDescription:
-    description: 'Run the repository description validation check.'
-    required: false
-    default: 'true'
-  allowEmptyDescription:
-    description: 'Allow repositories to have empty descriptions when checkDescription is enabled.'
-    required: false
-    default: 'false'
-  checkSettings:
-    description: 'Run the repository settings validation check.'
-    required: false
-    default: 'true'
-  checkMergeTypes:
-    description: 'Run the merge types validation check.'
-    required: false
-    default: 'true'
-  allowMergeCommit:
-    description: 'Allow merge commits. Options: disabled, enabled, any.'
-    required: false
-    default: 'disabled'
-  allowSquashMerge:
-    description: 'Allow squash merge. Options: disabled, enabled, any.'
-    required: false
-    default: 'enabled'
-  allowRebaseMerge:
-    description: 'Allow rebase merge. Options: disabled, enabled, any.'
-    required: false
-    default: 'any'
-  checkDiscussions:
-    description: 'Run the discussions validation check. Options: disabled, org, repo.'
-    required: false
-    default: 'disabled'
   orgDiscussionsRepo:
     description: 'Repository name allowed to have discussions when using org-wide discussions (checkDiscussions=org).'
     required: false
     default: '.github'
-  checkCommunityFiles:
-    description: 'Run the community health files validation check.'
-    required: false
-    default: 'true'
-  checkReadme:
-    description: 'Check if README exists.'
-    required: false
-    default: 'true'
-  checkLicense:
-    description: 'Check if LICENSE exists.'
-    required: false
-    default: 'true'
-  checkCodeOfConduct:
-    description: 'Check if CODE_OF_CONDUCT exists.'
-    required: false
-    default: 'true'
-  checkContributing:
-    description: 'Check if CONTRIBUTING exists.'
-    required: false
-    default: 'true'
-  checkSecurity:
-    description: 'Check if SECURITY policy exists.'
-    required: false
-    default: 'true'
-  checkSponsors:
-    description: 'Check if sponsors are activated.'
-    required: false
-    default: 'true'
+  token:
+    description: 'GitHub Token with permissions to read organization repositories.'
+    required: true
 
 runs:
   using: "composite"

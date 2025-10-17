@@ -51,6 +51,7 @@ inputs:
     description: 'Whether to validate the formula.'
     default: 'true'
     required: false
+
 outputs:
   buildpath:
     description: "The path to Homebrew's temporary build directory."
