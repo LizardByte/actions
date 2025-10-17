@@ -82,29 +82,15 @@ describe('Release Cleanup', () => {
       expect(compareVersionTags('v1.2.3', 'v1.2.3')).toBe(0);
     });
 
-    test('should compare different major versions', () => {
-      expect(compareVersionTags('v1.2.3', 'v2.2.3')).toBe(-1);
-      expect(compareVersionTags('v2.2.3', 'v1.2.3')).toBe(1);
-    });
-
-    test('should compare different minor versions', () => {
-      expect(compareVersionTags('v1.2.3', 'v1.3.3')).toBe(-1);
-      expect(compareVersionTags('v1.3.3', 'v1.2.3')).toBe(1);
-    });
-
-    test('should compare different patch versions', () => {
-      expect(compareVersionTags('v1.2.3', 'v1.2.4')).toBe(-1);
-      expect(compareVersionTags('v1.2.4', 'v1.2.3')).toBe(1);
-    });
-
-    test('should compare versions with different lengths', () => {
-      expect(compareVersionTags('v1.2.3', 'v1.2.3.4')).toBe(-1);
-      expect(compareVersionTags('v1.2.3.4', 'v1.2.3')).toBe(1);
-    });
-
-    test('should compare calendar versions', () => {
-      expect(compareVersionTags('v2024.1015.183045', 'v2024.1016.183045')).toBe(-1);
-      expect(compareVersionTags('v2024.1016.183045', 'v2024.1015.183045')).toBe(1);
+    test.each([
+      ['major versions', 'v1.2.3', 'v2.2.3'],
+      ['minor versions', 'v1.2.3', 'v1.3.3'],
+      ['patch versions', 'v1.2.3', 'v1.2.4'],
+      ['versions with different lengths', 'v1.2.3', 'v1.2.3.4'],
+      ['calendar versions', 'v2024.1015.183045', 'v2024.1016.183045'],
+    ])('should compare different %s', (description, lowerVersion, higherVersion) => {
+      expect(compareVersionTags(lowerVersion, higherVersion)).toBe(-1);
+      expect(compareVersionTags(higherVersion, lowerVersion)).toBe(1);
     });
   });
 
