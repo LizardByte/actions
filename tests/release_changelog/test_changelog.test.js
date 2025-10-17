@@ -5,7 +5,7 @@
 
 /* eslint-env jest */
 
-const { createMockContext, createMockGithub, createMockCore, setupConsoleMocks, createMockReleases, setupBranchCreationMocks, verifyBranchCreation } = require('../testUtils.js');
+const { createMockContext, createMockGithub, createMockCore, setupConsoleMocks, createMockReleases, setupBranchCreationMocks, verifyBranchCreation, setupChangelogWorkflow } = require('../testUtils.js');
 
 // Mock the GitHub Actions core, context, and GitHub objects
 const mockCore = createMockCore();
@@ -363,8 +363,7 @@ describe('Release Changelog Generator', () => {
         },
       ]);
 
-      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
-      setupBranchCreationMocks(mockGithub);
+      setupChangelogWorkflow(mockGithub, releases);
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 
@@ -377,8 +376,7 @@ describe('Release Changelog Generator', () => {
       delete process.env.changelog_branch;
       delete process.env.changelog_file;
 
-      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: [] });
-      setupBranchCreationMocks(mockGithub);
+      setupChangelogWorkflow(mockGithub);
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 
@@ -406,8 +404,7 @@ describe('Release Changelog Generator', () => {
         },
       ]);
 
-      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
-      setupBranchCreationMocks(mockGithub);
+      setupChangelogWorkflow(mockGithub, releases);
       mockGithub.rest.git.createRef.mockRejectedValue({ status: 422, message: 'Reference already exists' });
       mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: 'file-sha' } });
       mockGithub.rest.repos.createOrUpdateFileContents.mockResolvedValue({});
@@ -436,8 +433,7 @@ describe('Release Changelog Generator', () => {
         },
       ]);
 
-      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
-      setupBranchCreationMocks(mockGithub);
+      setupChangelogWorkflow(mockGithub, releases);
       mockGithub.rest.git.createRef.mockRejectedValue({ status: 500, message: 'Internal server error' });
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
@@ -449,8 +445,7 @@ describe('Release Changelog Generator', () => {
       process.env.changelog_branch = 'custom-branch';
       process.env.changelog_file = 'CUSTOM.md';
 
-      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: [] });
-      setupBranchCreationMocks(mockGithub);
+      setupChangelogWorkflow(mockGithub);
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 

@@ -2,6 +2,8 @@
  * Shared test utilities for JavaScript tests
  */
 
+/* eslint-env jest */
+
 /**
  * Create mock GitHub context object
  * @param {string} owner - Repository owner
@@ -216,6 +218,34 @@ function verifyDeleteCalls(mockGithub, {
   }
 }
 
+/**
+ * Setup environment variables for cleanup tests
+ * @param {Object} options - Environment variable values
+ */
+function setupCleanupEnv({
+  currentTag = 'v2024.1.5',
+  keepLatest = '2',
+  deleteTags = 'true',
+  sleepDuration = '1',
+  isDraft = 'false',
+} = {}) {
+  process.env.CURRENT_TAG = currentTag;
+  process.env.KEEP_LATEST = keepLatest;
+  process.env.DELETE_TAGS = deleteTags;
+  process.env.SLEEP_DURATION = sleepDuration;
+  process.env.IS_DRAFT = isDraft;
+}
+
+/**
+ * Setup mocks for changelog generation workflow
+ * @param {Object} mockGithub - Mock GitHub object
+ * @param {Array} releases - Array of releases to return
+ */
+function setupChangelogWorkflow(mockGithub, releases = []) {
+  mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
+  setupBranchCreationMocks(mockGithub);
+}
+
 module.exports = {
   createMockContext,
   createMockGithub,
@@ -227,4 +257,6 @@ module.exports = {
   verifyBranchCreation,
   setupDeleteMocks,
   verifyDeleteCalls,
+  setupCleanupEnv,
+  setupChangelogWorkflow,
 };

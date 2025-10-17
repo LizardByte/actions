@@ -26,7 +26,7 @@ export default [
     },
   },
   {
-    files: ["tests/**/*.test.js"],
+    files: ["tests/**/*.js"],
     ...pluginJest.configs['flat/recommended'],
     languageOptions: {
       globals: {

@@ -5,7 +5,7 @@
 
 /* eslint-env jest */
 
-const { createMockContext, createMockGithub, setupConsoleMocks, createMockRelease, createMockReleases, setupDeleteMocks, verifyDeleteCalls } = require('../testUtils.js');
+const { createMockContext, createMockGithub, setupConsoleMocks, createMockRelease, createMockReleases, setupDeleteMocks, verifyDeleteCalls, setupCleanupEnv } = require('../testUtils.js');
 
 // Mock the GitHub Actions context and GitHub objects
 const mockContext = createMockContext();
@@ -307,11 +307,7 @@ describe('Release Cleanup', () => {
 
       setupDeleteMocks(mockGithub);
       mockGithub.paginate.mockResolvedValue(releases);
-
-      process.env.CURRENT_TAG = 'v2024.1.5';
-      process.env.KEEP_LATEST = '2';
-      process.env.DELETE_TAGS = 'true';
-      process.env.SLEEP_DURATION = '1';
+      setupCleanupEnv({ currentTag: 'v2024.1.5', keepLatest: '2', deleteTags: 'true', sleepDuration: '1' });
 
       const deletePromise = deleteOldPreReleases({ github: mockGithub, context: mockContext });
       await jest.runAllTimersAsync();
@@ -329,11 +325,7 @@ describe('Release Cleanup', () => {
 
       setupDeleteMocks(mockGithub);
       mockGithub.paginate.mockResolvedValue(releases);
-
-      process.env.CURRENT_TAG = 'v2024.1.1';
-      process.env.IS_DRAFT = 'true';
-      process.env.DELETE_TAGS = 'true';
-      process.env.SLEEP_DURATION = '1';
+      setupCleanupEnv({ currentTag: 'v2024.1.1', isDraft: 'true', deleteTags: 'true', sleepDuration: '1' });
 
       const deletePromise = deleteOldPreReleases({ github: mockGithub, context: mockContext });
       await jest.runAllTimersAsync();
@@ -353,12 +345,7 @@ describe('Release Cleanup', () => {
 
       setupDeleteMocks(mockGithub);
       mockGithub.paginate.mockResolvedValue(releases);
-
-      process.env.CURRENT_TAG = 'v2024.1.3';
-      process.env.KEEP_LATEST = '0';
-      process.env.DELETE_TAGS = 'false';
-      process.env.SLEEP_DURATION = '1';
-      process.env.IS_DRAFT = 'false';
+      setupCleanupEnv({ currentTag: 'v2024.1.3', keepLatest: '0', deleteTags: 'false', sleepDuration: '1', isDraft: 'false' });
 
       const deletePromise = deleteOldPreReleases({ github: mockGithub, context: mockContext });
       await jest.runAllTimersAsync();
@@ -374,12 +361,7 @@ describe('Release Cleanup', () => {
 
       setupDeleteMocks(mockGithub);
       mockGithub.paginate.mockResolvedValue(releases);
-
-      process.env.CURRENT_TAG = 'v2024.1.2';
-      process.env.KEEP_LATEST = '2';
-      process.env.DELETE_TAGS = 'false';
-      process.env.SLEEP_DURATION = '1';
-      process.env.IS_DRAFT = 'false';
+      setupCleanupEnv({ currentTag: 'v2024.1.2', keepLatest: '2', deleteTags: 'false', sleepDuration: '1', isDraft: 'false' });
 
       const deletePromise = deleteOldPreReleases({ github: mockGithub, context: mockContext });
       await jest.runAllTimersAsync();
@@ -395,12 +377,7 @@ describe('Release Cleanup', () => {
 
       setupDeleteMocks(mockGithub);
       mockGithub.paginate.mockResolvedValue(releases);
-
-      process.env.CURRENT_TAG = 'v2024.1.2';
-      process.env.KEEP_LATEST = '0';
-      process.env.DELETE_TAGS = 'true';
-      process.env.SLEEP_DURATION = '10';
-      process.env.IS_DRAFT = 'false';
+      setupCleanupEnv({ currentTag: 'v2024.1.2', keepLatest: '0', deleteTags: 'true', sleepDuration: '10', isDraft: 'false' });
 
       const deletePromise = deleteOldPreReleases({ github: mockGithub, context: mockContext });
       await jest.runAllTimersAsync();
