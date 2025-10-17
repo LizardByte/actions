@@ -5,48 +5,32 @@
 
 /* eslint-env jest */
 
+const { createMockContext, createMockGithub, setupConsoleMocks } = require('../testUtils.js');
+
 // Mock the GitHub Actions context and GitHub objects
-const mockContext = {
-  repo: {
-    owner: 'test-org',
-    repo: 'test-repo',
+const mockContext = createMockContext();
+const mockGithub = createMockGithub();
+
+// Override specific methods that need different implementations
+mockGithub.rest.repos.listReleases = {
+  endpoint: {
+    merge: jest.fn(),
   },
 };
 
-const mockGithub = {
-  rest: {
-    repos: {
-      listReleases: {
-        endpoint: {
-          merge: jest.fn(),
-        },
-      },
-      deleteRelease: jest.fn(),
-    },
-    git: {
-      deleteRef: jest.fn(),
-    },
-  },
-  paginate: jest.fn(),
-};
-
-// Mock console methods
-const originalConsoleLog = console.log;
-const originalConsoleError = console.error;
-let consoleOutput = [];
-let consoleErrors = [];
+// Setup console mocking
+let consoleMocks;
+let consoleOutput;
+let consoleErrors;
 
 beforeEach(() => {
   // Reset mocks before each test
   jest.clearAllMocks();
-  consoleOutput = [];
-  consoleErrors = [];
-  console.log = jest.fn((...args) => {
-    consoleOutput.push(args.join(' '));
-  });
-  console.error = jest.fn((...args) => {
-    consoleErrors.push(args.join(' '));
-  });
+
+  // Setup console mocking fresh for each test
+  consoleMocks = setupConsoleMocks();
+  consoleOutput = consoleMocks.consoleOutput;
+  consoleErrors = consoleMocks.consoleErrors;
 
   // Set default environment variables
   process.env.DELETE_TAGS = 'true';
@@ -57,8 +41,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  console.log = originalConsoleLog;
-  console.error = originalConsoleError;
+  if (consoleMocks) {
+    consoleMocks.restore();
+  }
 });
 
 // Import the module after setting up mocks
