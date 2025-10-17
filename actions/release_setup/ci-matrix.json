@@ -1,6 +1,5 @@
 [
   {
-    "name": "release_setup",
     "runs-on": "ubuntu-latest",
     "with": {
       "github_token": "${ secrets.GITHUB_TOKEN }"

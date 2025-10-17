@@ -1,6 +1,5 @@
 [
   {
-    "name": "facebook_post",
     "runs-on": "ubuntu-latest",
     "with": {
       "access_token": "${ secrets.FACEBOOK_ACCESS_TOKEN }",

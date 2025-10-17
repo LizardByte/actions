@@ -1,6 +1,5 @@
 [
   {
-    "name": "release_changelog",
     "runs-on": "ubuntu-latest",
     "with": {
       "changelogBranch": "pr-changelogs",
