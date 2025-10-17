@@ -5,7 +5,7 @@
 
 /* eslint-env jest */
 
-const { createMockContext, createMockGithub, createMockCore, setupConsoleMocks, createMockRelease, createMockReleases } = require('../testUtils.js');
+const { createMockContext, createMockGithub, createMockCore, setupConsoleMocks, createMockReleases, setupBranchCreationMocks, verifyBranchCreation } = require('../testUtils.js');
 
 // Mock the GitHub Actions core, context, and GitHub objects
 const mockCore = createMockCore();
@@ -286,44 +286,16 @@ describe('Release Changelog Generator', () => {
       const treeSha = 'tree-sha-456';
       const commitSha = 'commit-sha-789';
 
-      mockGithub.rest.git.createBlob.mockResolvedValue({ data: { sha: blobSha } });
-      mockGithub.rest.git.createTree.mockResolvedValue({ data: { sha: treeSha } });
-      mockGithub.rest.git.createCommit.mockResolvedValue({ data: { sha: commitSha } });
-      mockGithub.rest.git.createRef.mockResolvedValue({});
+      setupBranchCreationMocks(mockGithub, { blobSha, treeSha, commitSha });
 
       await createOrphanedBranch(mockGithub, mockContext, 'test content', 'changelog', 'CHANGELOG.md');
 
-      expect(mockGithub.rest.git.createBlob).toHaveBeenCalledWith({
-        owner: 'test-org',
-        repo: 'test-repo',
+      verifyBranchCreation(mockGithub, {
         content: 'test content',
-        encoding: 'utf-8',
-      });
-
-      expect(mockGithub.rest.git.createTree).toHaveBeenCalledWith({
-        owner: 'test-org',
-        repo: 'test-repo',
-        tree: [{
-          path: 'CHANGELOG.md',
-          mode: '100644',
-          type: 'blob',
-          sha: blobSha,
-        }],
-      });
-
-      expect(mockGithub.rest.git.createCommit).toHaveBeenCalledWith({
-        owner: 'test-org',
-        repo: 'test-repo',
-        message: 'chore: create CHANGELOG.md',
-        tree: treeSha,
-        parents: [],
-      });
-
-      expect(mockGithub.rest.git.createRef).toHaveBeenCalledWith({
-        owner: 'test-org',
-        repo: 'test-repo',
-        ref: 'refs/heads/changelog',
-        sha: commitSha,
+        branch: 'changelog',
+        filePath: 'CHANGELOG.md',
+        blobSha,
+        treeSha,
       });
     });
   });
@@ -392,10 +364,7 @@ describe('Release Changelog Generator', () => {
       ]);
 
       mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
-      mockGithub.rest.git.createBlob.mockResolvedValue({ data: { sha: 'blob-sha' } });
-      mockGithub.rest.git.createTree.mockResolvedValue({ data: { sha: 'tree-sha' } });
-      mockGithub.rest.git.createCommit.mockResolvedValue({ data: { sha: 'commit-sha' } });
-      mockGithub.rest.git.createRef.mockResolvedValue({});
+      setupBranchCreationMocks(mockGithub);
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 
@@ -405,20 +374,14 @@ describe('Release Changelog Generator', () => {
     });
 
     test('should use default branch and file names when environment variables are not set', async () => {
-      // Clear environment variables to test default values
       delete process.env.changelog_branch;
       delete process.env.changelog_file;
 
-      const releases = [];
-      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
-      mockGithub.rest.git.createBlob.mockResolvedValue({ data: { sha: 'blob-sha' } });
-      mockGithub.rest.git.createTree.mockResolvedValue({ data: { sha: 'tree-sha' } });
-      mockGithub.rest.git.createCommit.mockResolvedValue({ data: { sha: 'commit-sha' } });
-      mockGithub.rest.git.createRef.mockResolvedValue({});
+      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: [] });
+      setupBranchCreationMocks(mockGithub);
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 
-      // Verify defaults were used
       expect(mockGithub.rest.git.createRef).toHaveBeenCalledWith(
         expect.objectContaining({
           ref: 'refs/heads/changelog',
@@ -444,9 +407,7 @@ describe('Release Changelog Generator', () => {
       ]);
 
       mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
-      mockGithub.rest.git.createBlob.mockResolvedValue({ data: { sha: 'blob-sha' } });
-      mockGithub.rest.git.createTree.mockResolvedValue({ data: { sha: 'tree-sha' } });
-      mockGithub.rest.git.createCommit.mockResolvedValue({ data: { sha: 'commit-sha' } });
+      setupBranchCreationMocks(mockGithub);
       mockGithub.rest.git.createRef.mockRejectedValue({ status: 422, message: 'Reference already exists' });
       mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: 'file-sha' } });
       mockGithub.rest.repos.createOrUpdateFileContents.mockResolvedValue({});
@@ -476,9 +437,7 @@ describe('Release Changelog Generator', () => {
       ]);
 
       mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
-      mockGithub.rest.git.createBlob.mockResolvedValue({ data: { sha: 'blob-sha' } });
-      mockGithub.rest.git.createTree.mockResolvedValue({ data: { sha: 'tree-sha' } });
-      mockGithub.rest.git.createCommit.mockResolvedValue({ data: { sha: 'commit-sha' } });
+      setupBranchCreationMocks(mockGithub);
       mockGithub.rest.git.createRef.mockRejectedValue({ status: 500, message: 'Internal server error' });
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
@@ -490,12 +449,8 @@ describe('Release Changelog Generator', () => {
       process.env.changelog_branch = 'custom-branch';
       process.env.changelog_file = 'CUSTOM.md';
 
-      const releases = [];
-      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
-      mockGithub.rest.git.createBlob.mockResolvedValue({ data: { sha: 'blob-sha' } });
-      mockGithub.rest.git.createTree.mockResolvedValue({ data: { sha: 'tree-sha' } });
-      mockGithub.rest.git.createCommit.mockResolvedValue({ data: { sha: 'commit-sha' } });
-      mockGithub.rest.git.createRef.mockResolvedValue({});
+      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: [] });
+      setupBranchCreationMocks(mockGithub);
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 
