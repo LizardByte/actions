@@ -217,6 +217,24 @@ describe('Release Changelog Generator', () => {
       const footer = generateChangelogFooter([]);
       expect(footer).toBe('');
     });
+
+    test('should reverse releases to show newest first', () => {
+      const releases = createMockReleases([
+        {
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T00:00:00Z',
+        },
+        {
+          tagName: 'v2.0.0',
+          createdAt: '2024-02-01T00:00:00Z',
+        },
+      ]);
+
+      const footer = generateChangelogFooter(releases);
+      const v2Index = footer.indexOf('[v2.0.0]:');
+      const v1Index = footer.indexOf('[v1.0.0]:');
+      expect(v2Index).toBeLessThan(v1Index);
+    });
   });
 
   describe('generateChangelog', () => {
