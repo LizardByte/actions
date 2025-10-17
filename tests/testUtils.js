@@ -81,9 +81,50 @@ function setupConsoleMocks() {
   };
 }
 
+/**
+ * Create a mock release object
+ * @param {Object} options - Release options
+ * @returns {Object} Mock release object
+ */
+function createMockRelease({
+  tagName = 'v1.0.0',
+  createdAt = '2024-01-01T00:00:00Z',
+  body = '',
+  htmlUrl = `https://github.com/test/repo/releases/tag/${tagName}`,
+  prerelease = false,
+  draft = false,
+  id = null,
+} = {}) {
+  const release = {
+    tag_name: tagName,
+    created_at: createdAt,
+    body,
+    html_url: htmlUrl,
+    prerelease,
+    draft,
+  };
+
+  if (id !== null) {
+    release.id = id;
+  }
+
+  return release;
+}
+
+/**
+ * Create multiple mock releases
+ * @param {Array} configs - Array of release configurations
+ * @returns {Array} Array of mock release objects
+ */
+function createMockReleases(configs) {
+  return configs.map(config => createMockRelease(config));
+}
+
 module.exports = {
   createMockContext,
   createMockGithub,
   createMockCore,
   setupConsoleMocks,
+  createMockRelease,
+  createMockReleases,
 };

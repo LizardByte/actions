@@ -5,7 +5,7 @@
 
 /* eslint-env jest */
 
-const { createMockContext, createMockGithub, createMockCore, setupConsoleMocks } = require('../testUtils.js');
+const { createMockContext, createMockGithub, createMockCore, setupConsoleMocks, createMockRelease, createMockReleases } = require('../testUtils.js');
 
 // Mock the GitHub Actions core, context, and GitHub objects
 const mockCore = createMockCore();
@@ -102,22 +102,18 @@ describe('Release Changelog Generator', () => {
 
   describe('generateChangelogBody', () => {
     test('should generate changelog body from releases', () => {
-      const releases = [
+      const releases = createMockReleases([
         {
-          tag_name: 'v1.0.0',
-          created_at: '2024-01-01T12:00:00Z',
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T12:00:00Z',
           body: '## Features\nInitial release\n',
-          prerelease: false,
-          draft: false,
         },
         {
-          tag_name: 'v1.1.0',
-          created_at: '2024-02-01T12:00:00Z',
+          tagName: 'v1.1.0',
+          createdAt: '2024-02-01T12:00:00Z',
           body: '## Improvements\nBug fixes\n',
-          prerelease: false,
-          draft: false,
         },
-      ];
+      ]);
 
       const body = generateChangelogBody(releases);
       expect(body).toContain('[v1.1.0] - 2024-02-01');
@@ -127,22 +123,19 @@ describe('Release Changelog Generator', () => {
     });
 
     test('should filter out prereleases', () => {
-      const releases = [
+      const releases = createMockReleases([
         {
-          tag_name: 'v1.0.0',
-          created_at: '2024-01-01T00:00:00Z',
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T00:00:00Z',
           body: 'Release\n',
-          prerelease: false,
-          draft: false,
         },
         {
-          tag_name: 'v1.1.0-beta',
-          created_at: '2024-02-01T00:00:00Z',
+          tagName: 'v1.1.0-beta',
+          createdAt: '2024-02-01T00:00:00Z',
           body: 'Beta\n',
           prerelease: true,
-          draft: false,
         },
-      ];
+      ]);
 
       const body = generateChangelogBody(releases);
       expect(body).toContain('v1.0.0');
@@ -150,22 +143,19 @@ describe('Release Changelog Generator', () => {
     });
 
     test('should filter out drafts', () => {
-      const releases = [
+      const releases = createMockReleases([
         {
-          tag_name: 'v1.0.0',
-          created_at: '2024-01-01T00:00:00Z',
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T00:00:00Z',
           body: 'Release\n',
-          prerelease: false,
-          draft: false,
         },
         {
-          tag_name: 'v1.1.0',
-          created_at: '2024-02-01T00:00:00Z',
+          tagName: 'v1.1.0',
+          createdAt: '2024-02-01T00:00:00Z',
           body: 'Draft\n',
-          prerelease: false,
           draft: true,
         },
-      ];
+      ]);
 
       const body = generateChangelogBody(releases);
       expect(body).toContain('v1.0.0');
@@ -178,22 +168,18 @@ describe('Release Changelog Generator', () => {
     });
 
     test('should reverse releases to show newest first', () => {
-      const releases = [
+      const releases = createMockReleases([
         {
-          tag_name: 'v1.0.0',
-          created_at: '2024-01-01T00:00:00Z',
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T00:00:00Z',
           body: 'First\n',
-          prerelease: false,
-          draft: false,
         },
         {
-          tag_name: 'v2.0.0',
-          created_at: '2024-02-01T00:00:00Z',
+          tagName: 'v2.0.0',
+          createdAt: '2024-02-01T00:00:00Z',
           body: 'Second\n',
-          prerelease: false,
-          draft: false,
         },
-      ];
+      ]);
 
       const body = generateChangelogBody(releases);
       const v2Index = body.indexOf('v2.0.0');
@@ -204,20 +190,10 @@ describe('Release Changelog Generator', () => {
 
   describe('generateChangelogFooter', () => {
     test('should generate footer with release URLs', () => {
-      const releases = [
-        {
-          tag_name: 'v1.0.0',
-          html_url: 'https://github.com/test/repo/releases/tag/v1.0.0',
-          prerelease: false,
-          draft: false,
-        },
-        {
-          tag_name: 'v1.1.0',
-          html_url: 'https://github.com/test/repo/releases/tag/v1.1.0',
-          prerelease: false,
-          draft: false,
-        },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v1.0.0' },
+        { tagName: 'v1.1.0' },
+      ]);
 
       const footer = generateChangelogFooter(releases);
       expect(footer).toContain('[v1.0.0]: https://github.com/test/repo/releases/tag/v1.0.0');
@@ -225,26 +201,11 @@ describe('Release Changelog Generator', () => {
     });
 
     test('should filter out prereleases and drafts', () => {
-      const releases = [
-        {
-          tag_name: 'v1.0.0',
-          html_url: 'https://github.com/test/repo/releases/tag/v1.0.0',
-          prerelease: false,
-          draft: false,
-        },
-        {
-          tag_name: 'v1.1.0-beta',
-          html_url: 'https://github.com/test/repo/releases/tag/v1.1.0-beta',
-          prerelease: true,
-          draft: false,
-        },
-        {
-          tag_name: 'v1.2.0',
-          html_url: 'https://github.com/test/repo/releases/tag/v1.2.0',
-          prerelease: false,
-          draft: true,
-        },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v1.0.0' },
+        { tagName: 'v1.1.0-beta', prerelease: true },
+        { tagName: 'v1.2.0', draft: true },
+      ]);
 
       const footer = generateChangelogFooter(releases);
       expect(footer).toContain('v1.0.0');
@@ -260,16 +221,13 @@ describe('Release Changelog Generator', () => {
 
   describe('generateChangelog', () => {
     test('should generate complete changelog', () => {
-      const releases = [
+      const releases = createMockReleases([
         {
-          tag_name: 'v1.0.0',
-          created_at: '2024-01-01T12:00:00Z',
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T12:00:00Z',
           body: '## Features\nInitial release\n',
-          html_url: 'https://github.com/test/repo/releases/tag/v1.0.0',
-          prerelease: false,
-          draft: false,
         },
-      ];
+      ]);
 
       const changelog = generateChangelog(releases);
       expect(changelog).toContain('<!-- # Changelog -->');
@@ -425,16 +383,13 @@ describe('Release Changelog Generator', () => {
 
   describe('generateReleaseChangelog', () => {
     test('should generate changelog and create new branch', async () => {
-      const releases = [
+      const releases = createMockReleases([
         {
-          tag_name: 'v1.0.0',
-          created_at: '2024-01-01T00:00:00Z',
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T00:00:00Z',
           body: '## Features\nInitial release\n',
-          html_url: 'https://github.com/test/repo/releases/tag/v1.0.0',
-          prerelease: false,
-          draft: false,
         },
-      ];
+      ]);
 
       mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
       mockGithub.rest.git.createBlob.mockResolvedValue({ data: { sha: 'blob-sha' } });
@@ -480,16 +435,13 @@ describe('Release Changelog Generator', () => {
     });
 
     test('should update existing branch', async () => {
-      const releases = [
+      const releases = createMockReleases([
         {
-          tag_name: 'v1.0.0',
-          created_at: '2024-01-01T00:00:00Z',
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T00:00:00Z',
           body: 'Release\n',
-          html_url: 'https://github.com/test/repo/releases/tag/v1.0.0',
-          prerelease: false,
-          draft: false,
         },
-      ];
+      ]);
 
       mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
       mockGithub.rest.git.createBlob.mockResolvedValue({ data: { sha: 'blob-sha' } });
@@ -515,16 +467,13 @@ describe('Release Changelog Generator', () => {
     });
 
     test('should handle non-422 errors when creating branch', async () => {
-      const releases = [
+      const releases = createMockReleases([
         {
-          tag_name: 'v1.0.0',
-          created_at: '2024-01-01T00:00:00Z',
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T00:00:00Z',
           body: 'Release\n',
-          html_url: 'https://github.com/test/repo/releases/tag/v1.0.0',
-          prerelease: false,
-          draft: false,
         },
-      ];
+      ]);
 
       mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
       mockGithub.rest.git.createBlob.mockResolvedValue({ data: { sha: 'blob-sha' } });

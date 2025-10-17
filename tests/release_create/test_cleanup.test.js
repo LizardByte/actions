@@ -5,7 +5,7 @@
 
 /* eslint-env jest */
 
-const { createMockContext, createMockGithub, setupConsoleMocks } = require('../testUtils.js');
+const { createMockContext, createMockGithub, setupConsoleMocks, createMockRelease, createMockReleases } = require('../testUtils.js');
 
 // Mock the GitHub Actions context and GitHub objects
 const mockContext = createMockContext();
@@ -138,11 +138,11 @@ describe('Release Cleanup', () => {
 
   describe('filterReleasesToDelete', () => {
     test('should filter draft releases when IS_DRAFT is true', () => {
-      const releases = [
-        { tag_name: 'v2024.1.1', draft: true, prerelease: false },
-        { tag_name: 'v2024.1.2', draft: true, prerelease: false },
-        { tag_name: 'v2024.1.3', draft: false, prerelease: true },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.1', draft: true },
+        { tagName: 'v2024.1.2', draft: true },
+        { tagName: 'v2024.1.3', prerelease: true },
+      ]);
 
       const result = filterReleasesToDelete(releases, true, 'v2024.1.1', 2);
       expect(result).toHaveLength(1);
@@ -150,10 +150,10 @@ describe('Release Cleanup', () => {
     });
 
     test('should not delete current tag', () => {
-      const releases = [
-        { tag_name: 'v2024.1.1', draft: true, prerelease: false },
-        { tag_name: 'v2024.1.2', draft: true, prerelease: false },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.1', draft: true },
+        { tagName: 'v2024.1.2', draft: true },
+      ]);
 
       const result = filterReleasesToDelete(releases, true, 'v2024.1.1', 2);
       expect(result).toHaveLength(1);
@@ -161,13 +161,13 @@ describe('Release Cleanup', () => {
     });
 
     test('should filter pre-releases and keep latest N', () => {
-      const releases = [
-        { tag_name: 'v2024.1.1', draft: false, prerelease: true },
-        { tag_name: 'v2024.1.2', draft: false, prerelease: true },
-        { tag_name: 'v2024.1.3', draft: false, prerelease: true },
-        { tag_name: 'v2024.1.4', draft: false, prerelease: true },
-        { tag_name: 'v2024.1.5', draft: false, prerelease: true },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.1', prerelease: true },
+        { tagName: 'v2024.1.2', prerelease: true },
+        { tagName: 'v2024.1.3', prerelease: true },
+        { tagName: 'v2024.1.4', prerelease: true },
+        { tagName: 'v2024.1.5', prerelease: true },
+      ]);
 
       const result = filterReleasesToDelete(releases, false, 'v2024.1.5', 2);
       // Should delete oldest, keeping the 2 newest (v2024.1.4 and v2024.1.5, but v2024.1.5 is current)
@@ -177,13 +177,13 @@ describe('Release Cleanup', () => {
     });
 
     test('should sort pre-releases by version before filtering', () => {
-      const releases = [
-        { tag_name: 'v2024.1.5', draft: false, prerelease: true },
-        { tag_name: 'v2024.1.1', draft: false, prerelease: true },
-        { tag_name: 'v2024.1.3', draft: false, prerelease: true },
-        { tag_name: 'v2024.1.2', draft: false, prerelease: true },
-        { tag_name: 'v2024.1.4', draft: false, prerelease: true },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.5', prerelease: true },
+        { tagName: 'v2024.1.1', prerelease: true },
+        { tagName: 'v2024.1.3', prerelease: true },
+        { tagName: 'v2024.1.2', prerelease: true },
+        { tagName: 'v2024.1.4', prerelease: true },
+      ]);
 
       const result = filterReleasesToDelete(releases, false, 'v2024.1.6', 2);
       // After sorting: v2024.1.1, v2024.1.2, v2024.1.3, v2024.1.4, v2024.1.5
@@ -196,11 +196,11 @@ describe('Release Cleanup', () => {
     });
 
     test('should only match version pattern tags', () => {
-      const releases = [
-        { tag_name: 'v2024.1.1', draft: false, prerelease: true },
-        { tag_name: 'latest', draft: false, prerelease: true },
-        { tag_name: 'v1.2', draft: false, prerelease: true },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.1', prerelease: true },
+        { tagName: 'latest', prerelease: true },
+        { tagName: 'v1.2', prerelease: true },
+      ]);
 
       const result = filterReleasesToDelete(releases, false, 'v2024.1.2', 0);
       expect(result).toHaveLength(1);
@@ -213,10 +213,10 @@ describe('Release Cleanup', () => {
     });
 
     test('should keep all if keepLatest is greater than count', () => {
-      const releases = [
-        { tag_name: 'v2024.1.1', draft: false, prerelease: true },
-        { tag_name: 'v2024.1.2', draft: false, prerelease: true },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.1', prerelease: true },
+        { tagName: 'v2024.1.2', prerelease: true },
+      ]);
 
       const result = filterReleasesToDelete(releases, false, 'v2024.1.3', 10);
       expect(result).toHaveLength(0);
@@ -226,7 +226,7 @@ describe('Release Cleanup', () => {
   describe('deleteRelease', () => {
     test('should delete release successfully', async () => {
       mockGithub.rest.repos.deleteRelease.mockResolvedValue({});
-      const release = { id: 123, tag_name: 'v2024.1.1' };
+      const release = createMockRelease({ tagName: 'v2024.1.1', id: 123 });
 
       const result = await deleteRelease(mockGithub, 'test-org', 'test-repo', release);
 
@@ -241,7 +241,7 @@ describe('Release Cleanup', () => {
 
     test('should handle delete failure', async () => {
       mockGithub.rest.repos.deleteRelease.mockRejectedValue(new Error('API error'));
-      const release = { id: 123, tag_name: 'v2024.1.1' };
+      const release = createMockRelease({ tagName: 'v2024.1.1', id: 123 });
 
       const result = await deleteRelease(mockGithub, 'test-org', 'test-repo', release);
 
@@ -253,7 +253,7 @@ describe('Release Cleanup', () => {
   describe('deleteTag', () => {
     test('should delete tag successfully', async () => {
       mockGithub.rest.git.deleteRef.mockResolvedValue({});
-      const release = { tag_name: 'v2024.1.1' };
+      const release = createMockRelease({ tagName: 'v2024.1.1' });
 
       const result = await deleteTag(mockGithub, 'test-org', 'test-repo', release);
 
@@ -268,7 +268,7 @@ describe('Release Cleanup', () => {
 
     test('should handle delete failure', async () => {
       mockGithub.rest.git.deleteRef.mockRejectedValue(new Error('API error'));
-      const release = { tag_name: 'v2024.1.1' };
+      const release = createMockRelease({ tagName: 'v2024.1.1' });
 
       const result = await deleteTag(mockGithub, 'test-org', 'test-repo', release);
 
@@ -298,12 +298,12 @@ describe('Release Cleanup', () => {
     });
 
     test('should delete old pre-releases and their tags', async () => {
-      const releases = [
-        { id: 1, tag_name: 'v2024.1.1', draft: false, prerelease: true },
-        { id: 2, tag_name: 'v2024.1.2', draft: false, prerelease: true },
-        { id: 3, tag_name: 'v2024.1.3', draft: false, prerelease: true },
-        { id: 4, tag_name: 'v2024.1.4', draft: false, prerelease: true },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.1', prerelease: true, id: 1 },
+        { tagName: 'v2024.1.2', prerelease: true, id: 2 },
+        { tagName: 'v2024.1.3', prerelease: true, id: 3 },
+        { tagName: 'v2024.1.4', prerelease: true, id: 4 },
+      ]);
 
       mockGithub.rest.repos.listReleases.endpoint.merge.mockReturnValue({});
       mockGithub.paginate.mockResolvedValue(releases);
@@ -327,11 +327,11 @@ describe('Release Cleanup', () => {
     });
 
     test('should delete drafts when IS_DRAFT is true', async () => {
-      const releases = [
-        { id: 1, tag_name: 'v2024.1.1', draft: true, prerelease: false },
-        { id: 2, tag_name: 'v2024.1.2', draft: true, prerelease: false },
-        { id: 3, tag_name: 'v2024.1.3', draft: false, prerelease: true },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.1', draft: true, id: 1 },
+        { tagName: 'v2024.1.2', draft: true, id: 2 },
+        { tagName: 'v2024.1.3', prerelease: true, id: 3 },
+      ]);
 
       mockGithub.rest.repos.listReleases.endpoint.merge.mockReturnValue({});
       mockGithub.paginate.mockResolvedValue(releases);
@@ -356,10 +356,10 @@ describe('Release Cleanup', () => {
     });
 
     test('should not delete tags when DELETE_TAGS is false', async () => {
-      const releases = [
-        { id: 1, tag_name: 'v2024.1.1', draft: false, prerelease: true },
-        { id: 2, tag_name: 'v2024.1.2', draft: false, prerelease: true },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.1', prerelease: true, id: 1 },
+        { tagName: 'v2024.1.2', prerelease: true, id: 2 },
+      ]);
 
       mockGithub.rest.repos.listReleases.endpoint.merge.mockReturnValue({});
       mockGithub.paginate.mockResolvedValue(releases);
@@ -381,9 +381,9 @@ describe('Release Cleanup', () => {
     });
 
     test('should handle no releases to delete', async () => {
-      const releases = [
-        { id: 1, tag_name: 'v2024.1.1', draft: false, prerelease: false }, // Not a prerelease
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.1', id: 1 }, // Not a prerelease
+      ]);
 
       mockGithub.rest.repos.listReleases.endpoint.merge.mockReturnValue({});
       mockGithub.paginate.mockResolvedValue(releases);
@@ -403,9 +403,9 @@ describe('Release Cleanup', () => {
     });
 
     test('should respect SLEEP_DURATION', async () => {
-      const releases = [
-        { id: 1, tag_name: 'v2024.1.1', draft: false, prerelease: true },
-      ];
+      const releases = createMockReleases([
+        { tagName: 'v2024.1.1', prerelease: true, id: 1 },
+      ]);
 
       mockGithub.rest.repos.listReleases.endpoint.merge.mockReturnValue({});
       mockGithub.paginate.mockResolvedValue(releases);
