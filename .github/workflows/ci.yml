@@ -33,12 +33,14 @@ jobs:
         run: |
           while IFS= read -r file; do
             action_dir=$(dirname "$file")
-            jq --arg action "$action_dir" '.[] | . + {action: $action}' "$file"
+            # Remove ./actions/ prefix for friendly names
+            action_name="${action_dir#./actions/}"
+            jq --arg action "$action_name" '.[] | . + {action: $action}' "$file"
           done < <(find . -name 'ci-matrix.json') | jq -s '.' > merged-matrix.json
           echo "matrix=$(jq -c . merged-matrix.json)" >> "${GITHUB_OUTPUT}"
 
   test:
-    name: ${{ matrix.name || format('{0} ({1}, {2})', matrix.action, matrix.runs-on, toJson(matrix.with)) }}
+    name: ${{ format('{0} ({1}, {2})', matrix.action, matrix.runs-on, toJson(matrix.with)) }}
     needs: generate-matrix
     runs-on: ${{ matrix.runs-on }}
     container: ${{ matrix.container }}
@@ -108,9 +110,9 @@ jobs:
           WITH_PARAMS: ${{ steps.process-with.outputs.with-params }}
         shell: bash
         run: |
-          if [ -f ${{ matrix.action }}/pre-ci.sh ]; then
+          if [ -f ./actions/${{ matrix.action }}/pre-ci.sh ]; then
             echo "Running pre-CI setup for ${{ matrix.action }}"
-            bash ${{ matrix.action }}/pre-ci.sh
+            bash ./actions/${{ matrix.action }}/pre-ci.sh
           else
             echo "No pre-CI setup found for ${{ matrix.action }}"
           fi
@@ -119,7 +121,7 @@ jobs:
         uses: jenseng/dynamic-uses@v1
         id: action
         with:
-          uses: ${{ matrix.action }}
+          uses: ./actions/${{ matrix.action }}
           with: '${{ steps.process-with.outputs.with-params }}'
 
       - name: Print action outputs
@@ -153,9 +155,9 @@ jobs:
         if: always()  # make sure we do any cleanup even if the job was canceled or failed
         shell: bash
         run: |
-          if [ -f ${{ matrix.action }}/post-ci.sh ]; then
+          if [ -f ./actions/${{ matrix.action }}/post-ci.sh ]; then
             echo "Running post-CI tests for ${{ matrix.action }}"
-            bash ${{ matrix.action }}/post-ci.sh
+            bash ./actions/${{ matrix.action }}/post-ci.sh
           else
             echo "No post-CI tests found for ${{ matrix.action }}"
           fi

@@ -1,6 +1,5 @@
 [
   {
-    "name": "release_homebrew (macOS)",
     "runs-on": "macos-latest",
     "with": {
       "contribute_to_homebrew_core": true,
@@ -15,7 +14,6 @@
     }
   },
   {
-    "name": "release_homebrew (Linux)",
     "runs-on": "ubuntu-latest",
     "with": {
       "contribute_to_homebrew_core": true,
