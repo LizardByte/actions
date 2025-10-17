@@ -8,20 +8,20 @@ branding:
   color: green
 
 inputs:
-  page_id:
-    description: "The page/group id to post to."
-    required: false
   access_token:
     description: "The permanent Facebook access token."
+    required: false
+  fail_on_error:
+    description: "Set to False to allow the workflow to succeed for groups that don't have the app installed."
     required: false
   message:
     description: "The message content of the post."
     required: true
+  page_id:
+    description: "The page/group id to post to."
+    required: false
   url:
     description: "The url to include with the post."
-    required: false
-  fail_on_error:
-    description: "Set to False to allow the workflow to succeed for groups that don't have the app installed."
     required: false
 
 runs:

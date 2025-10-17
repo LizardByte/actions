@@ -23,12 +23,12 @@ outputs:
   minimum-space:
     description: "Minimum free disk space recorded during monitoring (GB)"
     value: ${{ steps.monitor.outputs.minimum-space }}
-  space-consumed:
-    description: "Maximum space consumed during monitoring (GB)"
-    value: ${{ steps.monitor.outputs.space-consumed }}
   monitoring-duration:
     description: "Duration of monitoring session (seconds)"
     value: ${{ steps.monitor.outputs.monitoring-duration }}
+  space-consumed:
+    description: "Maximum space consumed during monitoring (GB)"
+    value: ${{ steps.monitor.outputs.space-consumed }}
 
 runs:
   using: "composite"
