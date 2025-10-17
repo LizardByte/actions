@@ -201,17 +201,17 @@ LizardByte [release_changelog](https://github.com/LizardByte/actions) action.
 
 **Full Changelog**: https://github.com/LizardByte/actions/commits/v2025.627.5037
 
-[v2025.1011.184228]: https://github.com/LizardByte/actions/releases/tag/v2025.1011.184228
-[v2025.929.125237]: https://github.com/LizardByte/actions/releases/tag/v2025.929.125237
-[v2025.927.193939]: https://github.com/LizardByte/actions/releases/tag/v2025.927.193939
-[v2025.917.25039]: https://github.com/LizardByte/actions/releases/tag/v2025.917.25039
-[v2025.914.154454]: https://github.com/LizardByte/actions/releases/tag/v2025.914.154454
-[v2025.907.21827]: https://github.com/LizardByte/actions/releases/tag/v2025.907.21827
-[v2025.814.40518]: https://github.com/LizardByte/actions/releases/tag/v2025.814.40518
-[v2025.715.25226]: https://github.com/LizardByte/actions/releases/tag/v2025.715.25226
-[v2025.714.211939]: https://github.com/LizardByte/actions/releases/tag/v2025.714.211939
-[v2025.711.172650]: https://github.com/LizardByte/actions/releases/tag/v2025.711.172650
-[v2025.703.21447]: https://github.com/LizardByte/actions/releases/tag/v2025.703.21447
-[v2025.702.213340]: https://github.com/LizardByte/actions/releases/tag/v2025.702.213340
-[v2025.627.30023]: https://github.com/LizardByte/actions/releases/tag/v2025.627.30023
 [v2025.627.5037]: https://github.com/LizardByte/actions/releases/tag/v2025.627.5037
+[v2025.627.30023]: https://github.com/LizardByte/actions/releases/tag/v2025.627.30023
+[v2025.702.213340]: https://github.com/LizardByte/actions/releases/tag/v2025.702.213340
+[v2025.703.21447]: https://github.com/LizardByte/actions/releases/tag/v2025.703.21447
+[v2025.711.172650]: https://github.com/LizardByte/actions/releases/tag/v2025.711.172650
+[v2025.714.211939]: https://github.com/LizardByte/actions/releases/tag/v2025.714.211939
+[v2025.715.25226]: https://github.com/LizardByte/actions/releases/tag/v2025.715.25226
+[v2025.814.40518]: https://github.com/LizardByte/actions/releases/tag/v2025.814.40518
+[v2025.907.21827]: https://github.com/LizardByte/actions/releases/tag/v2025.907.21827
+[v2025.914.154454]: https://github.com/LizardByte/actions/releases/tag/v2025.914.154454
+[v2025.917.25039]: https://github.com/LizardByte/actions/releases/tag/v2025.917.25039
+[v2025.927.193939]: https://github.com/LizardByte/actions/releases/tag/v2025.927.193939
+[v2025.929.125237]: https://github.com/LizardByte/actions/releases/tag/v2025.929.125237
+[v2025.1011.184228]: https://github.com/LizardByte/actions/releases/tag/v2025.1011.184228
