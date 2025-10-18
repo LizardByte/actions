@@ -40,3 +40,7 @@ steps:
 | release_generate_release_notes | Whether or not to generate release notes. True if `release_body` is blank. |
 | release_tag                    | The tag for the release (i.e. `release_version` with prefix)               |
 | release_version                | The version for the release (i.e. `yyyy.mmdd.hhmmss`)                      |
+
+## 🔗 See Also
+
+This action is meant to be used in conjunction with [release_create](../release_create).
