@@ -27,7 +27,7 @@ runs:
       env:
         changelog_branch: ${{ inputs.changelogBranch }}
         changelog_file: ${{ inputs.changelogFile }}
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         github-token: ${{ inputs.token }}
         script: |
