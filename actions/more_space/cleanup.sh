@@ -465,7 +465,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      echo "Unknown option $1"
+      echo -e "${RED}Error: Unknown option '$1'${RESET}" >&2
       exit 1
       ;;
   esac
@@ -494,7 +494,7 @@ if [[ -n "$SPACE_TARGET" ]]; then
 
   # Check if space target is a valid positive number
   if ! [[ "$SPACE_TARGET" =~ ^[0-9]+\.?[0-9]*$ ]] || (( $(awk "BEGIN {print ($SPACE_TARGET <= 0)}") )); then
-    echo -e "${RED}Error: space-target must be a positive number (got: '$SPACE_TARGET')${RESET}"
+    echo -e "${RED}Error: space-target must be a positive number (got: '$SPACE_TARGET')${RESET}" >&2
     exit 1
   fi
 

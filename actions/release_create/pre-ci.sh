@@ -21,6 +21,6 @@ if [[ -f "dist/dummy-binary" && -x "dist/dummy-binary" ]]; then
     echo "File size: $(stat -c%s dist/dummy-binary) bytes"
     echo "File type: $(file dist/dummy-binary)"
 else
-    echo "Error: Failed to create valid dummy binary"
+    echo "Error: Failed to create valid dummy binary" >&2
     exit 1
 fi

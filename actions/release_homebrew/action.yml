@@ -70,7 +70,7 @@ runs:
         echo "Detected OS: ${{ runner.os }}"
         if [[ "${{ runner.os }}" == "Windows" ]]; then
           # fail if Windows
-          echo "${{ runner.os }} is not supported"
+          echo "${{ runner.os }} is not supported" >&2
           exit 1
         fi
 
