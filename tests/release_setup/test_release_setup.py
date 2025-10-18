@@ -127,6 +127,11 @@ def test_check_release(version):
     assert main.check_release(version=version[0]) == version[1]
 
 
+def test_check_release_exists(mock_check_release_exists):
+    # Test the case where a release exists (status_code == 200)
+    assert main.check_release(version='2025.627.5037') is True
+
+
 def test_get_repo_default_branch(github_token, github_event_path):
     assert main.get_repo_default_branch() == 'master'
 
@@ -141,26 +146,57 @@ def test_get_repo_squash_and_merge_required_key_error(mock_get_repo_squash_and_m
 
 
 def test_get_push_event_details(github_event_path, input_dotnet, latest_commit):
-    assert main.get_push_event_details()
+    result = main.get_push_event_details()
+    assert result
+    assert 'publish_release' in result
+    assert 'release_commit' in result
+    assert 'release_version' in result
 
 
-def test_get_push_event_details_no_squash(dummy_github_push_event_path, mock_get_squash_and_merge_return_value):
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
-        main.get_push_event_details()
-    assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == 2
+def test_get_push_event_details_no_squash(
+    dummy_github_push_event_path,
+    mock_get_squash_and_merge_return_value,
+    github_step_summary_file,
+    input_dotnet,
+):
+    # Should no longer raise SystemExit, just warn and continue
+    result = main.get_push_event_details()
+    assert result
+    assert result['publish_release'] is True
+
+    # Check that warning was added to step summary
+    with open(github_step_summary_file, 'r') as f:
+        summary = f.read()
+    assert 'WARNING: Squash and merge is not enabled' in summary
 
 
-def test_get_push_event_details_invalid_commits(dummy_github_push_event_path_invalid_commits):
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
-        main.get_push_event_details()
-    assert pytest_wrapped_e.type == SystemExit
-    assert pytest_wrapped_e.value.code == 3
+def test_get_push_event_details_invalid_commits(
+    dummy_github_push_event_path_invalid_commits,
+    github_step_summary_file,
+    input_dotnet,
+    mock_get_squash_and_merge_return_value,
+):
+    # Should no longer raise SystemExit, just warn and continue
+    result = main.get_push_event_details()
+    assert result
+    assert result['publish_release'] is True
+
+    # Check that warning was added to step summary
+    with open(github_step_summary_file, 'r') as f:
+        summary = f.read()
+    assert 'WARNING: This action only supports a single commit push event' in summary
 
 
 def test_process_release_body(release_notes_sample):
     result = main.process_release_body(release_body=release_notes_sample[0])
     assert result == release_notes_sample[1]
+
+
+def test_generate_release_body_success(mock_generate_release_body_success):
+    result = main.generate_release_body(tag_name='v2.0.0', target_commitish='abc123')
+    assert result
+    assert '@testuser' in result
+    assert 'Contributors' in result
 
 
 def test_generate_release_body(github_token):
