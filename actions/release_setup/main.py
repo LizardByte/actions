@@ -284,82 +284,186 @@ def process_release_body(release_body: str) -> str:
     str
        Processed release body.
     """
-    # replace contributor mentions with GitHub profile
     processed_body = ''
     contributors = {}
-    re_username = re.compile(r'@([a-zA-Z\d\-]{0,38})')
-    re_pr_url = re.compile(r'(https://github\.com/([a-zA-Z\d\-]{0,38})/([a-zA-Z\d-]+)/pull/(\d+))')
+
     for line in io.StringIO(release_body).readlines():
-        split_line = line.rsplit(' by ', 1)
-
-        # find the username
-        username_search = re_username.search(split_line[1] if len(split_line) > 1 else line)
-        if not username_search:
-            processed_body += line
-            continue
-
-        username = username_search.group(1)
-
-        update_pr_url = False
-        username_url = f'https://github.com/{username}'
-        username_url_md = f'[@{username}]({username_url})'
-
-        if username in contributors:
-            contributors[username]['contributions'] += 1
-        else:
-            contributors[username] = {
-                'contributions': 1,
-                'url': username_url,
-            }
-
-        if ' by @' in line:
-            # replace the mention with a GitHub profile URL
-            line = line.replace(f' by @{username}', f' by {username_url_md}')
-            update_pr_url = True
-        if '* @' in line:
-            # replace the mention with a GitHub profile URL
-            line = line.replace(f'* @{username}', f'* {username_url_md}')
-            update_pr_url = True
-        if update_pr_url:
-            pr_search = re_pr_url.search(line)
-            if not pr_search:
-                processed_body += line
-                continue
-
-            pr_url = pr_search.group(1)
-            pr_number = pr_search.group(4)
-
-            # replace the pr url with a Markdown link
-            line = line.replace(pr_url, f'[#{pr_number}]({pr_url})')
-
-        processed_body += line
+        processed_line = _process_line_for_contributors(line, contributors)
+        processed_body += processed_line
 
     # add contributors to the release notes
     if contributors:
-        # sort contributors by contributions count
-        contributors = dict(sorted(contributors.items(), key=lambda item: (-item[1]['contributions'], item[0])))
-
-        processed_body += '\n\n---\n'
-        processed_body += '## Contributors\n'
-        for contributor, details in contributors.items():
-            # add the contributor's avatar
-            # use <img> tag to ensure the image is the correct size as unchanged avatars cannot use the size query
-            processed_body += (
-                f'<a href="{details["url"]}" '
-                'target="_blank" '
-                'rel="external noopener noreferrer" '
-                f'aria-label="GitHub profile of contributor, {contributor}" '
-                '>'
-                f'<img src="{details["url"]}.png?size={AVATAR_SIZE}" '
-                f'width="{AVATAR_SIZE}" '
-                f'height="{AVATAR_SIZE}" '
-                f'alt="{contributor}" '
-                f'title="{contributor}: {details["contributions"]} '
-                f'{"merges" if details["contributions"] > 1 else "merge"}" '
-                '></a>')
+        processed_body += _generate_contributors_section(contributors)
     processed_body += '\n'
 
     return processed_body
+
+
+def _process_line_for_contributors(line: str, contributors: dict) -> str:
+    """
+    Process a single line to replace mentions and track contributors.
+
+    Parameters
+    ----------
+    line : str
+        The line to process.
+    contributors : dict
+        Dictionary to track contributor information.
+
+    Returns
+    -------
+    str
+        Processed line.
+    """
+    re_username = re.compile(r'@([a-zA-Z\d\-]{0,38})')
+
+    split_line = line.rsplit(' by ', 1)
+    username_search = re_username.search(split_line[1] if len(split_line) > 1 else line)
+
+    if not username_search:
+        return line
+
+    username = username_search.group(1)
+    _track_contributor(username, contributors)
+
+    return _replace_mentions_and_pr_urls(line, username)
+
+
+def _track_contributor(username: str, contributors: dict):
+    """
+    Track contributor and increment their contribution count.
+
+    Parameters
+    ----------
+    username : str
+        GitHub username.
+    contributors : dict
+        Dictionary to track contributor information.
+    """
+    if username in contributors:
+        contributors[username]['contributions'] += 1
+    else:
+        contributors[username] = {
+            'contributions': 1,
+            'url': f'https://github.com/{username}',
+        }
+
+
+def _replace_mentions_and_pr_urls(line: str, username: str) -> str:
+    """
+    Replace GitHub mentions and PR URLs with markdown links.
+
+    Parameters
+    ----------
+    line : str
+        The line to process.
+    username : str
+        GitHub username to replace.
+
+    Returns
+    -------
+    str
+        Processed line with replacements.
+    """
+    username_url = f'https://github.com/{username}'
+    username_url_md = f'[@{username}]({username_url})'
+
+    update_pr_url = False
+
+    if ' by @' in line:
+        line = line.replace(f' by @{username}', f' by {username_url_md}')
+        update_pr_url = True
+    if '* @' in line:
+        line = line.replace(f'* @{username}', f'* {username_url_md}')
+        update_pr_url = True
+
+    if update_pr_url:
+        line = _replace_pr_url(line)
+
+    return line
+
+
+def _replace_pr_url(line: str) -> str:
+    """
+    Replace PR URL with markdown link.
+
+    Parameters
+    ----------
+    line : str
+        The line containing PR URL.
+
+    Returns
+    -------
+    str
+        Line with PR URL replaced by markdown link.
+    """
+    re_pr_url = re.compile(r'(https://github\.com/([a-zA-Z\d\-]{0,38})/([a-zA-Z\d-]+)/pull/(\d+))')
+    pr_search = re_pr_url.search(line)
+
+    if pr_search:
+        pr_url = pr_search.group(1)
+        pr_number = pr_search.group(4)
+        line = line.replace(pr_url, f'[#{pr_number}]({pr_url})')
+
+    return line
+
+
+def _generate_contributors_section(contributors: dict) -> str:
+    """
+    Generate the contributors section for release notes.
+
+    Parameters
+    ----------
+    contributors : dict
+        Dictionary of contributors and their details.
+
+    Returns
+    -------
+    str
+        Formatted contributors section.
+    """
+    # sort contributors by contributions count
+    contributors = dict(sorted(contributors.items(), key=lambda item: (-item[1]['contributions'], item[0])))
+
+    section = '\n\n---\n## Contributors\n'
+
+    for contributor, details in contributors.items():
+        section += _generate_contributor_avatar(contributor, details)
+
+    return section
+
+
+def _generate_contributor_avatar(contributor: str, details: dict) -> str:
+    """
+    Generate HTML for contributor avatar.
+
+    Parameters
+    ----------
+    contributor : str
+        GitHub username.
+    details : dict
+        Contributor details including URL and contribution count.
+
+    Returns
+    -------
+    str
+        HTML string for contributor avatar.
+    """
+    merge_text = "merges" if details["contributions"] > 1 else "merge"
+
+    return (
+        f'<a href="{details["url"]}" '
+        'target="_blank" '
+        'rel="external noopener noreferrer" '
+        f'aria-label="GitHub profile of contributor, {contributor}" '
+        '>'
+        f'<img src="{details["url"]}.png?size={AVATAR_SIZE}" '
+        f'width="{AVATAR_SIZE}" '
+        f'height="{AVATAR_SIZE}" '
+        f'alt="{contributor}" '
+        f'title="{contributor}: {details["contributions"]} {merge_text}" '
+        '></a>'
+    )
 
 
 def generate_release_body(tag_name: str, target_commitish: str) -> str:
