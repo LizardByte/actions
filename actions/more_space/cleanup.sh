@@ -59,14 +59,15 @@ measure_space_saved() {
 # Function to measure space saved by individual commands within functions
 with_space_saved() {
   local command_name="$1"
+  local directory_to_remove="$2"
   shift
   local before_space after_space space_freed
   before_space=$(get_disk_space_gb)
 
   # Extract directory path if it's a safe_remove command
   local dir_info=""
-  if [[ "$1" == "safe_remove" && -n "$2" ]]; then
-    dir_info=" (${2})"
+  if [[ "${command_name}" == "safe_remove" && -n "${directory_to_remove}" ]]; then
+    dir_info=" (${directory_to_remove})"
   fi
 
   echo -e "  ${CYAN}→ $command_name${dir_info}${RESET}"
