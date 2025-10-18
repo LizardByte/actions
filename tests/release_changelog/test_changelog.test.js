@@ -49,6 +49,44 @@ const {
   updateChangelogFile,
 } = generateReleaseChangelog;
 
+// Test helper functions
+function setupMockFileContent(sha, content) {
+  mockGithub.rest.repos.getContent.mockResolvedValue({
+    data: {
+      sha,
+      content: Buffer.from(content).toString('base64'),
+    },
+  });
+}
+
+function setupMockFileNotFound() {
+  mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+}
+
+function setupMockFileError(status, message) {
+  mockGithub.rest.repos.getContent.mockRejectedValue({ status, message });
+}
+
+function setupBranchExistsError() {
+  mockGithub.rest.git.createRef.mockRejectedValue({ status: 422, message: 'Reference already exists' });
+}
+
+function verifyBranchAndFileCreation(branchName, fileName) {
+  expect(mockGithub.rest.git.createRef).toHaveBeenCalledWith(
+    expect.objectContaining({
+      ref: `refs/heads/${branchName}`,
+    })
+  );
+
+  expect(mockGithub.rest.git.createTree).toHaveBeenCalledWith(
+    expect.objectContaining({
+      tree: expect.arrayContaining([
+        expect.objectContaining({ path: fileName }),
+      ]),
+    })
+  );
+}
+
 describe('Release Changelog Generator', () => {
   describe('formatDate', () => {
     test('should format date correctly', () => {
@@ -320,14 +358,12 @@ describe('Release Changelog Generator', () => {
 
   describe('updateChangelogFile', () => {
     test('should update existing file', async () => {
-      const existingSha = 'existing-file-sha';
-      mockGithub.rest.repos.getContent.mockResolvedValue({
-        data: { sha: existingSha },
-      });
+      setupMockFileContent('existing-file-sha', 'old content');
       mockGithub.rest.repos.createOrUpdateFileContents.mockResolvedValue({});
 
-      await updateChangelogFile(mockGithub, mockContext, 'new content', 'changelog', 'CHANGELOG.md');
+      const result = await updateChangelogFile(mockGithub, mockContext, 'new content', 'changelog', 'CHANGELOG.md');
 
+      expect(result).toBe(true);
       expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith({
         owner: 'test-org',
         repo: 'test-repo',
@@ -341,17 +377,30 @@ describe('Release Changelog Generator', () => {
         path: 'CHANGELOG.md',
         message: 'chore: update CHANGELOG.md',
         content: Buffer.from('new content').toString('base64'),
-        sha: existingSha,
+        sha: 'existing-file-sha',
         branch: 'changelog',
       });
     });
 
-    test('should create new file if it does not exist', async () => {
-      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+    test('should skip commit when content has not changed', async () => {
+      setupMockFileContent('existing-file-sha', 'unchanged content');
       mockGithub.rest.repos.createOrUpdateFileContents.mockResolvedValue({});
 
-      await updateChangelogFile(mockGithub, mockContext, 'new content', 'changelog', 'CHANGELOG.md');
+      const result = await updateChangelogFile(mockGithub, mockContext, 'unchanged content', 'changelog', 'CHANGELOG.md');
 
+      expect(result).toBe(false);
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalled();
+      expect(mockGithub.rest.repos.createOrUpdateFileContents).not.toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('No changes detected in CHANGELOG.md, skipping commit'))).toBe(true);
+    });
+
+    test('should create new file if it does not exist', async () => {
+      setupMockFileNotFound();
+      mockGithub.rest.repos.createOrUpdateFileContents.mockResolvedValue({});
+
+      const result = await updateChangelogFile(mockGithub, mockContext, 'new content', 'changelog', 'CHANGELOG.md');
+
+      expect(result).toBe(true);
       expect(mockGithub.rest.repos.createOrUpdateFileContents).toHaveBeenCalledWith({
         owner: 'test-org',
         repo: 'test-repo',
@@ -364,7 +413,7 @@ describe('Release Changelog Generator', () => {
     });
 
     test('should throw error if getContent fails with non-404 error', async () => {
-      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 500, message: 'Server error' });
+      setupMockFileError(500, 'Server error');
 
       await expect(updateChangelogFile(mockGithub, mockContext, 'new content', 'changelog', 'CHANGELOG.md'))
         .rejects.toThrow('Failed to fetch the file: Server error');
@@ -398,19 +447,7 @@ describe('Release Changelog Generator', () => {
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 
-      expect(mockGithub.rest.git.createRef).toHaveBeenCalledWith(
-        expect.objectContaining({
-          ref: 'refs/heads/changelog',
-        })
-      );
-
-      expect(mockGithub.rest.git.createTree).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tree: expect.arrayContaining([
-            expect.objectContaining({ path: 'CHANGELOG.md' }),
-          ]),
-        })
-      );
+      verifyBranchAndFileCreation('changelog', 'CHANGELOG.md');
     });
 
     test('should update existing branch', async () => {
@@ -423,8 +460,8 @@ describe('Release Changelog Generator', () => {
       ]);
 
       setupChangelogWorkflow(mockGithub, releases);
-      mockGithub.rest.git.createRef.mockRejectedValue({ status: 422, message: 'Reference already exists' });
-      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: 'file-sha' } });
+      setupBranchExistsError();
+      setupMockFileContent('file-sha', 'old content');
       mockGithub.rest.repos.createOrUpdateFileContents.mockResolvedValue({});
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
@@ -467,19 +504,38 @@ describe('Release Changelog Generator', () => {
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 
-      expect(mockGithub.rest.git.createRef).toHaveBeenCalledWith(
-        expect.objectContaining({
-          ref: 'refs/heads/custom-branch',
-        })
-      );
+      verifyBranchAndFileCreation('custom-branch', 'CUSTOM.md');
+    });
 
-      expect(mockGithub.rest.git.createTree).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tree: expect.arrayContaining([
-            expect.objectContaining({ path: 'CUSTOM.md' }),
-          ]),
-        })
-      );
+    test('should skip commit when changelog content has not changed', async () => {
+      const releases = createMockReleases([
+        {
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T00:00:00Z',
+          body: '## Features\nInitial release\n',
+        },
+      ]);
+
+      setupChangelogWorkflow(mockGithub, releases);
+      mockGithub.rest.git.createRef.mockRejectedValue({ status: 422, message: 'Reference already exists' });
+
+      // Generate the same changelog content that would be created
+      const expectedChangelog = generateChangelog(releases);
+
+      mockGithub.rest.repos.getContent.mockResolvedValue({
+        data: {
+          sha: 'file-sha',
+          content: Buffer.from(expectedChangelog).toString('base64'),
+        },
+      });
+
+      await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockGithub.rest.repos.createOrUpdateFileContents).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith('changelog', expectedChangelog);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('No changes detected in CHANGELOG.md, skipping commit'))).toBe(true);
+      expect(consoleOutput.some(line => line.includes('No changes detected, CHANGELOG.md not updated'))).toBe(true);
     });
   });
 });

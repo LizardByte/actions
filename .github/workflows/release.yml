@@ -42,4 +42,4 @@ jobs:
       - name: Update Changelog
         uses: ./actions/release_changelog
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_BOT_TOKEN }}
