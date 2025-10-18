@@ -321,13 +321,18 @@ describe('Release Changelog Generator', () => {
   describe('updateChangelogFile', () => {
     test('should update existing file', async () => {
       const existingSha = 'existing-file-sha';
+      const existingContent = 'old content';
       mockGithub.rest.repos.getContent.mockResolvedValue({
-        data: { sha: existingSha },
+        data: {
+          sha: existingSha,
+          content: Buffer.from(existingContent).toString('base64'),
+        },
       });
       mockGithub.rest.repos.createOrUpdateFileContents.mockResolvedValue({});
 
-      await updateChangelogFile(mockGithub, mockContext, 'new content', 'changelog', 'CHANGELOG.md');
+      const result = await updateChangelogFile(mockGithub, mockContext, 'new content', 'changelog', 'CHANGELOG.md');
 
+      expect(result).toBe(true);
       expect(mockGithub.rest.repos.getContent).toHaveBeenCalledWith({
         owner: 'test-org',
         repo: 'test-repo',
@@ -346,12 +351,32 @@ describe('Release Changelog Generator', () => {
       });
     });
 
+    test('should skip commit when content has not changed', async () => {
+      const existingSha = 'existing-file-sha';
+      const sameContent = 'unchanged content';
+      mockGithub.rest.repos.getContent.mockResolvedValue({
+        data: {
+          sha: existingSha,
+          content: Buffer.from(sameContent).toString('base64'),
+        },
+      });
+      mockGithub.rest.repos.createOrUpdateFileContents.mockResolvedValue({});
+
+      const result = await updateChangelogFile(mockGithub, mockContext, sameContent, 'changelog', 'CHANGELOG.md');
+
+      expect(result).toBe(false);
+      expect(mockGithub.rest.repos.getContent).toHaveBeenCalled();
+      expect(mockGithub.rest.repos.createOrUpdateFileContents).not.toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('No changes detected in CHANGELOG.md, skipping commit'))).toBe(true);
+    });
+
     test('should create new file if it does not exist', async () => {
       mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
       mockGithub.rest.repos.createOrUpdateFileContents.mockResolvedValue({});
 
-      await updateChangelogFile(mockGithub, mockContext, 'new content', 'changelog', 'CHANGELOG.md');
+      const result = await updateChangelogFile(mockGithub, mockContext, 'new content', 'changelog', 'CHANGELOG.md');
 
+      expect(result).toBe(true);
       expect(mockGithub.rest.repos.createOrUpdateFileContents).toHaveBeenCalledWith({
         owner: 'test-org',
         repo: 'test-repo',
@@ -424,7 +449,12 @@ describe('Release Changelog Generator', () => {
 
       setupChangelogWorkflow(mockGithub, releases);
       mockGithub.rest.git.createRef.mockRejectedValue({ status: 422, message: 'Reference already exists' });
-      mockGithub.rest.repos.getContent.mockResolvedValue({ data: { sha: 'file-sha' } });
+      mockGithub.rest.repos.getContent.mockResolvedValue({
+        data: {
+          sha: 'file-sha',
+          content: Buffer.from('old content').toString('base64'),
+        },
+      });
       mockGithub.rest.repos.createOrUpdateFileContents.mockResolvedValue({});
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
@@ -480,6 +510,37 @@ describe('Release Changelog Generator', () => {
           ]),
         })
       );
+    });
+
+    test('should skip commit when changelog content has not changed', async () => {
+      const releases = createMockReleases([
+        {
+          tagName: 'v1.0.0',
+          createdAt: '2024-01-01T00:00:00Z',
+          body: '## Features\nInitial release\n',
+        },
+      ]);
+
+      setupChangelogWorkflow(mockGithub, releases);
+      mockGithub.rest.git.createRef.mockRejectedValue({ status: 422, message: 'Reference already exists' });
+
+      // Generate the same changelog content that would be created
+      const expectedChangelog = generateChangelog(releases);
+
+      mockGithub.rest.repos.getContent.mockResolvedValue({
+        data: {
+          sha: 'file-sha',
+          content: Buffer.from(expectedChangelog).toString('base64'),
+        },
+      });
+
+      await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockGithub.rest.repos.createOrUpdateFileContents).not.toHaveBeenCalled();
+      expect(mockCore.setOutput).toHaveBeenCalledWith('changelog', expectedChangelog);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      expect(consoleOutput.some(line => line.includes('No changes detected in CHANGELOG.md, skipping commit'))).toBe(true);
+      expect(consoleOutput.some(line => line.includes('No changes detected, CHANGELOG.md not updated'))).toBe(true);
     });
   });
 });
