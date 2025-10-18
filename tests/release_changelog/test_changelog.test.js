@@ -71,6 +71,22 @@ function setupBranchExistsError() {
   mockGithub.rest.git.createRef.mockRejectedValue({ status: 422, message: 'Reference already exists' });
 }
 
+function verifyBranchAndFileCreation(branchName, fileName) {
+  expect(mockGithub.rest.git.createRef).toHaveBeenCalledWith(
+    expect.objectContaining({
+      ref: `refs/heads/${branchName}`,
+    })
+  );
+
+  expect(mockGithub.rest.git.createTree).toHaveBeenCalledWith(
+    expect.objectContaining({
+      tree: expect.arrayContaining([
+        expect.objectContaining({ path: fileName }),
+      ]),
+    })
+  );
+}
+
 describe('Release Changelog Generator', () => {
   describe('formatDate', () => {
     test('should format date correctly', () => {
@@ -431,19 +447,7 @@ describe('Release Changelog Generator', () => {
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 
-      expect(mockGithub.rest.git.createRef).toHaveBeenCalledWith(
-        expect.objectContaining({
-          ref: 'refs/heads/changelog',
-        })
-      );
-
-      expect(mockGithub.rest.git.createTree).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tree: expect.arrayContaining([
-            expect.objectContaining({ path: 'CHANGELOG.md' }),
-          ]),
-        })
-      );
+      verifyBranchAndFileCreation('changelog', 'CHANGELOG.md');
     });
 
     test('should update existing branch', async () => {
@@ -500,19 +504,7 @@ describe('Release Changelog Generator', () => {
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 
-      expect(mockGithub.rest.git.createRef).toHaveBeenCalledWith(
-        expect.objectContaining({
-          ref: 'refs/heads/custom-branch',
-        })
-      );
-
-      expect(mockGithub.rest.git.createTree).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tree: expect.arrayContaining([
-            expect.objectContaining({ path: 'CUSTOM.md' }),
-          ]),
-        })
-      );
+      verifyBranchAndFileCreation('custom-branch', 'CUSTOM.md');
     });
 
     test('should skip commit when changelog content has not changed', async () => {
