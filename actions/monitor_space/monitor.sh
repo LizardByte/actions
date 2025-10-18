@@ -109,7 +109,7 @@ stop_monitoring() {
   local pid_file="${STORAGE_PATH}/monitor_space_pid.txt"
 
   if [[ ! -f "$monitor_file" ]]; then
-    echo -e "${RED}Error: No monitoring data found. Did you start monitoring first?${RESET}"
+    echo -e "${RED}Error: No monitoring data found. Did you start monitoring first?${RESET}" >&2
     exit 1
   fi
 
@@ -184,7 +184,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      echo "Unknown option $1"
+      echo -e "${RED}Error: Unknown option '$1'${RESET}" >&2
       exit 1
       ;;
   esac
@@ -211,7 +211,7 @@ case "$MODE" in
     stop_monitoring
     ;;
   *)
-    echo -e "${RED}Error: Invalid mode '$MODE'. Use 'start' or 'stop'.${RESET}"
+    echo -e "${RED}Error: Invalid mode '$MODE'. Use 'start' or 'stop'.${RESET}" >&2
     exit 1
     ;;
 esac

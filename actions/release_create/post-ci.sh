@@ -15,6 +15,6 @@ if [ -n "$WITH_PARAMS" ]; then
   fi
   gh release delete "${RELEASE_TAG}" ${gh_release_extra_args} --yes
 else
-  echo "Error: WITH_PARAMS environment variable not set"
+  echo "Error: WITH_PARAMS environment variable not set" >&2
   exit 1
 fi

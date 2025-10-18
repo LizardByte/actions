@@ -17,6 +17,6 @@ if [ -n "$WITH_PARAMS" ]; then
     --color=yes \
     tests/setup_python
 else
-  echo "Error: WITH_PARAMS environment variable not set"
+  echo "Error: WITH_PARAMS environment variable not set" >&2
   exit 1
 fi
