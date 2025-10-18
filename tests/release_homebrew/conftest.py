@@ -76,7 +76,7 @@ def homebrew_core_fork_repo():
 
         if proc.returncode != 0:
             print(proc.stderr.decode('utf-8'))
-            raise Exception('Failed to clone homebrew-core')
+            raise RuntimeError('Failed to clone homebrew-core')
 
     # remove the upstream remote
     main._run_subprocess(
@@ -104,7 +104,7 @@ def brew_untap():
     )
     if proc.returncode != 0:
         print(proc.stderr.decode('utf-8'))
-        raise Exception('Failed to uninstall hello_world formula')
+        raise RuntimeError('Failed to uninstall hello_world formula')
 
     # untap the temporary repo
     proc = subprocess.run(
@@ -113,7 +113,7 @@ def brew_untap():
     )
     if proc.returncode != 0:
         print(proc.stderr.decode('utf-8'))
-        raise Exception('Failed to untap the temporary repo')
+        raise RuntimeError('Failed to untap the temporary repo')
 
     # remove brew tap directory
     brew_repo = main.get_brew_repository()
