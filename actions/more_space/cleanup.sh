@@ -15,6 +15,7 @@ get_disk_space_gb() {
     # Linux - get available space in GB
     df --output=avail / | tail -1 | awk '{printf "%.2f", $1/1024/1024}'
   fi
+  return 0
 }
 
 # Function to display disk space info
@@ -26,6 +27,7 @@ get_disk_space() {
     # Linux/macOS
     df -h /
   fi
+  return 0
 }
 
 # Function to measure space saved by a specific operation (for input categories)
@@ -51,6 +53,7 @@ measure_space_saved() {
     output_name=$(echo "$operation_name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')
     echo "${output_name}-space-saved=${space_freed}" >> "${GITHUB_OUTPUT}"
   fi
+  return 0
 }
 
 # Function to measure space saved by individual commands within functions
@@ -75,6 +78,7 @@ with_space_saved() {
   else
     echo -e "  ${YELLOW}  Space freed: ${space_freed} GB${RESET}"
   fi
+  return 0
 }
 
 # Helper function to convert Windows paths to Unix style
@@ -89,6 +93,7 @@ convert_to_unix_path() {
   else
     echo "$path"
   fi
+  return 0
 }
 
 # Helper: check if a file/dir contains a safe package
@@ -154,7 +159,7 @@ safe_remove() {
       local safe_pkg
       if safe_pkg=$(is_safe_package "$dir"); then
         echo -e "${YELLOW}Skipping $dir ($safe_pkg)${RESET}"
-        return
+        return 0
       fi
     fi
 
@@ -162,6 +167,7 @@ safe_remove() {
   else
     echo -e "    ${RED}Directory does not exist: $dir${RESET}"
   fi
+  return 0
 }
 
 # Function to remove Android SDK
@@ -173,6 +179,7 @@ remove_android() {
     # TODO: The space freed calculation on Windows reports 0.00 GB
     with_space_saved "Remove ANDROID_HOME" safe_remove "${ANDROID_HOME}"
   fi
+  return 0
 }
 
 # Function to remove Chocolatey (Windows only)
@@ -181,6 +188,7 @@ remove_chocolatey() {
     echo -e "${BOLD}${YELLOW}==> Removing Chocolatey${RESET}"
     with_space_saved "Remove Chocolatey" safe_remove "/c/ProgramData/Chocolatey"
   fi
+  return 0
 }
 
 # Function to remove CodeQL
@@ -192,6 +200,7 @@ remove_codeql() {
   else
     with_space_saved "Remove CodeQL" safe_remove "${HOSTEDTOOLCACHE}/CodeQL"
   fi
+  return 0
 }
 
 # Function to remove Docker images
@@ -209,6 +218,7 @@ remove_docker_images() {
   else
     echo -e "${YELLOW}Docker not found${RESET}"
   fi
+  return 0
 }
 
 # Function to remove docs (Linux only)
@@ -218,6 +228,7 @@ remove_docs_linux() {
     with_space_saved "Remove documentation" safe_remove "/usr/share/doc"
     with_space_saved "Remove Ruby documentation" safe_remove "/usr/share/ri"
   fi
+  return 0
 }
 
 # Function to remove .NET
@@ -232,6 +243,7 @@ remove_dotnet() {
     with_space_saved "Remove .NET Program Files" safe_remove "/c/Program Files/dotnet"
     with_space_saved "Remove .NET Program Files (x86)" safe_remove "/c/Program Files (x86)/dotnet"
   fi
+  return 0
 }
 
 # Function to remove Haskell
@@ -245,6 +257,7 @@ remove_haskell() {
     # https://github.com/actions/runner-images/blob/c1745fed15dc0cb917a0fefff5f5ceab01799927/images/windows/scripts/build/Install-Haskell.ps1#L21
     with_space_saved "Remove haskell-ghcup" safe_remove "/c/ghcup"
   fi
+  return 0
 }
 
 # Function to remove Homebrew (Linux/macOS only)
@@ -267,6 +280,7 @@ remove_homebrew() {
       fi
     fi
   fi
+  return 0
 }
 
 # Function to remove JVM
@@ -281,6 +295,7 @@ remove_jvm() {
       with_space_saved "Remove Java from $var" safe_remove "$java_path"
     fi
   done
+  return 0
 }
 
 # Function to remove Swift
@@ -292,12 +307,14 @@ remove_swift() {
   elif [[ "$OSTYPE" == "linux-gnu" ]]; then
     with_space_saved "Remove Swift" safe_remove "/usr/share/swift"
   fi
+  return 0
 }
 
 # Function to remove tool cache
 remove_tool_cache() {
   echo -e "${BOLD}${YELLOW}==> Removing tool cache${RESET}"
   with_space_saved "Remove hostedtoolcache" safe_remove "${HOSTEDTOOLCACHE}"
+  return 0
 }
 
 # Function to remove tools (Windows only)
@@ -306,6 +323,7 @@ remove_tools_windows() {
     echo -e "${BOLD}${YELLOW}==> Removing Windows tools${RESET}"
     with_space_saved "Remove tools directory" safe_remove "/c/tools"
   fi
+  return 0
 }
 
 # Function to remove Xcode (macOS only)
@@ -324,6 +342,7 @@ remove_xcode() {
     # Also remove any remaining Xcode-related directories
     with_space_saved "Remove Xcode CommandLineTools" safe_remove "/Library/Developer/CommandLineTools"
   fi
+  return 0
 }
 
 # Function to perform Linux package cleanup
@@ -333,6 +352,7 @@ linux_package_cleanup() {
     with_space_saved "Remove unused packages" bash -c "${SUDO_CMD} apt-get autoremove -y 2>/dev/null || true"
     with_space_saved "Clean apt cache" bash -c "${SUDO_CMD} apt-get clean"
   fi
+  return 0
 }
 
 
@@ -490,7 +510,7 @@ echo -e "${YELLOW}Initial free space: ${INITIAL_SPACE} GB${RESET}"
 check_space_target() {
   # If no space target is set, never skip cleanup operations
   if [[ -z "$SPACE_TARGET" ]]; then
-    return
+    return 0
   fi
 
   local current_space total_saved
@@ -513,7 +533,7 @@ check_space_target() {
     SPACE_TARGET_REACHED=true
     return 0
   fi
-  return
+  return 0
 }
 
 # Flag to track if space target has been reached

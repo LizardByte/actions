@@ -37,11 +37,13 @@ get_disk_space_gb() {
     # Linux - get available space in GB
     df --output=avail / | tail -1 | awk '{printf "%.2f", $1/1024/1024}'
   fi
+  return 0
 }
 
 # Function to get current timestamp
 get_timestamp() {
   date +%s
+  return 0
 }
 
 # Function to start monitoring
@@ -97,6 +99,8 @@ start_monitoring() {
       echo "monitoring-duration=0"
     } >> "${GITHUB_OUTPUT}"
   fi
+
+  return 0
 }
 
 # Function to stop monitoring and report results
@@ -164,6 +168,8 @@ stop_monitoring() {
 
   # Clean up monitoring files
   rm -f "$monitor_file"
+
+  return 0
 }
 
 # Parse command line arguments
