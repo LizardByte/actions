@@ -156,18 +156,19 @@ safe_remove() {
   local unix_dir
   unix_dir=$(convert_to_unix_path "$dir")
 
-  if [[ -d "$dir" ]]; then
+  # Use unix_dir for directory check to ensure it works on Windows
+  if [[ -d "$unix_dir" ]]; then
     if [[ -n "$SAFE_PACKAGES" ]]; then
       local safe_pkg
-      if safe_pkg=$(is_safe_package "$dir"); then
-        echo -e "${YELLOW}Skipping $dir ($safe_pkg)${RESET}"
+      if safe_pkg=$(is_safe_package "$unix_dir"); then
+        echo -e "${YELLOW}Skipping $unix_dir ($safe_pkg)${RESET}"
         return 0
       fi
     fi
 
     ${SUDO_CMD} rm -rf "$unix_dir"
   else
-    echo -e "    ${RED}Directory does not exist: $dir${RESET}"
+    echo -e "    ${RED}Directory does not exist: $unix_dir${RESET}"
   fi
   return 0
 }
@@ -178,7 +179,6 @@ remove_android() {
 
   # Check if ANDROID_HOME is defined
   if [[ -n "${ANDROID_HOME:-}" ]]; then
-    # TODO: The space freed calculation on Windows reports 0.00 GB
     with_space_saved "Remove ANDROID_HOME" safe_remove "${ANDROID_HOME}"
   fi
   return 0
