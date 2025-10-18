@@ -210,11 +210,11 @@ def get_push_event_details() -> dict:
         Dictionary containing the details of the push event.
     """
     # default
-    push_event_details = dict(
-        publish_release=False,
-        release_commit='',
-        release_version='',
-    )
+    push_event_details = {
+        'publish_release': False,
+        'release_commit': '',
+        'release_version': '',
+    }
 
     github_event = get_github_event()
 
@@ -410,7 +410,7 @@ def main() -> dict:
     dict
         Job outputs.
     """
-    job_outputs = dict()
+    job_outputs = {}
 
     # Get the push event details
     push_event_details = get_push_event_details()
