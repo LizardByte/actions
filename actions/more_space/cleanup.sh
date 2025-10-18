@@ -4,11 +4,11 @@ set -euo pipefail
 
 # Function to get available disk space in GB
 get_disk_space_gb() {
-  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  if [[ "$IS_WINDOWS" == true ]]; then
     # Windows - get free space in GB
     powershell -Command \
       "(Get-WmiObject -Class Win32_LogicalDisk | Where-Object {\$_.DeviceID -eq 'C:'}).FreeSpace / 1GB" | tr -d '\r'
-  elif [[ "$OSTYPE" == "darwin"* ]]; then
+  elif [[ "$IS_MACOS" == true ]]; then
     # macOS - get available space in GB (df reports in 512-byte blocks by default)
     df / | tail -1 | awk '{printf "%.2f", $4/2048/1024}'
   else
@@ -20,7 +20,7 @@ get_disk_space_gb() {
 
 # Function to display disk space info
 get_disk_space() {
-  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  if [[ "$IS_WINDOWS" == true ]]; then
     # Windows
     powershell -Command "Get-WmiObject -Class Win32_LogicalDisk | Select-Object Size,FreeSpace"
   else
@@ -85,7 +85,7 @@ with_space_saved() {
 # Helper function to convert Windows paths to Unix style
 convert_to_unix_path() {
   local path="$1"
-  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  if [[ "$IS_WINDOWS" == true ]]; then
     if command -v cygpath &>/dev/null; then
       cygpath -u "$path"
     else
@@ -107,7 +107,7 @@ is_safe_package() {
   unix_path=$(convert_to_unix_path "$path")
 
   # Convert to lowercase for case-insensitive comparison on Windows
-  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  if [[ "$IS_WINDOWS" == true ]]; then
     unix_path=$(echo "$unix_path" | tr '[:upper:]' '[:lower:]')
   fi
 
@@ -118,7 +118,7 @@ is_safe_package() {
 
     # Try to find the package executable
     local pkg_path=""
-    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+    if [[ "$IS_WINDOWS" == true ]]; then
       # Windows: try multiple methods to find the executable
       if command -v where &>/dev/null; then
         pkg_path=$(where "$pkg" 2>/dev/null | head -1 || where "${pkg}.exe" 2>/dev/null | head -1 || true)
@@ -185,7 +185,7 @@ remove_android() {
 
 # Function to remove Chocolatey (Windows only)
 remove_chocolatey() {
-  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  if [[ "$IS_WINDOWS" == true ]]; then
     echo -e "${BOLD}${YELLOW}==> Removing Chocolatey${RESET}"
     with_space_saved "Remove Chocolatey" safe_remove "/c/ProgramData/Chocolatey"
   fi
@@ -196,7 +196,7 @@ remove_chocolatey() {
 remove_codeql() {
   echo -e "${BOLD}${YELLOW}==> Removing CodeQL${RESET}"
 
-  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  if [[ "$IS_WINDOWS" == true ]]; then
     with_space_saved "Remove CodeQL" safe_remove "${HOSTEDTOOLCACHE}/windows/CodeQL"
   else
     with_space_saved "Remove CodeQL" safe_remove "${HOSTEDTOOLCACHE}/CodeQL"
@@ -213,7 +213,7 @@ remove_docker_images() {
     with_space_saved "Docker system prune" bash -c "${SUDO_CMD} docker system prune -af --volumes"
 
     # Restart Docker to ensure clean state
-    if [[ "$OSTYPE" != "msys" && "$OSTYPE" != "win32" ]]; then
+    if [[ "$IS_WINDOWS" == false ]]; then
       with_space_saved "Restart Docker service" bash -c "${SUDO_CMD} systemctl restart docker"
     fi
   else
@@ -224,7 +224,7 @@ remove_docker_images() {
 
 # Function to remove docs (Linux only)
 remove_docs_linux() {
-  if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  if [[ "$IS_LINUX" == true ]]; then
     echo -e "${BOLD}${YELLOW}==> Removing documentation${RESET}"
     with_space_saved "Remove documentation" safe_remove "/usr/share/doc"
     with_space_saved "Remove Ruby documentation" safe_remove "/usr/share/ri"
@@ -236,11 +236,11 @@ remove_docs_linux() {
 remove_dotnet() {
   echo -e "${BOLD}${YELLOW}==> Removing .NET${RESET}"
 
-  if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  if [[ "$IS_LINUX" == true ]]; then
     with_space_saved "Remove .NET" safe_remove "/usr/share/dotnet"
-  elif [[ "$OSTYPE" == "darwin"* ]]; then
+  elif [[ "$IS_MACOS" == true ]]; then
     with_space_saved "Remove .NET" safe_remove "/System/Volumes/Data/Users/runner/.dotnet"
-  elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  elif [[ "$IS_WINDOWS" == true ]]; then
     with_space_saved "Remove .NET Program Files" safe_remove "/c/Program Files/dotnet"
     with_space_saved "Remove .NET Program Files (x86)" safe_remove "/c/Program Files (x86)/dotnet"
   fi
@@ -250,11 +250,11 @@ remove_dotnet() {
 # Function to remove Haskell
 remove_haskell() {
   echo -e "${BOLD}${YELLOW}==> Removing Haskell${RESET}"
-  if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  if [[ "$IS_LINUX" == true ]]; then
     with_space_saved "Remove haskell-ghcup" safe_remove "/usr/local/.ghcup"
-  elif [[ "$OSTYPE" == "darwin"* ]]; then
+  elif [[ "$IS_MACOS" == true ]]; then
     with_space_saved "Remove haskell-ghcup" safe_remove "${XDG_DATA_HOME:=$HOME/.local/share}/ghcup"
-  elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  elif [[ "$IS_WINDOWS" == true ]]; then
     # https://github.com/actions/runner-images/blob/c1745fed15dc0cb917a0fefff5f5ceab01799927/images/windows/scripts/build/Install-Haskell.ps1#L21
     with_space_saved "Remove haskell-ghcup" safe_remove "/c/ghcup"
   fi
@@ -263,11 +263,11 @@ remove_haskell() {
 
 # Function to remove Homebrew (Linux/macOS only)
 remove_homebrew() {
-  if [[ "$OSTYPE" == "darwin"* || "$OSTYPE" == "linux-gnu" ]]; then
+  if [[ "$IS_MACOS" == true || "$IS_LINUX" == true ]]; then
     echo -e "${BOLD}${YELLOW}==> Removing Homebrew${RESET}"
 
     brew_found=true
-    if [[ "$OSTYPE" == "linux-gnu" && -d "/home/linuxbrew/.linuxbrew" ]]; then
+    if [[ "$IS_LINUX" == true && -d "/home/linuxbrew/.linuxbrew" ]]; then
       eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
     else
       brew_found=false
@@ -303,9 +303,9 @@ remove_jvm() {
 remove_swift() {
   echo -e "${BOLD}${YELLOW}==> Removing Swift${RESET}"
 
-  if [[ "$OSTYPE" == "darwin"* ]]; then
+  if [[ "$IS_MACOS" == true ]]; then
     with_space_saved "Remove Swift from Xcode" safe_remove "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift"
-  elif [[ "$OSTYPE" == "linux-gnu" ]]; then
+  elif [[ "$IS_LINUX" == true ]]; then
     with_space_saved "Remove Swift" safe_remove "/usr/share/swift"
   fi
   return 0
@@ -320,7 +320,7 @@ remove_tool_cache() {
 
 # Function to remove tools (Windows only)
 remove_tools_windows() {
-  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  if [[ "$IS_WINDOWS" == true ]]; then
     echo -e "${BOLD}${YELLOW}==> Removing Windows tools${RESET}"
     with_space_saved "Remove tools directory" safe_remove "/c/tools"
   fi
@@ -329,7 +329,7 @@ remove_tools_windows() {
 
 # Function to remove Xcode (macOS only)
 remove_xcode() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then
+  if [[ "$IS_MACOS" == true ]]; then
     echo -e "${BOLD}${YELLOW}==> Removing Xcode${RESET}"
 
     # Remove all Xcode versions and their symlinks
@@ -348,7 +348,7 @@ remove_xcode() {
 
 # Function to perform Linux package cleanup
 linux_package_cleanup() {
-  if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  if [[ "$IS_LINUX" == true ]]; then
     echo -e "${BOLD}${YELLOW}==> Linux package cleanup${RESET}"
     with_space_saved "Remove unused packages" bash -c "${SUDO_CMD} apt-get autoremove -y 2>/dev/null || true"
     with_space_saved "Clean apt cache" bash -c "${SUDO_CMD} apt-get clean"
@@ -364,6 +364,19 @@ CYAN="\033[0;36m"
 RED="\033[0;31m"
 RESET="\033[0m"
 BOLD="\033[1m"
+
+# Detect OS type once and set boolean variables
+IS_WINDOWS=false
+IS_MACOS=false
+IS_LINUX=false
+
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  IS_WINDOWS=true
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  IS_MACOS=true
+elif [[ "$OSTYPE" == "linux-gnu" ]]; then
+  IS_LINUX=true
+fi
 
 # Default values
 ANALYZE_SPACE_SAVINGS="false"
@@ -390,7 +403,7 @@ declare -a SPACE_ANALYSIS_DATA
 # Set OS specific variables
 SUDO_CMD=$([[ "$EUID" -ne 0 ]] && command -v sudo &>/dev/null && echo "sudo" || echo "")
 HOSTEDTOOLCACHE=$(convert_to_unix_path "${AGENT_TOOLSDIRECTORY}")
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+if [[ "$IS_WINDOWS" == true ]]; then
   SUDO_CMD=""  # sudo not needed on Windows, and it's disabled on arm
 fi
 
@@ -546,7 +559,7 @@ if [[ "$REMOVE_ANDROID" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   check_space_target
 fi
 
-if [[ "$REMOVE_CHOCOLATEY" == "true" && ("$OSTYPE" == "msys" || "$OSTYPE" == "win32") && "$SPACE_TARGET_REACHED" == "false" ]]; then
+if [[ "$REMOVE_CHOCOLATEY" == "true" && "$IS_WINDOWS" == true && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Chocolatey" remove_chocolatey
   check_space_target
 fi
@@ -561,7 +574,7 @@ if [[ "$REMOVE_CODEQL" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   check_space_target
 fi
 
-if [[ "$REMOVE_DOCS_LINUX" == "true" && "$OSTYPE" == "linux-gnu" && "$SPACE_TARGET_REACHED" == "false" ]]; then
+if [[ "$REMOVE_DOCS_LINUX" == "true" && "$IS_LINUX" == true && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove documentation" remove_docs_linux
   check_space_target
 fi
@@ -576,7 +589,7 @@ if [[ "$REMOVE_HASKELL" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   check_space_target
 fi
 
-if [[ "$REMOVE_HOMEBREW" == "true" && ("$OSTYPE" == "darwin"* || "$OSTYPE" == "linux-gnu") && "$SPACE_TARGET_REACHED" == "false" ]]; then
+if [[ "$REMOVE_HOMEBREW" == "true" && ("$IS_MACOS" == true || "$IS_LINUX" == true) && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Homebrew" remove_homebrew
   check_space_target
 fi
@@ -586,7 +599,7 @@ if [[ "$REMOVE_JVM" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; then
   check_space_target
 fi
 
-if [[ "$REMOVE_SWIFT" == "true" && ("$OSTYPE" == "darwin"* || "$OSTYPE" == "linux-gnu") && "$SPACE_TARGET_REACHED" == "false" ]]; then
+if [[ "$REMOVE_SWIFT" == "true" && ("$IS_MACOS" == true || "$IS_LINUX" == true) && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Swift" remove_swift
   check_space_target
 fi
@@ -596,18 +609,18 @@ if [[ "$REMOVE_TOOL_CACHE" == "true" && "$SPACE_TARGET_REACHED" == "false" ]]; t
   check_space_target
 fi
 
-if [[ "$REMOVE_TOOLS_WINDOWS" == "true" && ("$OSTYPE" == "msys" || "$OSTYPE" == "win32") && "$SPACE_TARGET_REACHED" == "false" ]]; then
+if [[ "$REMOVE_TOOLS_WINDOWS" == "true" && "$IS_WINDOWS" == true && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Windows tools" remove_tools_windows
   check_space_target
 fi
 
-if [[ "$REMOVE_XCODE" == "true" && "$OSTYPE" == "darwin"* && "$SPACE_TARGET_REACHED" == "false" ]]; then
+if [[ "$REMOVE_XCODE" == "true" && "$IS_MACOS" == true && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Remove Xcode" remove_xcode
   check_space_target
 fi
 
 # Always perform Linux package cleanup if on Linux
-if [[ "$OSTYPE" == "linux-gnu" && "$SPACE_TARGET_REACHED" == "false" ]]; then
+if [[ "$IS_LINUX" == true && "$SPACE_TARGET_REACHED" == "false" ]]; then
   measure_space_saved "Linux package cleanup" linux_package_cleanup
   check_space_target
 fi
