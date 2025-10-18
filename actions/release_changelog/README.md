@@ -33,4 +33,4 @@ steps:
 
 ## 🔗 See Also
 
-This action is meant to be used in conjunction with [release_setup](../release_setup).
+This action can be used in conjunction with [release_create](../release_create).
