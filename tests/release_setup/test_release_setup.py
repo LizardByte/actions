@@ -10,62 +10,62 @@ from actions.release_setup import main
 
 
 @pytest.mark.parametrize('iso_timestamp', [
-    ('1970-01-01T00:00:00Z', dict(
-        year=1970,
-        month='01',
-        day='01',
-        hour='00',
-        minute='00',
-        second='00',
-    )),
-    ('2023-11-27T23:58:28Z', dict(
-        year=2023,
-        month='11',
-        day='27',
-        hour='23',
-        minute='58',
-        second='28',
-    )),
-    ('2023-01-25T10:43:35Z', dict(
-        year=2023,
-        month='01',
-        day='25',
-        hour='10',
-        minute='43',
-        second='35',
-    )),
-    ('2024-07-14T17:17:25Z', dict(
-        year=2024,
-        month='07',
-        day='14',
-        hour='17',
-        minute='17',
-        second='25',
-    )),
-    ('2024-07-14T13:17:25-04:00', dict(
-        year=2024,
-        month='07',
-        day='14',
-        hour='17',  # include timezone offset
-        minute='17',
-        second='25',
-    )),
-    ('2024-07-14T13:17:25+04:00', dict(
-        year=2024,
-        month='07',
-        day='14',
-        hour='09',  # include timezone offset
-        minute='17',
-        second='25',
-    )),
-    ('2024-07-22T22:17:25-04:00', dict(
-        year=2024,
-        month='07',
-        day='23',
-        hour='02',  # include timezone offset
-        minute='17',
-        second='25',
-    )),
+    ('1970-01-01T00:00:00Z', {
+        'year': 1970,
+        'month': '01',
+        'day': '01',
+        'hour': '00',
+        'minute': '00',
+        'second': '00',
+    }),
+    ('2023-11-27T23:58:28Z', {
+        'year': 2023,
+        'month': '11',
+        'day': '27',
+        'hour': '23',
+        'minute': '58',
+        'second': '28',
+    }),
+    ('2023-01-25T10:43:35Z', {
+        'year': 2023,
+        'month': '01',
+        'day': '25',
+        'hour': '10',
+        'minute': '43',
+        'second': '35',
+    }),
+    ('2024-07-14T17:17:25Z', {
+        'year': 2024,
+        'month': '07',
+        'day': '14',
+        'hour': '17',
+        'minute': '17',
+        'second': '25',
+    }),
+    ('2024-07-14T13:17:25-04:00', {
+        'year': 2024,
+        'month': '07',
+        'day': '14',
+        'hour': '17',  # include timezone offset
+        'minute': '17',
+        'second': '25',
+    }),
+    ('2024-07-14T13:17:25+04:00', {
+        'year': 2024,
+        'month': '07',
+        'day': '14',
+        'hour': '09',  # include timezone offset
+        'minute': '17',
+        'second': '25',
+    }),
+    ('2024-07-22T22:17:25-04:00', {
+        'year': 2024,
+        'month': '07',
+        'day': '23',
+        'hour': '02',  # include timezone offset
+        'minute': '17',
+        'second': '25',
+    }),
 ])
 def test_timestamp_class(iso_timestamp: Tuple[str, Dict[str, Union[int, str]]]):
     timestamp = main.TimestampUTC(iso_timestamp=iso_timestamp[0])

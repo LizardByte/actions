@@ -322,9 +322,9 @@ def audit_formula(formula: str) -> bool:
 
 def brew_upgrade() -> bool:
     print('Updating Homebrew')
-    env = dict(
-        HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK='1'
-    )
+    env = {
+        'HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK': '1',
+    }
 
     # combine with os environment
     env.update(os.environ)
@@ -407,9 +407,9 @@ def find_tmp_dir(formula: str) -> str:
 
 def install_formula(formula: str) -> bool:
     print(f'Installing formula {formula}')
-    env = dict(
-        HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK='1'
-    )
+    env = {
+        'HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK': '1',
+    }
 
     # combine with os environment
     env.update(os.environ)
@@ -439,9 +439,9 @@ def install_formula(formula: str) -> bool:
 
 def test_formula(formula: str) -> bool:
     print(f'Testing formula {formula}')
-    env = dict(
-        HOMEBREW_BUILDPATH=HOMEBREW_BUILDPATH,
-    )
+    env = {
+        'HOMEBREW_BUILDPATH': HOMEBREW_BUILDPATH,
+    }
 
     # combine with os environment
     env.update(os.environ)
