@@ -9,7 +9,7 @@ import re
 from dotenv import load_dotenv
 import requests
 
-# global variables
+# constants
 AVATAR_SIZE = 40
 
 # Load the environment variables from the Environment File
@@ -383,7 +383,7 @@ def generate_release_body(tag_name: str, target_commitish: str) -> str:
     response = requests.get(github_api_url, headers=GITHUB_HEADERS)
 
     # Check if the release exists
-    if not response.status_code == 200:
+    if response.status_code != 200:
         return ''
 
     latest_release = response.json()
@@ -437,7 +437,7 @@ def main() -> dict:
     job_outputs['release_commit'] = push_event_details['release_commit']
     job_outputs['release_generate_release_notes'] = str(release_generate_release_notes).lower()
     job_outputs['release_version'] = release_version
-    job_outputs['release_tag'] = f'{version_prefix if release_tag else ""}{release_tag}'
+    job_outputs['release_tag'] = f'{version_prefix}{release_tag}'
 
     # Set the outputs
     for output_name, output_value in job_outputs.items():
