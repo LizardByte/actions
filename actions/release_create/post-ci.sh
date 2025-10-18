@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Extract python-version from WITH_PARAMS environment variable
-if [ -n "$WITH_PARAMS" ]; then
+if [[ -n "$WITH_PARAMS" ]]; then
   RELEASE_TAG=$(echo "$WITH_PARAMS" | jq -r '.["tag"]')
   echo "Extracted TAG: ${RELEASE_TAG}"
 
