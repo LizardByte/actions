@@ -187,8 +187,6 @@ def prepare_homebrew_core_fork(
     else:
         raise SystemExit(1, f'::error:: Failed to create or checkout branch {branch_name}')
 
-    og_error = ERROR
-
     # add the upstream remote
     print('Adding upstream remote')
     _run_subprocess(

@@ -27,6 +27,7 @@ GITHUB_HEADERS = {'Authorization': f'token {GITHUB_TOKEN}'}
 # globals
 COMMIT = None
 DATA_DIRECTORY = os.path.join(os.path.dirname(__file__), 'data')
+DUMMY_GITHUB_EVENT_PATH = os.getenv('GITHUB_EVENT_PATH', os.path.join(DATA_DIRECTORY, 'dummy_github_event.json'))
 
 
 def pytest_runtest_setup(item):
@@ -99,7 +100,7 @@ def latest_commit(github_token):
 
 @pytest.fixture(scope='function')
 def dummy_github_push_event_path():
-    original_value = os.getenv('GITHUB_EVENT_PATH', os.path.join(DATA_DIRECTORY, 'dummy_github_event.json'))
+    original_value = DUMMY_GITHUB_EVENT_PATH
     os.environ['GITHUB_EVENT_PATH'] = os.path.join(DATA_DIRECTORY, 'dummy_github_push_event.json')
     yield
     os.environ['GITHUB_EVENT_PATH'] = original_value
@@ -107,7 +108,7 @@ def dummy_github_push_event_path():
 
 @pytest.fixture(scope='function')
 def dummy_github_push_event_path_invalid_commits():
-    original_value = os.getenv('GITHUB_EVENT_PATH', os.path.join(DATA_DIRECTORY, 'dummy_github_event.json'))
+    original_value = DUMMY_GITHUB_EVENT_PATH
     os.environ['GITHUB_EVENT_PATH'] = os.path.join(DATA_DIRECTORY, 'dummy_github_push_event_invalid_commits.json')
     yield
     os.environ['GITHUB_EVENT_PATH'] = original_value
@@ -115,7 +116,7 @@ def dummy_github_push_event_path_invalid_commits():
 
 @pytest.fixture(scope='function', params=['pr', 'push', 'push_alt_timestamp'])
 def github_event_path(request):
-    original_value = os.getenv('GITHUB_EVENT_PATH', os.path.join(DATA_DIRECTORY, 'dummy_github_event.json'))
+    original_value = DUMMY_GITHUB_EVENT_PATH
     os.environ['GITHUB_EVENT_PATH'] = os.path.join(DATA_DIRECTORY, f'dummy_github_{request.param}_event.json')
     yield
     os.environ['GITHUB_EVENT_PATH'] = original_value
