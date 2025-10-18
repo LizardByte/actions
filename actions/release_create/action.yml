@@ -163,7 +163,7 @@ runs:
         SLEEP_DURATION: ${{ inputs.sleepDuration }}
         CURRENT_TAG: ${{ inputs.tag }}
       if: inputs.deleteOtherPreReleases == 'true'
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         github-token: ${{ inputs.token }}
         script: |
