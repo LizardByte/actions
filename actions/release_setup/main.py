@@ -226,32 +226,33 @@ def get_push_event_details() -> dict:
         push_event_details['release_version'] = f'0.0.{github_event["number"]}'
         return push_event_details
 
+    # get the commit timestamp
+    commit_timestamp = github_event["commits"][0]['timestamp']
+    current_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
     # this is a push event
     # check if squash and merge is required
     if not get_repo_squash_and_merge_required():
-        msg = (":exclamation: ERROR: Squash and merge is not enabled for this repository. "
-               "Please ensure ONLY squash and merge is enabled. "
-               "**DO NOT** re-run this job after changing the repository settings. Wait until a new commit is made.")
+        msg = (":exclamation: WARNING: Squash and merge is not enabled for this repository. "
+               "It is recommended to require squash and merge in order to get repeatable version numbers. "
+               "Falling back to using the system timestamp.")
         append_github_step_summary(message=msg)
-        print(f'::error:: {msg}')
-        raise SystemExit(2)
+        print(f'::warning:: {msg}')
+        commit_timestamp = current_timestamp
 
     # ensure there is only 1 commit in the github context
     if len(github_event["commits"]) != 1:
-        msg = (":exclamation: ERROR: This action only supports a single commit push event. "
-               "Please ensure ONLY squash and merge is enabled. "
-               "**DO NOT** re-run this job after changing the repository settings. Wait until a new commit is made.")
+        msg = (":exclamation: WARNING: This action only supports a single commit push event. "
+               "It is recommended to require squash and merge in order to get repeatable version numbers. "
+               "Falling back to using the system timestamp.")
         append_github_step_summary(message=msg)
-        print(f'::error:: {msg}')
-        raise SystemExit(3)
+        print(f'::warning:: {msg}')
+        commit_timestamp = current_timestamp
+
+    ts = TimestampUTC(iso_timestamp=commit_timestamp)
 
     # not a pull request, so publish
     push_event_details['publish_release'] = True
-
-    # get the commit
-    commit_timestamp = github_event["commits"][0]['timestamp']
-
-    ts = TimestampUTC(iso_timestamp=commit_timestamp)
 
     if os.getenv('INPUT_DOTNET', 'false').lower() == 'true':
         # dotnet versioning

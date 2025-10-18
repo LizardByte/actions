@@ -43,6 +43,9 @@ def github_token():
 def github_output_file():
     f = os.environ['GITHUB_OUTPUT']
 
+    # ensure directory exists
+    os.makedirs(os.path.dirname(f), exist_ok=True)
+
     # touch the file
     with open(f, 'w') as fi:
         fi.write('')
@@ -57,6 +60,9 @@ def github_output_file():
 @pytest.fixture(scope='function')
 def github_step_summary_file():
     f = os.environ['GITHUB_STEP_SUMMARY']
+
+    # ensure directory exists
+    os.makedirs(os.path.dirname(f), exist_ok=True)
 
     # touch the file
     with open(f, 'w') as fi:
@@ -192,6 +198,46 @@ def mock_get_squash_and_merge_return_value():
     main.get_repo_squash_and_merge_required = Mock(return_value=False)
     yield
     main.get_repo_squash_and_merge_required = original_function
+
+
+@pytest.fixture(scope='function')
+def mock_generate_release_body_success():
+    original_get = requests.get
+    original_post = requests.post
+
+    # Mock the GET request for latest release
+    mock_get_response = Mock()
+    mock_get_response.status_code = 200
+    mock_get_response.json.return_value = {'tag_name': 'v1.0.0'}
+
+    # Mock the POST request for generating release notes
+    mock_post_response = Mock()
+    mock_post_response.status_code = 200
+    mock_post_response.json.return_value = {
+        'body': '## What\'s Changed\n* Test PR by @testuser in https://github.com/test/repo/pull/1',
+    }
+
+    requests.get = Mock(return_value=mock_get_response)
+    requests.post = Mock(return_value=mock_post_response)
+
+    yield
+
+    requests.get = original_get
+    requests.post = original_post
+
+
+@pytest.fixture(scope='function')
+def mock_check_release_exists():
+    original_get = requests.get
+
+    mock_response = Mock()
+    mock_response.status_code = 200
+
+    requests.get = Mock(return_value=mock_response)
+
+    yield
+
+    requests.get = original_get
 
 
 @pytest.fixture(scope='module', params=[0, 1])
