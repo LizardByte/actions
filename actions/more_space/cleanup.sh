@@ -58,8 +58,9 @@ measure_space_saved() {
 
 # Function to measure space saved by individual commands within functions
 with_space_saved() {
-  local command_name="$1"
-  local directory_to_remove="$2"
+  local command_desription="$1"
+  local command_name="$2"
+  local directory_to_remove="$3"
   shift
   local before_space after_space space_freed
   before_space=$(get_disk_space_gb)
@@ -70,7 +71,7 @@ with_space_saved() {
     dir_info=" (${directory_to_remove})"
   fi
 
-  echo -e "  ${CYAN}→ $command_name${dir_info}${RESET}"
+  echo -e "  ${CYAN}→ ${command_desription}${dir_info}${RESET}"
   "$@"
   after_space=$(get_disk_space_gb)
   space_freed=$(awk "BEGIN {printf \"%.2f\", $after_space - $before_space}")
