@@ -179,7 +179,10 @@ remove_android() {
 
   # Check if ANDROID_HOME is defined
   if [[ -n "${ANDROID_HOME:-}" ]]; then
-    with_space_saved "Remove ANDROID_HOME" safe_remove "${ANDROID_HOME}"
+    # Convert path for safe display and removal
+    local android_path_unix
+    android_path_unix=$(convert_to_unix_path "${ANDROID_HOME}")
+    with_space_saved "Remove ANDROID_HOME" safe_remove "${android_path_unix}"
   fi
   return 0
 }
