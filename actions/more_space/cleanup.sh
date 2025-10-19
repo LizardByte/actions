@@ -156,18 +156,40 @@ safe_remove() {
   local unix_dir
   unix_dir=$(convert_to_unix_path "$dir")
 
-  if [[ -d "$dir" ]]; then
+  # Use unix_dir for directory check to ensure it works on Windows
+  if [[ -d "$unix_dir" ]]; then
     if [[ -n "$SAFE_PACKAGES" ]]; then
       local safe_pkg
-      if safe_pkg=$(is_safe_package "$dir"); then
-        echo -e "${YELLOW}Skipping $dir ($safe_pkg)${RESET}"
+      if safe_pkg=$(is_safe_package "$unix_dir"); then
+        echo -e "${YELLOW}Skipping $unix_dir ($safe_pkg)${RESET}"
         return 0
       fi
     fi
 
-    ${SUDO_CMD} rm -rf "$unix_dir"
+    # On Windows, use PowerShell for more reliable deletion
+    if [[ "$IS_WINDOWS" == true ]]; then
+      # Convert back to Windows path for PowerShell
+      local win_path
+      if command -v cygpath &>/dev/null; then
+        win_path=$(cygpath -w "$unix_dir")
+      else
+        win_path="$dir"
+      fi
+
+      # Use PowerShell with -LiteralPath to handle special characters
+      # Run in background to avoid blocking, then wait for completion
+      echo -e "    ${CYAN}Removing directory...${RESET}"
+      POWERSHELL_CMD="\$ProgressPreference = 'SilentlyContinue';
+        Get-ChildItem -LiteralPath '$win_path' -Recurse -Force | Remove-Item -Force -Recurse;
+        Remove-Item -LiteralPath '$win_path' -Force -Recurse"
+      powershell -NoProfile -Command "$POWERSHELL_CMD"
+
+    else
+      # On Unix systems, use rm
+      ${SUDO_CMD} rm -rf "$unix_dir"
+    fi
   else
-    echo -e "    ${RED}Directory does not exist: $dir${RESET}"
+    echo -e "    ${RED}Directory does not exist: $unix_dir${RESET}"
   fi
   return 0
 }
@@ -178,8 +200,10 @@ remove_android() {
 
   # Check if ANDROID_HOME is defined
   if [[ -n "${ANDROID_HOME:-}" ]]; then
-    # TODO: The space freed calculation on Windows reports 0.00 GB
-    with_space_saved "Remove ANDROID_HOME" safe_remove "${ANDROID_HOME}"
+    # Convert path for safe display and removal
+    local android_path_unix
+    android_path_unix=$(convert_to_unix_path "${ANDROID_HOME}")
+    with_space_saved "Remove ANDROID_HOME" safe_remove "${android_path_unix}"
   fi
   return 0
 }
