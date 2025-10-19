@@ -182,11 +182,9 @@ safe_remove() {
 
     ${SUDO_CMD} rm -rf "$unix_dir"
 
-    # Verify removal completed
-    if [[ -d "$unix_dir" ]]; then
-      echo -e "    ${RED}Warning: Directory still exists after removal attempt${RESET}"
-    else
-      echo -e "    ${GREEN}Directory successfully removed${RESET}"
+    # On Windows, add a small delay to allow filesystem to update
+    if [[ "$IS_WINDOWS" == true ]]; then
+      sleep 10
     fi
   else
     echo -e "    ${RED}Directory does not exist: $unix_dir${RESET}"
