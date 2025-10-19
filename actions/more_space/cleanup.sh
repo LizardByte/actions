@@ -158,20 +158,6 @@ safe_remove() {
 
   # Use unix_dir for directory check to ensure it works on Windows
   if [[ -d "$unix_dir" ]]; then
-    # Debug: Check size before removal on Windows
-    if [[ "$IS_WINDOWS" == true ]]; then
-      local dir_size
-      # Use the unix_dir converted back to Windows path for PowerShell
-      local win_path
-      if command -v cygpath &>/dev/null; then
-        win_path=$(cygpath -w "$unix_dir")
-      else
-        win_path="$dir"
-      fi
-      dir_size=$(powershell -Command "(Get-ChildItem -Path '$win_path' -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1GB" 2>/dev/null | tr -d '\r' || echo "unknown")
-      echo -e "    ${CYAN}Directory size: ${dir_size} GB${RESET}"
-    fi
-
     if [[ -n "$SAFE_PACKAGES" ]]; then
       local safe_pkg
       if safe_pkg=$(is_safe_package "$unix_dir"); then
@@ -193,18 +179,11 @@ safe_remove() {
       # Use PowerShell with -LiteralPath to handle special characters
       # Run in background to avoid blocking, then wait for completion
       echo -e "    ${CYAN}Removing directory...${RESET}"
-      powershell -NoProfile -Command "\$ProgressPreference = 'SilentlyContinue'; Get-ChildItem -LiteralPath '$win_path' -Recurse -Force | Remove-Item -Force -Recurse; Remove-Item -LiteralPath '$win_path' -Force -Recurse"
+      POWERSHELL_CMD="\$ProgressPreference = 'SilentlyContinue';
+        Get-ChildItem -LiteralPath '$win_path' -Recurse -Force | Remove-Item -Force -Recurse;
+        Remove-Item -LiteralPath '$win_path' -Force -Recurse"
+      powershell -NoProfile -Command "$POWERSHELL_CMD"
 
-      # Wait for filesystem to update
-      sleep 10
-
-      # Verify removal
-      if [[ -d "$unix_dir" ]]; then
-        echo -e "    ${RED}Warning: Directory still exists after removal. Trying alternative method...${RESET}"
-        # Try using cmd.exe rd command as fallback
-        cmd.exe /c "rd /s /q \"$win_path\"" 2>/dev/null || true
-        sleep 5
-      fi
     else
       # On Unix systems, use rm
       ${SUDO_CMD} rm -rf "$unix_dir"
