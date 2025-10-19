@@ -161,7 +161,14 @@ safe_remove() {
     # Debug: Check size before removal on Windows
     if [[ "$IS_WINDOWS" == true ]]; then
       local dir_size
-      dir_size=$(powershell -Command "(Get-ChildItem -Path '$dir' -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1GB" 2>/dev/null | tr -d '\r' || echo "unknown")
+      # Use the unix_dir converted back to Windows path for PowerShell
+      local win_path
+      if command -v cygpath &>/dev/null; then
+        win_path=$(cygpath -w "$unix_dir")
+      else
+        win_path="$dir"
+      fi
+      dir_size=$(powershell -Command "(Get-ChildItem -Path '$win_path' -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1GB" 2>/dev/null | tr -d '\r' || echo "unknown")
       echo -e "    ${CYAN}Directory size: ${dir_size} GB${RESET}"
     fi
 
