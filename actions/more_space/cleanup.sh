@@ -180,11 +180,24 @@ safe_remove() {
       fi
     fi
 
-    ${SUDO_CMD} rm -rf "$unix_dir"
-
-    # On Windows, add a small delay to allow filesystem to update
+    # On Windows, use PowerShell for more reliable deletion
     if [[ "$IS_WINDOWS" == true ]]; then
+      # Convert back to Windows path for PowerShell
+      local win_path
+      if command -v cygpath &>/dev/null; then
+        win_path=$(cygpath -w "$unix_dir")
+      else
+        win_path="$dir"
+      fi
+
+      # Use PowerShell's Remove-Item which handles Windows paths better
+      powershell -Command "Remove-Item -Path '$win_path' -Recurse -Force -ErrorAction Stop" 2>&1
+
+      # Wait for filesystem to update
       sleep 10
+    else
+      # On Unix systems, use rm
+      ${SUDO_CMD} rm -rf "$unix_dir"
     fi
   else
     echo -e "    ${RED}Directory does not exist: $unix_dir${RESET}"
