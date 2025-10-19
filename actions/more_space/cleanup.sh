@@ -190,11 +190,21 @@ safe_remove() {
         win_path="$dir"
       fi
 
-      # Use PowerShell's Remove-Item which handles Windows paths better
-      powershell -Command "Remove-Item -Path '$win_path' -Recurse -Force -ErrorAction Stop" 2>&1
+      # Use PowerShell with -LiteralPath to handle special characters
+      # Run in background to avoid blocking, then wait for completion
+      echo -e "    ${CYAN}Removing directory...${RESET}"
+      powershell -NoProfile -Command "\$ProgressPreference = 'SilentlyContinue'; Get-ChildItem -LiteralPath '$win_path' -Recurse -Force | Remove-Item -Force -Recurse; Remove-Item -LiteralPath '$win_path' -Force -Recurse"
 
       # Wait for filesystem to update
       sleep 10
+
+      # Verify removal
+      if [[ -d "$unix_dir" ]]; then
+        echo -e "    ${RED}Warning: Directory still exists after removal. Trying alternative method...${RESET}"
+        # Try using cmd.exe rd command as fallback
+        cmd.exe /c "rd /s /q \"$win_path\"" 2>/dev/null || true
+        sleep 5
+      fi
     else
       # On Unix systems, use rm
       ${SUDO_CMD} rm -rf "$unix_dir"
