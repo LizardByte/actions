@@ -158,6 +158,13 @@ safe_remove() {
 
   # Use unix_dir for directory check to ensure it works on Windows
   if [[ -d "$unix_dir" ]]; then
+    # Debug: Check size before removal on Windows
+    if [[ "$IS_WINDOWS" == true ]]; then
+      local dir_size
+      dir_size=$(powershell -Command "(Get-ChildItem -Path '$dir' -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1GB" 2>/dev/null | tr -d '\r' || echo "unknown")
+      echo -e "    ${CYAN}Directory size: ${dir_size} GB${RESET}"
+    fi
+
     if [[ -n "$SAFE_PACKAGES" ]]; then
       local safe_pkg
       if safe_pkg=$(is_safe_package "$unix_dir"); then
@@ -167,6 +174,13 @@ safe_remove() {
     fi
 
     ${SUDO_CMD} rm -rf "$unix_dir"
+
+    # Verify removal completed
+    if [[ -d "$unix_dir" ]]; then
+      echo -e "    ${RED}Warning: Directory still exists after removal attempt${RESET}"
+    else
+      echo -e "    ${GREEN}Directory successfully removed${RESET}"
+    fi
   else
     echo -e "    ${RED}Directory does not exist: $unix_dir${RESET}"
   fi
