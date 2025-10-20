@@ -1,7 +1,9 @@
 # LizardByte re-usable actions
 
 [![GitHub Workflow Status (CI)](https://img.shields.io/github/actions/workflow/status/lizardbyte/actions/ci.yml.svg?branch=master&label=CI%20build&logo=github&style=for-the-badge)](https://github.com/LizardByte/actions/actions/workflows/ci.yml?query=branch%3Amaster)
+[![GitHub Workflow Status (CI-Tests)](https://img.shields.io/github/actions/workflow/status/lizardbyte/actions/ci-tests.yml.svg?branch=master&label=CI%20tests&logo=github&style=for-the-badge)](https://github.com/LizardByte/actions/actions/workflows/ci-tests.yml?query=branch%3Amaster)
 [![Codecov](https://img.shields.io/codecov/c/gh/LizardByte/actions.svg?token=GQm8qlXRaw&style=for-the-badge&logo=codecov&label=codecov)](https://app.codecov.io/gh/LizardByte/actions)
+[![Sonar Quality Gate](https://img.shields.io/sonar/quality_gate/LizardByte_actions?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarqubecloud&label=sonarqube)](https://sonarcloud.io/project/overview?id=LizardByte_actions)
 
 This is a monorepo containing a collection of GitHub Actions maintained by LizardByte.
 
@@ -30,15 +32,15 @@ See our [Contributor's Guide](https://docs.lizardbyte.dev/latest/developers/code
 
 This repo has two workflows to test the actions:
 
-- ci.yml
+- [ci.yml](.github/workflows/ci.yml)
   - A matrix is generated for each action based on the `ci-matrix.json` file in the action's directory. To add or remove
     a matrix, edit the `ci-matrix.json` file.
   - Each action should have at least one matrix defined.
   - If anything needs run before the action is run, create a `pre-ci.sh` file in the action's directory.
   - If anything needs run after the action is run, create a `post-ci.sh` file in the action's directory.
-- pytest.yml
-  - This workflow runs unit tests for the repo.
-  - Python code should be 100% covered by tests.
+- [ci-tests.yml](.github/workflows/ci-tests.yml)
+  - This workflow runs unit tests for the repo using pytest and Jest.
+  - Tests should 100% cover JavaScript and Python code.
 
 #### Action Types
 
