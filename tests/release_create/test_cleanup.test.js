@@ -156,10 +156,11 @@ describe('Release Cleanup', () => {
       ]);
 
       const result = filterReleasesToDelete(releases, false, 'v2024.1.5', 2);
-      // Should delete oldest, keeping the 2 newest (v2024.1.4 and v2024.1.5, but v2024.1.5 is current)
-      // So it should keep v2024.1.4 and v2024.1.3, delete v2024.1.1 and v2024.1.2
-      expect(result.length).toBeLessThanOrEqual(3);
+      // keepLatest=2 means keep 2 total including currentTag (v2024.1.5)
+      // So keep v2024.1.5 + v2024.1.4 (1 other), delete v2024.1.1, v2024.1.2, v2024.1.3
+      expect(result).toHaveLength(3);
       expect(result.some(r => r.tag_name === 'v2024.1.5')).toBe(false);
+      expect(result.map(r => r.tag_name)).toEqual(['v2024.1.1', 'v2024.1.2', 'v2024.1.3']);
     });
 
     test('should sort pre-releases by version before filtering', () => {
@@ -173,12 +174,14 @@ describe('Release Cleanup', () => {
 
       const result = filterReleasesToDelete(releases, false, 'v2024.1.6', 2);
       // After sorting: v2024.1.1, v2024.1.2, v2024.1.3, v2024.1.4, v2024.1.5
-      // Keep latest 2: v2024.1.4, v2024.1.5
-      // Delete: v2024.1.1, v2024.1.2, v2024.1.3
-      expect(result).toHaveLength(3);
+      // keepLatest=2 means keep 2 total including currentTag (v2024.1.6 which will be created)
+      // So keep 1 existing (v2024.1.5) + new v2024.1.6
+      // Delete: v2024.1.1, v2024.1.2, v2024.1.3, v2024.1.4
+      expect(result).toHaveLength(4);
       expect(result[0].tag_name).toBe('v2024.1.1');
       expect(result[1].tag_name).toBe('v2024.1.2');
       expect(result[2].tag_name).toBe('v2024.1.3');
+      expect(result[3].tag_name).toBe('v2024.1.4');
     });
 
     test('should only match version pattern tags', () => {
@@ -299,7 +302,9 @@ describe('Release Cleanup', () => {
       await jest.runAllTimersAsync();
       await deletePromise;
 
-      verifyDeleteCalls(mockGithub, { deleteReleaseCalls: 2, deleteTagCalls: 2 });
+      // keepLatest=2 means keep 2 total including currentTag (v2024.1.5)
+      // So keep 1 existing (v2024.1.4) + new v2024.1.5, delete 3 (v2024.1.1, v2024.1.2, v2024.1.3)
+      verifyDeleteCalls(mockGithub, { deleteReleaseCalls: 3, deleteTagCalls: 3 });
     });
 
     test('should delete drafts when IS_DRAFT is true', async () => {

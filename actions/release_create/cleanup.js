@@ -62,6 +62,7 @@ function filterReleasesToDelete(allReleases, isDraft, currentTag, keepLatest) {
     console.log('Matched Draft releases:', releasesToDelete.map(release => release.tag_name));
   } else {
     // When creating a non-draft pre-release, delete all except the latest N pre-releases
+    // Filter matching pre-releases, excluding the currentTag
     releasesToDelete = allReleases.filter(release =>
       release.prerelease &&
       matchesVersionPattern(release.tag_name) &&
@@ -76,8 +77,12 @@ function filterReleasesToDelete(allReleases, isDraft, currentTag, keepLatest) {
     console.log('Sorted Pre-release tags:', releasesToDelete.map(release => release.tag_name));
 
     // Keep only the releases to delete (remove the latest N from the list)
+    // keepLatest represents total pre-releases to keep INCLUDING currentTag
+    // If currentTag is already in the list, it was filtered out, so keep (keepLatest - 1) others
+    // If currentTag is NOT in the list, it will be created, so keep (keepLatest - 1) existing ones
     if (keepLatest > 0) {
-      releasesToDelete = releasesToDelete.slice(0, -keepLatest);
+      const effectiveKeepLatest = keepLatest - 1;
+      releasesToDelete = releasesToDelete.slice(0, -effectiveKeepLatest);
     }
     // If keepLatest is 0, delete all
   }
