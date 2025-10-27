@@ -20,6 +20,22 @@ def get_script_dir():
     return os.path.join(repo_root, 'actions', 'setup_python')
 
 
+def to_bash_path(path):
+    """
+    Convert a Windows path to Unix-style path for bash compatibility.
+
+    On Windows, bash (Git Bash) expects forward slashes instead of backslashes.
+    On Unix, this is a no-op since paths already use forward slashes.
+
+    Args:
+        path: File path as a string
+
+    Returns:
+        str: Path with forward slashes
+    """
+    return path.replace('\\', '/') if path else ''
+
+
 def run_determine_version(python_version='', python_version_file=''):
     """
     Helper function to run the determine_version.sh script.
@@ -32,7 +48,7 @@ def run_determine_version(python_version='', python_version_file=''):
         tuple: (stdout, stderr, returncode)
     """
     script_dir = get_script_dir()
-    determine_script = os.path.join(script_dir, 'determine_version.sh')
+    determine_script = to_bash_path(path=os.path.join(script_dir, 'determine_version.sh'))
     repo_root = os.path.dirname(os.path.dirname(script_dir))
 
     # Build the command based on whether we're using direct version or file
@@ -124,7 +140,7 @@ def test_determine_version_from_multiple_inputs():
     """Test providing multiple versions via input."""
     # Test with newline-separated versions - use $'...' to interpret escape sequences
     script_dir = get_script_dir()
-    determine_script = os.path.join(script_dir, 'determine_version.sh')
+    determine_script = to_bash_path(path=os.path.join(script_dir, 'determine_version.sh'))
     repo_root = os.path.dirname(os.path.dirname(script_dir))
 
     proc = subprocess.Popen(
