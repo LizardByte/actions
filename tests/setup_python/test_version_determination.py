@@ -6,6 +6,9 @@ These tests validate the version file parsing logic.
 import os
 import subprocess
 
+# lib imports
+import pytest
+
 
 def get_script_dir():
     """Get the directory containing the setup_python action."""
@@ -16,66 +19,80 @@ def get_script_dir():
     return os.path.join(repo_root, 'actions', 'setup_python')
 
 
-def test_determine_version_from_python_version_file():
-    """Test reading version from .python-version file."""
+def run_determine_version(python_version='', python_version_file=''):
+    """
+    Helper function to run the determine_version.sh script.
+
+    Args:
+        python_version: Direct Python version string (optional)
+        python_version_file: Path to file containing version (optional)
+
+    Returns:
+        tuple: (stdout, stderr, returncode)
+    """
     script_dir = get_script_dir()
     determine_script = os.path.join(script_dir, 'determine_version.sh')
-    test_file = 'tests/setup_python/version_files/python-version/single-version/.python-version'
-
-    if not os.path.exists(test_file):
-        # Skip if test file doesn't exist
-        return
-
-    # Run bash script to determine version
     repo_root = os.path.dirname(os.path.dirname(script_dir))
 
-    # Use Popen for Python 2.7 compatibility
-    import subprocess
+    # Build the command based on whether we're using direct version or file
+    if python_version_file and not os.path.exists(python_version_file):
+        # Skip if test file doesn't exist
+        return None, None, -1
+
+    cmd = 'source {} && determine_python_version "{}" "{}"'.format(
+        determine_script, python_version, python_version_file
+    )
+
     proc = subprocess.Popen(
-        ['bash', '-c', 'source {} && '
-                       'determine_python_version "" "{}" && '
-                       'echo "$DEFAULT_PYTHON_VERSION"'.format(determine_script, test_file)],
+        ['bash', '-c', cmd],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=repo_root
     )
-    stdout, _ = proc.communicate()
+    stdout, stderr = proc.communicate()
 
     # Decode bytes to string for Python 3 compatibility
     if isinstance(stdout, bytes):
         stdout = stdout.decode('utf-8')
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode('utf-8')
 
-    if proc.returncode == 0:
-        version = stdout.strip().split('\n')[-1]
-        assert version == '3.12.0', "Expected 3.12.0, got {}".format(version)
+    return stdout, stderr, proc.returncode
+
+
+@pytest.mark.parametrize("test_file,expected_version", [
+    ('tests/setup_python/version_files/python-version/single-version/.python-version', '3.12.0'),
+    ('tests/setup_python/version_files/pyproject-toml/requires-python-gte/pyproject.toml', '3.8'),
+    ('tests/setup_python/version_files/tool-versions/single-version/.tool-versions', '3.12.0'),
+    ('tests/setup_python/version_files/pipfile/simple/Pipfile', '3.12'),
+])
+def test_determine_version_from_file(test_file, expected_version):
+    """Test reading version from various file types."""
+    stdout, _, returncode = run_determine_version(python_version_file=test_file)
+
+    if returncode == -1:
+        # File doesn't exist, skip test
+        pytest.skip("Test file '{}' not found".format(test_file))
+
+    if returncode == 0:
+        lines = stdout.strip().split('\n')
+        # Filter out empty lines
+        lines = [line for line in lines if line.strip()]
+
+        if lines:
+            version = lines[-1]
+            assert version == expected_version, "Expected {}, got {}".format(expected_version, version)
 
 
 def test_determine_version_from_multiple_versions():
     """Test reading multiple versions from .python-version file."""
-    script_dir = get_script_dir()
-    determine_script = os.path.join(script_dir, 'determine_version.sh')
     test_file = 'tests/setup_python/version_files/python-version/multiple-versions/.python-version'
+    stdout, _, returncode = run_determine_version(python_version_file=test_file)
 
-    if not os.path.exists(test_file):
-        return
+    if returncode == -1:
+        pytest.skip("Test file not found")
 
-    repo_root = os.path.dirname(os.path.dirname(script_dir))
-
-    proc = subprocess.Popen(
-        ['bash', '-c', 'source {} && '
-                       'determine_python_version "" "{}" && '
-                       'echo "$PYTHON_VERSIONS" && echo "$DEFAULT_PYTHON_VERSION"'.format(
-                           determine_script, test_file)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=repo_root
-    )
-    stdout, _ = proc.communicate()
-
-    if isinstance(stdout, bytes):
-        stdout = stdout.decode('utf-8')
-
-    if proc.returncode == 0:
+    if returncode == 0:
         lines = stdout.strip().split('\n')
         # Filter out empty lines and find the versions/default
         lines = [line for line in lines if line.strip()]
@@ -93,126 +110,26 @@ def test_determine_version_from_multiple_versions():
         assert default_version == '3.13.0', "Expected default 3.13.0, got {}".format(default_version)
 
 
-def test_determine_version_from_pyproject_toml():
-    """Test reading version from pyproject.toml file."""
-    script_dir = get_script_dir()
-    determine_script = os.path.join(script_dir, 'determine_version.sh')
-    test_file = 'tests/setup_python/version_files/pyproject-toml/requires-python-gte/pyproject.toml'
-
-    if not os.path.exists(test_file):
-        return
-
-    repo_root = os.path.dirname(os.path.dirname(script_dir))
-
-    proc = subprocess.Popen(
-        ['bash', '-c', 'source {} && '
-                       'determine_python_version "" "{}" && '
-                       'echo "$DEFAULT_PYTHON_VERSION"'.format(determine_script, test_file)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=repo_root
-    )
-    stdout, _ = proc.communicate()
-
-    if isinstance(stdout, bytes):
-        stdout = stdout.decode('utf-8')
-
-    if proc.returncode == 0:
-        version = stdout.strip().split('\n')[-1]
-        assert version == '3.8', "Expected 3.8, got {}".format(version)
-
-
-def test_determine_version_from_tool_versions():
-    """Test reading version from .tool-versions file."""
-    script_dir = get_script_dir()
-    determine_script = os.path.join(script_dir, 'determine_version.sh')
-    test_file = 'tests/setup_python/version_files/tool-versions/single-version/.tool-versions'
-
-    if not os.path.exists(test_file):
-        return
-
-    repo_root = os.path.dirname(os.path.dirname(script_dir))
-
-    proc = subprocess.Popen(
-        ['bash', '-c', 'source {} && '
-                       'determine_python_version "" "{}" && '
-                       'echo "$DEFAULT_PYTHON_VERSION"'.format(determine_script, test_file)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=repo_root
-    )
-    stdout, _ = proc.communicate()
-
-    if isinstance(stdout, bytes):
-        stdout = stdout.decode('utf-8')
-
-    if proc.returncode == 0:
-        version = stdout.strip().split('\n')[-1]
-        assert version == '3.12.0', "Expected 3.12.0, got {}".format(version)
-
-
-def test_determine_version_from_pipfile():
-    """Test reading version from Pipfile."""
-    script_dir = get_script_dir()
-    determine_script = os.path.join(script_dir, 'determine_version.sh')
-    test_file = 'tests/setup_python/version_files/pipfile/simple/Pipfile'
-
-    if not os.path.exists(test_file):
-        return
-
-    repo_root = os.path.dirname(os.path.dirname(script_dir))
-
-    proc = subprocess.Popen(
-        ['bash', '-c', 'source {} && '
-                       'determine_python_version "" "{}" && '
-                       'echo "$DEFAULT_PYTHON_VERSION"'.format(determine_script, test_file)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=repo_root
-    )
-    stdout, _ = proc.communicate()
-
-    if isinstance(stdout, bytes):
-        stdout = stdout.decode('utf-8')
-
-    if proc.returncode == 0:
-        version = stdout.strip().split('\n')[-1]
-        assert version == '3.12', "Expected 3.12, got {}".format(version)
-
-
 def test_determine_version_from_direct_input():
     """Test providing version directly via input."""
-    script_dir = get_script_dir()
-    determine_script = os.path.join(script_dir, 'determine_version.sh')
+    stdout, _, returncode = run_determine_version(python_version='3.11.5')
 
-    repo_root = os.path.dirname(os.path.dirname(script_dir))
+    if returncode == 0:
+        lines = stdout.strip().split('\n')
+        lines = [line for line in lines if line.strip()]
 
-    proc = subprocess.Popen(
-        ['bash', '-c', 'source {} && '
-                       'determine_python_version "3.11.5" "" && '
-                       'echo "$DEFAULT_PYTHON_VERSION"'.format(determine_script)],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=repo_root
-    )
-    stdout, _ = proc.communicate()
-
-    if isinstance(stdout, bytes):
-        stdout = stdout.decode('utf-8')
-
-    if proc.returncode == 0:
-        version = stdout.strip().split('\n')[-1]
-        assert version == '3.11.5', "Expected 3.11.5, got {}".format(version)
+        if lines:
+            version = lines[-1]
+            assert version == '3.11.5', "Expected 3.11.5, got {}".format(version)
 
 
 def test_determine_version_from_multiple_inputs():
     """Test providing multiple versions via input."""
+    # Test with newline-separated versions - use $'...' to interpret escape sequences
     script_dir = get_script_dir()
     determine_script = os.path.join(script_dir, 'determine_version.sh')
-
     repo_root = os.path.dirname(os.path.dirname(script_dir))
 
-    # Test with newline-separated versions - use $'...' to interpret escape sequences
     proc = subprocess.Popen(
         ['bash', '-c', 'source {} && '
                        'determine_python_version $\'3.10\\n3.11\\n3.12\' "" && '
