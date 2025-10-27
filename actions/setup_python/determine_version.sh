@@ -85,12 +85,9 @@ determine_python_version() {
   local default_version="${version_array[$((array_length - 1))]}"
 
   # Export the results
-  export PYTHON_VERSIONS="${versions}"
-  export DEFAULT_PYTHON_VERSION="${default_version}"
-
-  # Echo the variables to bypass sonar warnings about unused variables
-  echo "PYTHON_VERSIONS=${PYTHON_VERSIONS}"
-  echo "DEFAULT_PYTHON_VERSION=${DEFAULT_PYTHON_VERSION}"
+  PYTHON_VERSIONS="${versions}"
+  DEFAULT_PYTHON_VERSION="${default_version}"
+  export PYTHON_VERSIONS DEFAULT_PYTHON_VERSION
 
   return 0
 }
