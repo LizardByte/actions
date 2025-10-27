@@ -5,6 +5,7 @@ These tests validate the version file parsing logic.
 """
 # standard imports
 import os
+import platform
 import subprocess
 
 # lib imports
@@ -18,6 +19,34 @@ def get_script_dir():
     # Navigate up to the repo root, then to actions/setup_python
     repo_root = os.path.dirname(os.path.dirname(test_dir))
     return os.path.join(repo_root, 'actions', 'setup_python')
+
+
+def get_bash_executable():
+    """
+    Get the path to the bash executable.
+
+    On Windows, tries to find Git Bash in common installation locations.
+    On Unix/macOS, uses the system bash.
+
+    Returns:
+        str: Path to bash executable
+    """
+    if platform.system() == 'Windows':
+        # List of common Git Bash installation paths on Windows
+        bash_candidates = [
+            r'C:\Program Files\Git\bin\bash.exe',
+            r'C:\Program Files (x86)\Git\bin\bash.exe',
+            'bash.exe',  # Fallback to PATH
+        ]
+
+        for bash_path in bash_candidates:
+            if bash_path == 'bash.exe' or os.path.exists(bash_path):
+                return bash_path
+
+        # If nothing found, return the first candidate as fallback
+        return bash_candidates[0]
+    else:
+        return 'bash'
 
 
 def to_bash_path(path):
@@ -60,8 +89,10 @@ def run_determine_version(python_version='', python_version_file=''):
         determine_script, python_version, python_version_file
     )
 
+    bash_exe = get_bash_executable()
+
     proc = subprocess.Popen(
-        ['bash', '-c', cmd],
+        [bash_exe, '-c', cmd],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=repo_root
@@ -149,8 +180,10 @@ def test_determine_version_from_multiple_inputs():
     determine_script = to_bash_path(path=os.path.join(script_dir, 'determine_version.sh'))
     repo_root = os.path.dirname(os.path.dirname(script_dir))
 
+    bash_exe = get_bash_executable()
+
     proc = subprocess.Popen(
-        ['bash', '-c', 'source {} && '
+        [bash_exe, '-c', 'source {} && '
                        'determine_python_version $\'3.10\\n3.11\\n3.12\' "" && '
                        'echo "$PYTHON_VERSIONS" && echo "$DEFAULT_PYTHON_VERSION"'.format(determine_script)],
         stdout=subprocess.PIPE,
