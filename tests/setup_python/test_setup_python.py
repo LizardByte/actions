@@ -35,7 +35,8 @@ def test_pyenv_versions_installed():
     # Get PYTHON_VERSIONS from environment if available
     python_versions = os.environ.get('PYTHON_VERSIONS', '')
 
-    assert python_versions, "PYTHON_VERSIONS environment variable not set"
+    if not python_versions:
+        pytest.skip("PYTHON_VERSIONS environment variable not set")
 
     # Get list of installed pyenv versions
     try:

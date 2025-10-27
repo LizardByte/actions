@@ -92,10 +92,14 @@ def run_determine_version(python_version='', python_version_file=''):
     bash_exe = get_bash_executable()
 
     proc = subprocess.Popen(
-        [bash_exe, '-c', cmd],
+        args=[
+            bash_exe,
+            '-c',
+            cmd,
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=repo_root
+        cwd=repo_root,
     )
     stdout, stderr = proc.communicate()
 
@@ -183,12 +187,16 @@ def test_determine_version_from_multiple_inputs():
     bash_exe = get_bash_executable()
 
     proc = subprocess.Popen(
-        [bash_exe, '-c', 'source {} && '
-                       'determine_python_version $\'3.10\\n3.11\\n3.12\' "" && '
-                       'echo "$PYTHON_VERSIONS" && echo "$DEFAULT_PYTHON_VERSION"'.format(determine_script)],
+        args=[
+            bash_exe,
+            '-c',
+            'source {} && '
+            'determine_python_version $\'3.10\\n3.11\\n3.12\' "" && '
+            'echo "$PYTHON_VERSIONS" && echo "$DEFAULT_PYTHON_VERSION"'.format(determine_script)
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        cwd=repo_root
+        cwd=repo_root,
     )
     stdout, stderr = proc.communicate()
 
