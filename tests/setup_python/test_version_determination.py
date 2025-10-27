@@ -87,7 +87,9 @@ def test_determine_version_from_file(test_file, expected_version):
     """Test reading version from various file types."""
     stdout, stderr, returncode = run_determine_version(python_version_file=test_file)
 
-    assert returncode == 0, "Script failed with return code {}. stderr: {}".format(returncode, stderr)
+    assert returncode == 0, "Script failed with return code {}. stderr: '{}' stdout: '{}'".format(
+        returncode, stderr, stdout
+    )
 
     lines = stdout.strip().split('\n')
     # Filter out empty lines
@@ -103,7 +105,9 @@ def test_determine_version_from_multiple_versions():
     test_file = 'tests/setup_python/version_files/python-version/multiple-versions/.python-version'
     stdout, stderr, returncode = run_determine_version(python_version_file=test_file)
 
-    assert returncode == 0, "Script failed with return code {}. stderr: {}".format(returncode, stderr)
+    assert returncode == 0, "Script failed with return code {}. stderr: '{}' stdout: '{}'".format(
+        returncode, stderr, stdout
+    )
 
     lines = stdout.strip().split('\n')
     # Filter out empty lines and find the versions/default
@@ -126,7 +130,9 @@ def test_determine_version_from_direct_input():
     """Test providing version directly via input."""
     stdout, stderr, returncode = run_determine_version(python_version='3.11.5')
 
-    assert returncode == 0, "Script failed with return code {}. stderr: {}".format(returncode, stderr)
+    assert returncode == 0, "Script failed with return code {}. stderr: '{}' stdout: '{}'".format(
+        returncode, stderr, stdout
+    )
 
     lines = stdout.strip().split('\n')
     lines = [line for line in lines if line.strip()]
@@ -158,7 +164,9 @@ def test_determine_version_from_multiple_inputs():
     if isinstance(stderr, bytes):
         stderr = stderr.decode('utf-8')
 
-    assert proc.returncode == 0, "Script failed with return code {}. stderr: {}".format(proc.returncode, stderr)
+    assert proc.returncode == 0, "Script failed with return code {}. stderr: '{}' stdout: '{}'".format(
+        proc.returncode, stderr, stdout
+    )
 
     lines = stdout.strip().split('\n')
     # Filter out empty lines
