@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 # standard imports
 import os
+import platform
 import subprocess
 import sys
+
+# lib imports
+import pytest
 
 
 def test_python_platform_version(default_python_version):
     """Test that the installed Python version matches the expected version."""
-    import platform
     actual_version = platform.python_version()
     # Split by '-' to handle architecture suffixes like 3.12.10-win32
     expected_version = default_python_version.split('-')[0]
@@ -32,10 +35,7 @@ def test_pyenv_versions_installed():
     # Get PYTHON_VERSIONS from environment if available
     python_versions = os.environ.get('PYTHON_VERSIONS', '')
 
-    if not python_versions:
-        # If PYTHON_VERSIONS is not set, skip this test
-        # This will be the case for single-version installations
-        return
+    assert python_versions, "PYTHON_VERSIONS environment variable not set"
 
     # Get list of installed pyenv versions
     try:
@@ -47,6 +47,7 @@ def test_pyenv_versions_installed():
         installed_versions = output.strip().split('\n')
     except (subprocess.CalledProcessError, OSError):
         # pyenv might not be in PATH in some environments
+        pytest.skip("pyenv not found")
         return
 
     # Split the expected versions
@@ -71,7 +72,6 @@ def test_default_python_version(default_python_version):
     expected_base = default_python_version.split('-')[0]
 
     # Get current Python version
-    import platform
     actual_version = platform.python_version()
 
     assert actual_version.startswith(expected_base), \

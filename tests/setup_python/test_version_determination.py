@@ -3,6 +3,7 @@
 Test the determine_version.sh script functionality.
 These tests validate the version file parsing logic.
 """
+# standard imports
 import os
 import subprocess
 
@@ -70,18 +71,15 @@ def test_determine_version_from_file(test_file, expected_version):
     """Test reading version from various file types."""
     stdout, _, returncode = run_determine_version(python_version_file=test_file)
 
-    if returncode == -1:
-        # File doesn't exist, skip test
-        pytest.skip("Test file '{}' not found".format(test_file))
+    assert returncode == 0, "Expected 0 return code, got {}".format(returncode)
 
-    if returncode == 0:
-        lines = stdout.strip().split('\n')
-        # Filter out empty lines
-        lines = [line for line in lines if line.strip()]
+    lines = stdout.strip().split('\n')
+    # Filter out empty lines
+    lines = [line for line in lines if line.strip()]
 
-        if lines:
-            version = lines[-1]
-            assert version == expected_version, "Expected {}, got {}".format(expected_version, version)
+    if lines:
+        version = lines[-1]
+        assert version == expected_version, "Expected {}, got {}".format(expected_version, version)
 
 
 def test_determine_version_from_multiple_versions():
@@ -89,38 +87,37 @@ def test_determine_version_from_multiple_versions():
     test_file = 'tests/setup_python/version_files/python-version/multiple-versions/.python-version'
     stdout, _, returncode = run_determine_version(python_version_file=test_file)
 
-    if returncode == -1:
-        pytest.skip("Test file not found")
+    assert returncode == 0, "Expected 0 return code, got {}".format(returncode)
 
-    if returncode == 0:
-        lines = stdout.strip().split('\n')
-        # Filter out empty lines and find the versions/default
-        lines = [line for line in lines if line.strip()]
+    lines = stdout.strip().split('\n')
+    # Filter out empty lines and find the versions/default
+    lines = [line for line in lines if line.strip()]
 
-        if len(lines) < 2:
-            # If we don't have enough output, the test can't verify properly
-            return
+    if len(lines) < 2:
+        # If we don't have enough output, the test can't verify properly
+        return
 
-        all_versions = lines[-2]
-        default_version = lines[-1]
+    all_versions = lines[-2]
+    default_version = lines[-1]
 
-        assert '3.11.0' in all_versions, "Expected 3.11.0 in {}".format(all_versions)
-        assert '3.12.0' in all_versions, "Expected 3.12.0 in {}".format(all_versions)
-        assert '3.13.0' in all_versions, "Expected 3.13.0 in {}".format(all_versions)
-        assert default_version == '3.13.0', "Expected default 3.13.0, got {}".format(default_version)
+    assert '3.11.0' in all_versions, "Expected 3.11.0 in {}".format(all_versions)
+    assert '3.12.0' in all_versions, "Expected 3.12.0 in {}".format(all_versions)
+    assert '3.13.0' in all_versions, "Expected 3.13.0 in {}".format(all_versions)
+    assert default_version == '3.13.0', "Expected default 3.13.0, got {}".format(default_version)
 
 
 def test_determine_version_from_direct_input():
     """Test providing version directly via input."""
     stdout, _, returncode = run_determine_version(python_version='3.11.5')
 
-    if returncode == 0:
-        lines = stdout.strip().split('\n')
-        lines = [line for line in lines if line.strip()]
+    assert returncode == 0, "Expected 0 return code, got {}".format(returncode)
 
-        if lines:
-            version = lines[-1]
-            assert version == '3.11.5', "Expected 3.11.5, got {}".format(version)
+    lines = stdout.strip().split('\n')
+    lines = [line for line in lines if line.strip()]
+
+    if lines:
+        version = lines[-1]
+        assert version == '3.11.5', "Expected 3.11.5, got {}".format(version)
 
 
 def test_determine_version_from_multiple_inputs():
@@ -143,19 +140,20 @@ def test_determine_version_from_multiple_inputs():
     if isinstance(stdout, bytes):
         stdout = stdout.decode('utf-8')
 
-    if proc.returncode == 0:
-        lines = stdout.strip().split('\n')
-        # Filter out empty lines
-        lines = [line for line in lines if line.strip()]
+    assert proc.returncode == 0, "Expected 0 return code, got {}".format(proc.returncode)
 
-        if len(lines) < 2:
-            # If we don't have enough output, the test can't verify properly
-            return
+    lines = stdout.strip().split('\n')
+    # Filter out empty lines
+    lines = [line for line in lines if line.strip()]
 
-        all_versions = lines[-2]
-        default_version = lines[-1]
+    if len(lines) < 2:
+        # If we don't have enough output, the test can't verify properly
+        return
 
-        assert '3.10' in all_versions
-        assert '3.11' in all_versions
-        assert '3.12' in all_versions
-        assert default_version == '3.12', "Expected default 3.12, got {}".format(default_version)
+    all_versions = lines[-2]
+    default_version = lines[-1]
+
+    assert '3.10' in all_versions
+    assert '3.11' in all_versions
+    assert '3.12' in all_versions
+    assert default_version == '3.12', "Expected default 3.12, got {}".format(default_version)
