@@ -189,7 +189,14 @@ runs:
       id: outputs
       shell: bash
       run: |
+        python_path=$(which python)
+
+        # Convert to Windows path format on Windows runners
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          python_path=$(cygpath -w "${python_path}")
+        fi
+
         {
           echo "python-version=$(pyenv version-name)"
-          echo "python-path=$(which python)"
+          echo "python-path=${python_path}"
         } >> "${GITHUB_OUTPUT}"
