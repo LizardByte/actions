@@ -69,7 +69,10 @@ steps:
 
 ## 📤 Outputs
 
-This action does not produce outputs.
+| Name           | Description                            |
+|----------------|----------------------------------------|
+| python-version | The version of Python that was set up. |
+| python-path    | The path to the Python executable.     |
 
 ## 📝 Notes
 
