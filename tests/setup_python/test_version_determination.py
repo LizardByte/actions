@@ -85,9 +85,9 @@ def run_determine_version(python_version='', python_version_file=''):
 ])
 def test_determine_version_from_file(test_file, expected_version):
     """Test reading version from various file types."""
-    stdout, _, returncode = run_determine_version(python_version_file=test_file)
+    stdout, stderr, returncode = run_determine_version(python_version_file=test_file)
 
-    assert returncode == 0, "Expected 0 return code, got {}".format(returncode)
+    assert returncode == 0, "Script failed with return code {}. stderr: {}".format(returncode, stderr)
 
     lines = stdout.strip().split('\n')
     # Filter out empty lines
@@ -101,9 +101,9 @@ def test_determine_version_from_file(test_file, expected_version):
 def test_determine_version_from_multiple_versions():
     """Test reading multiple versions from .python-version file."""
     test_file = 'tests/setup_python/version_files/python-version/multiple-versions/.python-version'
-    stdout, _, returncode = run_determine_version(python_version_file=test_file)
+    stdout, stderr, returncode = run_determine_version(python_version_file=test_file)
 
-    assert returncode == 0, "Expected 0 return code, got {}".format(returncode)
+    assert returncode == 0, "Script failed with return code {}. stderr: {}".format(returncode, stderr)
 
     lines = stdout.strip().split('\n')
     # Filter out empty lines and find the versions/default
@@ -124,9 +124,9 @@ def test_determine_version_from_multiple_versions():
 
 def test_determine_version_from_direct_input():
     """Test providing version directly via input."""
-    stdout, _, returncode = run_determine_version(python_version='3.11.5')
+    stdout, stderr, returncode = run_determine_version(python_version='3.11.5')
 
-    assert returncode == 0, "Expected 0 return code, got {}".format(returncode)
+    assert returncode == 0, "Script failed with return code {}. stderr: {}".format(returncode, stderr)
 
     lines = stdout.strip().split('\n')
     lines = [line for line in lines if line.strip()]
@@ -151,12 +151,14 @@ def test_determine_version_from_multiple_inputs():
         stderr=subprocess.PIPE,
         cwd=repo_root
     )
-    stdout, _ = proc.communicate()
+    stdout, stderr = proc.communicate()
 
     if isinstance(stdout, bytes):
         stdout = stdout.decode('utf-8')
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode('utf-8')
 
-    assert proc.returncode == 0, "Expected 0 return code, got {}".format(proc.returncode)
+    assert proc.returncode == 0, "Script failed with return code {}. stderr: {}".format(proc.returncode, stderr)
 
     lines = stdout.strip().split('\n')
     # Filter out empty lines
