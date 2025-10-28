@@ -18,6 +18,10 @@ inputs:
       File containing the Python version to set up.
       Supports .python-version, pyproject.toml, .tool-versions, and Pipfile.
     required: false
+  update-environment:
+    description: Whether to update the environment variables.
+    default: "true"
+    required: false
 
 outputs:
   python-version:
@@ -34,6 +38,7 @@ runs:
       shell: powershell
       if: ${{ runner.os == 'Windows' }}
       run: |
+        # Install pyenv (Windows)
         Invoke-WebRequest `
           -UseBasicParsing `
           -Uri "https://raw.githubusercontent.com/pyenv-win/pyenv-win/master/pyenv-win/install-pyenv-win.ps1" `
@@ -47,6 +52,7 @@ runs:
       shell: bash
       if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
       run: |
+        # Install pyenv (Unix)
         curl -fsSL https://pyenv.run | bash
         echo "${HOME}/.pyenv/bin" >> "${GITHUB_PATH}"
 
@@ -71,6 +77,7 @@ runs:
         INPUT_PYTHON_VERSION: ${{ inputs.python-version }}
         INPUT_PYTHON_VERSION_FILE: ${{ inputs.python-version-file }}
       run: |
+        # Determine Python Version(s)
         # Source the version determination script
         source "${{ github.action_path }}/determine_version.sh"
 
@@ -92,6 +99,7 @@ runs:
         DEFAULT_VERSION: ${{ steps.determine-version.outputs.default-version }}
       shell: bash
       run: |
+        # Install Python
         # Convert space-separated versions to array
         IFS=' ' read -ra version_array <<< "${PYTHON_VERSIONS}"
 
@@ -111,6 +119,7 @@ runs:
         DEFAULT_VERSION: ${{ steps.determine-version.outputs.default-version }}
       shell: bash
       run: |
+        # Setup Python Environment
         echo "Current system Python Version:"
         python --version
 
@@ -198,6 +207,7 @@ runs:
       id: outputs
       shell: bash
       run: |
+        # Set outputs
         python_path=$(which python)
 
         # Convert to Windows path format on Windows runners
@@ -209,3 +219,46 @@ runs:
           echo "python-version=$(pyenv version-name)"
           echo "python-path=${python_path}"
         } >> "${GITHUB_OUTPUT}"
+
+    - name: Set environment variables
+      if: ${{ inputs.update-environment == 'true' }}
+      shell: bash
+      run: |
+        # Set environment variables
+        # Get the Python installation root directory from pyenv
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          # On Windows, pyenv-win doesn't support 'pyenv root' command
+          # Use PYENV_ROOT environment variable or default location
+          if [[ -n "${PYENV_ROOT}" ]]; then
+            pyenv_root="${PYENV_ROOT}"
+          else
+            pyenv_root="${USERPROFILE}/.pyenv/pyenv-win"
+          fi
+          python_root=$(cygpath -w "${pyenv_root}/versions/$(pyenv version-name)")
+        else
+          python_root=$(pyenv root)/versions/$(pyenv version-name)
+        fi
+
+        # Get Python major version
+        python_major_version=$(python -c "import sys; print(sys.version_info.major)")
+
+        # Set pythonLocation and Python_ROOT_DIR for all Python versions
+        echo "pythonLocation=${python_root}" >> "${GITHUB_ENV}"
+        echo "Python_ROOT_DIR=${python_root}" >> "${GITHUB_ENV}"
+
+        # Set version-specific environment variable
+        if [[ "${python_major_version}" == "2" ]]; then
+          echo "Python2_ROOT_DIR=${python_root}" >> "${GITHUB_ENV}"
+        elif [[ "${python_major_version}" == "3" ]]; then
+          echo "Python3_ROOT_DIR=${python_root}" >> "${GITHUB_ENV}"
+        fi
+
+        # Print the values to stdout
+        echo "Environment variables set:"
+        echo "  pythonLocation=${python_root}"
+        echo "  Python_ROOT_DIR=${python_root}"
+        if [[ "${python_major_version}" == "2" ]]; then
+          echo "  Python2_ROOT_DIR=${python_root}"
+        elif [[ "${python_major_version}" == "3" ]]; then
+          echo "  Python3_ROOT_DIR=${python_root}"
+        fi
