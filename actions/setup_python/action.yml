@@ -135,7 +135,6 @@ runs:
         python --version
 
         # bootstrap pip as it's not available in all Python installs (Windows with Python 2.7 mostly)
-        # this only works for python from 2.6 to 3.8
         pip_exists=false
         if python -m pip --version >/dev/null 2>&1; then
           pip_exists=true
@@ -149,16 +148,26 @@ runs:
         version_minor=$(echo "${python_version_two_digit}" | cut -d. -f2)
         version_numeric=$((version_major * 100 + version_minor))
 
-        if [[ "${pip_exists}" == "false" ]] && [[ $version_numeric -ge 206 ]] && [[ $version_numeric -le 308 ]]; then
+        if [[ "${pip_exists}" == "false" ]]; then
           echo "Bootstrapping pip for Python ${python_version_two_digit}"
+          get_pip_url=""
+          if [[ $version_numeric -ge 206 ]] && [[ $version_numeric -le 308 ]]; then
+            get_pip_url="https://bootstrap.pypa.io/pip/${python_version_two_digit}/get-pip.py"
+          elif [[ $version_numeric -gt 308 ]]; then
+            get_pip_url="https://bootstrap.pypa.io/pip/get-pip.py"
+          fi
 
-          # TODO: this isn't working for 2.7-win32 or 2.7 on windows-11-arm runner
-          # Set environment variables to suppress SSL warnings and handle deprecation warnings
-          export PYTHONWARNINGS="ignore:InsecurePlatformWarning"
+          if [[ -z "${get_pip_url}" ]]; then
+            # TODO: this isn't working for 2.7-win32 or 2.7 on windows-11-arm runner
+            # Set environment variables to suppress SSL warnings and handle deprecation warnings
+            export PYTHONWARNINGS="ignore:InsecurePlatformWarning"
 
-          curl -fsSL "https://bootstrap.pypa.io/pip/${python_version_two_digit}/get-pip.py" --output get-pip.py
-          python get-pip.py
-          rm -f get-pip.py
+            curl -fsSL "${get_pip_url}" --output get-pip.py
+            python get-pip.py
+            rm -f get-pip.py
+          else
+            python -m ensurepip --default-pip
+          fi
         fi
 
         echo "Installing virtualenv"
