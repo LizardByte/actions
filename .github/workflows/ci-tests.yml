@@ -24,7 +24,7 @@ jobs:
   tests:
     runs-on: ${{ matrix.runner }}
     env:
-      INPUT_PYTHON_VERSION: '3.12'
+      DEFAULT_PYTHON_VERSION: '3.12'
     strategy:
       fail-fast: false
       matrix:
@@ -39,7 +39,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ env.INPUT_PYTHON_VERSION }}
+          python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
 
       - name: Set up Node
         uses: actions/setup-node@v6

@@ -9,8 +9,23 @@ branding:
 
 inputs:
   python-version:
-    description: "The version of Python to set up."
-    required: true
+    description: >
+      The version(s) of Python to set up.
+      Can be a single version or multiple versions separated by newlines or spaces.
+    required: false
+  python-version-file:
+    description: >
+      File containing the Python version to set up.
+      Supports .python-version, pyproject.toml, .tool-versions, and Pipfile.
+    required: false
+
+outputs:
+  python-version:
+    description: "The version of Python that was set up."
+    value: ${{ steps.outputs.outputs.python-version }}
+  python-path:
+    description: "The path to the Python executable."
+    value: ${{ steps.outputs.outputs.python-path }}
 
 runs:
   using: "composite"
@@ -49,21 +64,51 @@ runs:
       shell: bash
       run: pyenv update
 
+    - name: Determine Python Version(s)
+      id: determine-version
+      shell: bash
+      env:
+        INPUT_PYTHON_VERSION: ${{ inputs.python-version }}
+        INPUT_PYTHON_VERSION_FILE: ${{ inputs.python-version-file }}
+      run: |
+        # Source the version determination script
+        source "${{ github.action_path }}/determine_version.sh"
+
+        # Determine versions using the shared function
+        determine_python_version "${INPUT_PYTHON_VERSION}" "${INPUT_PYTHON_VERSION_FILE}"
+
+        echo "Python versions to install: ${PYTHON_VERSIONS}"
+        echo "Default Python version: ${DEFAULT_PYTHON_VERSION}"
+        echo "versions=${PYTHON_VERSIONS}" >> $GITHUB_OUTPUT
+        echo "default-version=${DEFAULT_PYTHON_VERSION}" >> $GITHUB_OUTPUT
+
     - name: Available Python versions
       shell: bash
       run: pyenv install --list
 
     - name: Install Python
       env:
-        INPUT_PYTHON_VERSION: ${{ inputs.python-version }}
+        PYTHON_VERSIONS: ${{ steps.determine-version.outputs.versions }}
+        DEFAULT_VERSION: ${{ steps.determine-version.outputs.default-version }}
       shell: bash
       run: |
-        pyenv install ${INPUT_PYTHON_VERSION}
-        pyenv global ${INPUT_PYTHON_VERSION}
+        # Convert space-separated versions to array
+        IFS=' ' read -ra version_array <<< "${PYTHON_VERSIONS}"
+
+        # Install each version
+        for version in "${version_array[@]}"; do
+          echo "Installing Python ${version}..."
+          pyenv install ${version}
+        done
+
+        # Set only the default version as global
+        pyenv global ${DEFAULT_VERSION}
+
+        echo "Default Python version set to: ${DEFAULT_VERSION}"
 
     - name: Setup Python Environment
       env:
-        INPUT_PYTHON_VERSION: ${{ inputs.python-version }}
+        DEFAULT_VERSION: ${{ steps.determine-version.outputs.default-version }}
       shell: bash
       run: |
         echo "Current system Python Version:"
@@ -97,7 +142,7 @@ runs:
         fi
 
         # Extract major.minor version (e.g., "2.7.18" -> "2.7", "2.7-win32" -> "2.7", "3.10.5" -> "3.10")
-        python_version_two_digit=$(echo "${INPUT_PYTHON_VERSION}" | sed -E 's/^([0-9]+\.[0-9]+).*$/\1/')
+        python_version_two_digit=$(echo "${DEFAULT_VERSION}" | sed -E 's/^([0-9]+\.[0-9]+).*$/\1/')
 
         # Convert version to comparable format (e.g., "2.7" -> 27, "3.10" -> 310)
         version_major=$(echo "${python_version_two_digit}" | cut -d. -f1)
@@ -139,3 +184,19 @@ runs:
         # show python version
         echo "Python venv version:"
         python --version
+
+    - name: Set outputs
+      id: outputs
+      shell: bash
+      run: |
+        python_path=$(which python)
+
+        # Convert to Windows path format on Windows runners
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          python_path=$(cygpath -w "${python_path}")
+        fi
+
+        {
+          echo "python-version=$(pyenv version-name)"
+          echo "python-path=${python_path}"
+        } >> "${GITHUB_OUTPUT}"

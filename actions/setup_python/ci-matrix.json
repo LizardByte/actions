@@ -130,5 +130,29 @@
     "with": {
       "python-version": "3.12.11"
     }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "python-version-file": "tests/setup_python/version_files/python-version/single-version/.python-version"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "python-version-file": "tests/setup_python/version_files/pyproject-toml/requires-python-gte/pyproject.toml"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "python-version-file": "tests/setup_python/version_files/tool-versions/single-version/.tool-versions"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "python-version-file": "tests/setup_python/version_files/pipfile/simple/Pipfile"
+    }
   }
 ]
