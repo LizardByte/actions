@@ -50,7 +50,7 @@ def operating_system():
         pytest.skip("Skipping, cannot be tested on Windows")
 
 
-@pytest.fixture(scope='function')  # todo: fix repo deletion
+@pytest.fixture(scope='function')
 def homebrew_core_fork_repo():
     directory = os.path.join(os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action')
     os.makedirs(directory, exist_ok=True)
@@ -91,8 +91,8 @@ def homebrew_core_fork_repo():
 
     yield repo_directory
 
-    # remove the homebrew-core fork (this fails)
-    # shutil.rmtree(repo_directory)
+    # remove the homebrew-core fork
+    shutil.rmtree(repo_directory)
 
 
 @pytest.fixture(scope='function')
