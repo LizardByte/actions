@@ -76,7 +76,9 @@ function setupStandardMocks(repoData = {}, communityFiles = {}, repoListItem = {
   mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({
     data: { files: communityFiles },
   });
-  mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+  const notFoundError = new Error('Not Found');
+  notFoundError.status = 404;
+  mockGithub.rest.repos.getContent.mockRejectedValue(notFoundError);
 }
 
 // Helper function to run audit and check for success
@@ -103,7 +105,9 @@ function setupFilteringMocks(repoList) {
   mockGithub.paginate.mockResolvedValue(repoList);
   mockGithub.rest.repos.get.mockResolvedValue({ data: createRepoData() });
   mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({ data: { files: {} } });
-  mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+  const notFoundError = new Error('Not Found');
+  notFoundError.status = 404;
+  mockGithub.rest.repos.getContent.mockRejectedValue(notFoundError);
 }
 
 // Helper function to setup mocks for forked repository tests
@@ -115,7 +119,9 @@ function setupForkedRepoMocks(repoName = 'forked-repo') {
   mockGithub.rest.repos.get.mockResolvedValue({
     data: createRepoData({ name: repoName, fork: true }),
   });
-  mockGithub.rest.repos.getCommunityProfileMetrics.mockRejectedValueOnce({ status: 404 });
+  const notFoundError = new Error('Not Found');
+  notFoundError.status = 404;
+  mockGithub.rest.repos.getCommunityProfileMetrics.mockRejectedValueOnce(notFoundError);
 }
 
 beforeEach(() => {
@@ -458,9 +464,11 @@ describe('Audit Repositories', () => {
       let getContentCallCount = 0;
       mockGithub.rest.repos.getContent.mockImplementation(() => {
         getContentCallCount++;
-        if (getContentCallCount === 1) return Promise.reject({ status: 404 }); // org FUNDING.yml
+        const notFoundError = new Error('Not Found');
+        notFoundError.status = 404;
+        if (getContentCallCount === 1) return Promise.reject(notFoundError); // org FUNDING.yml
         if (getContentCallCount === 2) return Promise.resolve({ data: {} }); // README.md found
-        return Promise.reject({ status: 404 }); // LICENSE not found
+        return Promise.reject(notFoundError); // LICENSE not found
       });
 
       await expectAuditFailure('Missing LICENSE file');
@@ -482,11 +490,13 @@ describe('Audit Repositories', () => {
       let getContentCallCount = 0;
       mockGithub.rest.repos.getContent.mockImplementation(() => {
         getContentCallCount++;
-        if (getContentCallCount === 1) return Promise.reject({ status: 404 }); // org FUNDING.yml
-        if (getContentCallCount >= 2 && getContentCallCount <= 5) return Promise.reject({ status: 404 }); // README variants
+        const notFoundError = new Error('Not Found');
+        notFoundError.status = 404;
+        if (getContentCallCount === 1) return Promise.reject(notFoundError); // org FUNDING.yml
+        if (getContentCallCount >= 2 && getContentCallCount <= 5) return Promise.reject(notFoundError); // README variants
         if (getContentCallCount === 6) return Promise.resolve({ data: {} }); // .github/README.md found
         if (getContentCallCount === 7) return Promise.resolve({ data: {} }); // LICENSE found
-        return Promise.reject({ status: 404 }); // repo FUNDING.yml
+        return Promise.reject(notFoundError); // repo FUNDING.yml
       });
 
       await expectAuditSuccess();
@@ -507,7 +517,9 @@ describe('Audit Repositories', () => {
       });
 
       mockGithub.rest.repos.getCommunityProfileMetrics.mockResolvedValue({ data: { files: {} } });
-      mockGithub.rest.repos.getContent.mockRejectedValue({ status: 404 });
+      const notFoundError = new Error('Not Found');
+      notFoundError.status = 404;
+      mockGithub.rest.repos.getContent.mockRejectedValue(notFoundError);
 
       await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
       expect(consoleOutput.some(line => line.includes('⚠️  Could not fetch details for repo1'))).toBe(true);
@@ -545,9 +557,11 @@ describe('Audit Repositories', () => {
       process.env.INPUT_CHECK_README = 'true';
 
       setupStandardMocks();
+      const notFoundError = new Error('Not Found');
+      notFoundError.status = 404;
       const apiError = new Error('API rate limit exceeded');
       mockGithub.rest.repos.getCommunityProfileMetrics
-        .mockRejectedValueOnce({ status: 404 })
+        .mockRejectedValueOnce(notFoundError)
         .mockRejectedValueOnce(apiError);
 
       await auditRepositories({ github: mockGithub, context: mockContext, core: mockCore });
