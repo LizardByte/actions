@@ -1,12 +1,5 @@
 [
   {
-    "runs-on": "macos-13",
-    "with": {
-      "analyze-space-savings": true,
-      "clean-all": true
-    }
-  },
-  {
     "runs-on": "macos-14",
     "with": {
       "analyze-space-savings": true,

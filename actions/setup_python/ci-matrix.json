@@ -1,17 +1,5 @@
 [
   {
-    "runs-on": "macos-13",
-    "with": {
-      "python-version": "2.7"
-    }
-  },
-  {
-    "runs-on": "macos-13",
-    "with": {
-      "python-version": "3.12"
-    }
-  },
-  {
     "runs-on": "macos-14",
     "with": {
       "python-version": "2.7"
