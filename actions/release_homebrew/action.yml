@@ -111,7 +111,7 @@ runs:
         "${{ steps.venv.outputs.python-path }}" -m pip install -r requirements.txt
         echo "::endgroup::"
 
-    - name: Checkout org homebrew repo
+    - name: Checkout (org homebrew repo)
       uses: actions/checkout@v6
       with:
         repository: ${{ inputs.org_homebrew_repo }}
@@ -120,7 +120,7 @@ runs:
         persist-credentials: false  # otherwise, the token used is the GITHUB_TOKEN, instead of the personal token
         fetch-depth: 1
 
-    - name: Checkout homebrew-core fork
+    - name: Checkout (homebrew-core)
       if: ${{ inputs.contribute_to_homebrew_core == 'true' }}
       uses: actions/checkout@v6
       with:
@@ -133,6 +133,9 @@ runs:
       env:
         INPUT_FORMULA_FILE: ${{ inputs.formula_file }}
         INPUT_CONTRIBUTE_TO_HOMEBREW_CORE: ${{ inputs.contribute_to_homebrew_core }}
+        INPUT_GIT_EMAIL: ${{ inputs.git_email }}
+        INPUT_GIT_USERNAME: ${{ inputs.git_username }}
+        INPUT_ORG_HOMEBREW_REPO: ${{ inputs.org_homebrew_repo }}
         INPUT_UPSTREAM_HOMEBREW_CORE_REPO: ${{ inputs.upstream_homebrew_core_repo }}
         INPUT_VALIDATE: ${{ inputs.validate }}
       id: homebrew-tests
@@ -151,7 +154,7 @@ runs:
         "${{ steps.venv.outputs.python-path }}" -u main.py
         echo "::endgroup::"
 
-    - name: GitHub Commit & Push
+    - name: GitHub Commit & Push (org homebrew repo)
       if: ${{ inputs.publish == 'true' }}
       uses: actions-js/push@v1.5
       with:
@@ -160,10 +163,10 @@ runs:
         branch: ${{ inputs.org_homebrew_repo_branch }}  # commit to target branch
         directory: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
         github_token: ${{ inputs.token }}
-        message: "Update ${{ github.repository }} to ${{ github.sha }}"
+        message: "chore: update ${{ github.repository }} to ${{ github.sha }}"
         repository: ${{ inputs.org_homebrew_repo }}
 
-    - name: GitHub Commit & Push homebrew-core
+    - name: GitHub Commit & Push (homebrew-core)
       if: ${{ inputs.contribute_to_homebrew_core == 'true' && inputs.publish == 'true' }}
       uses: actions-js/push@v1.5
       with:
@@ -173,10 +176,41 @@ runs:
         directory: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
         force: true  # need to force since the branch is sometimes reset
         github_token: ${{ inputs.token }}
-        message: "Update ${{ github.repository }} to ${{ github.sha }}"
+        message: "${{ github.repository }}: update to ${{ github.sha }}"
         repository: ${{ inputs.homebrew_core_fork_repo }}
 
-    - name: Create Pull Request
+    - name: Create Pull Request (org homebrew repo)
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        INPUT_ORG_HOMEBREW_REPO_BRANCH: ${{ inputs.org_homebrew_repo_branch }}
+        INPUT_ORG_HOMEBREW_REPO: ${{ inputs.org_homebrew_repo }}
+      if: ${{ inputs.publish == 'true' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
+      run: |
+        # Check if a pull request already exists with the same head branch
+        PR_EXISTS=$(gh pr list \
+          --head ${INPUT_ORG_HOMEBREW_REPO_BRANCH} \
+          --repo ${INPUT_ORG_HOMEBREW_REPO})
+
+        # If the pull request does not exist, create it
+        if [[ -z "$PR_EXISTS" ]]; then
+          echo "Creating pull request"
+
+          # https://cli.github.com/manual/gh_pr_create
+          gh pr create \
+            --base master \
+            --head ${INPUT_ORG_HOMEBREW_REPO_BRANCH} \
+            --title "chore: update ${{ github.repository }} to ${{ github.sha }}" \
+            --body \
+              "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action" \
+            --no-maintainer-edit \
+            --repo ${INPUT_ORG_HOMEBREW_REPO}
+        else
+          echo "Pull request already exists"
+        fi
+
+    - name: Create Pull Request (homebrew-core)
       env:
         GH_TOKEN: ${{ inputs.token }}
         HOMEBREW_CORE_BRANCH: ${{ steps.homebrew-tests.outputs.homebrew_core_branch }}
@@ -198,7 +232,7 @@ runs:
           gh pr create \
             --base master \
             --head ${HOMEBREW_CORE_BRANCH} \
-            --title "Update ${{ github.repository }} to ${{ github.sha }}" \
+            --title "${{ github.repository }}: update to ${{ github.sha }}" \
             --body \
               "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action" \
             --no-maintainer-edit \

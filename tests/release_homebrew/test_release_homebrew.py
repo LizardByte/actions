@@ -85,7 +85,7 @@ def test_prepare_homebrew_core_fork(homebrew_core_fork_repo, operating_system):
     assert branch.endswith('release_homebrew_action_tests')
 
 
-def test_process_input_formula(operating_system):
+def test_process_input_formula(operating_system, org_homebrew_repo):
     with pytest.raises(FileNotFoundError):
         main.process_input_formula(formula_file='foo')
 
@@ -108,16 +108,98 @@ def test_process_input_formula(operating_system):
         assert os.path.isfile(os.path.join(d, 'Formula', 'h', 'hello_world.rb'))
 
 
+def test_process_input_formula_lizardbyte_actions_special_case(operating_system, org_homebrew_repo, monkeypatch):
+    """Test that LizardByte/actions is allowed as a special case for CI testing."""
+    # Set the INPUT_ORG_HOMEBREW_REPO to LizardByte/actions
+    monkeypatch.setenv('INPUT_ORG_HOMEBREW_REPO', 'LizardByte/actions')
+
+    formula = main.process_input_formula(
+        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+
+    assert formula == 'hello_world'
+    # Verify that the tap_repo_name was set correctly
+    assert main.tap_repo_name == 'lizardbyte/actions'
+
+
+def test_get_tap_name_from_repo_invalid_direct(monkeypatch):
+    """Test that _get_tap_name_from_repo raises ValueError for invalid repository name."""
+    # Set the INPUT_ORG_HOMEBREW_REPO to an invalid name (not starting with 'homebrew-' and not the special case)
+    invalid_repo = 'SomeOwner/invalid-repo'
+    monkeypatch.setenv('INPUT_ORG_HOMEBREW_REPO', invalid_repo)
+
+    # Should raise ValueError with a helpful error message
+    with pytest.raises(ValueError, match='does not follow Homebrew tap naming convention'):
+        main._get_tap_name_from_repo(invalid_repo)
+
+
+@pytest.mark.parametrize('repo_input, expected_owner, expected_tap_name', [
+    # Standard homebrew tap format
+    ('LizardByte/homebrew-homebrew', 'LizardByte', 'homebrew'),
+    ('owner/homebrew-tap', 'owner', 'tap'),
+    ('MyOrg/homebrew-custom', 'MyOrg', 'custom'),
+    ('user123/homebrew-myformulas', 'user123', 'myformulas'),
+    # Edge case: longer tap name
+    ('SomeOrg/homebrew-very-long-tap-name', 'SomeOrg', 'very-long-tap-name'),
+    # Special case for CI testing
+    ('LizardByte/actions', 'LizardByte', 'actions'),
+])
+def test_get_tap_name_from_repo_valid(capsys, repo_input, expected_owner, expected_tap_name, monkeypatch):
+    """Test _get_tap_name_from_repo with valid repository inputs."""
+    # Set the environment variable for the function to read
+    monkeypatch.setenv('INPUT_ORG_HOMEBREW_REPO', repo_input)
+
+    owner, tap_name = main._get_tap_name_from_repo(repo_input)
+
+    assert owner == expected_owner
+    assert tap_name == expected_tap_name
+
+    # Verify output was printed
+    captured = capsys.readouterr()
+    assert f'org_homebrew_repo_input: {repo_input}' in captured.out
+
+
+@pytest.mark.parametrize('invalid_repo_input, expected_error_fragment', [
+    # Missing 'homebrew-' prefix and not the special case
+    ('SomeOwner/invalid-repo', 'does not follow Homebrew tap naming convention'),
+    ('owner/tap', 'does not follow Homebrew tap naming convention'),
+    ('MyOrg/custom-tap', 'does not follow Homebrew tap naming convention'),
+    # Various invalid formats
+    ('BadOrg/random-name', 'does not follow Homebrew tap naming convention'),
+])
+def test_get_tap_name_from_repo_invalid(capsys, invalid_repo_input, expected_error_fragment, monkeypatch):
+    """Test _get_tap_name_from_repo with invalid repository inputs."""
+    # Set the environment variable for the function to read
+    monkeypatch.setenv('INPUT_ORG_HOMEBREW_REPO', invalid_repo_input)
+
+    with pytest.raises(ValueError, match=expected_error_fragment):
+        main._get_tap_name_from_repo(invalid_repo_input)
+
+    # Verify output was printed before the error
+    captured = capsys.readouterr()
+    assert f'org_homebrew_repo_input: {invalid_repo_input}' in captured.out
+
+
+def test_get_tap_name_from_repo_special_case_message(capsys, monkeypatch):
+    """Test that the special case for LizardByte/actions prints the expected message."""
+    repo_input = 'LizardByte/actions'
+    monkeypatch.setenv('INPUT_ORG_HOMEBREW_REPO', repo_input)
+
+    owner, tap_name = main._get_tap_name_from_repo(repo_input)
+
+    assert owner == 'LizardByte'
+    assert tap_name == 'actions'
+
+    # Verify special case message was printed
+    captured = capsys.readouterr()
+    assert 'Using LizardByte/actions for CI testing (special case)' in captured.out
+
+
 def test_is_brew_installed(operating_system):
     assert main.is_brew_installed()
 
 
 def test_brew_upgrade(operating_system):
     assert main.brew_upgrade()
-
-
-def test_brew_debug(operating_system):
-    assert main.brew_debug()
 
 
 @pytest.mark.parametrize('setup_scenario', [
@@ -216,19 +298,31 @@ def test_find_tmp_dir_tracking(mock_listdir, mock_isdir, existing_dirs):
         main.find_tmp_dir('formula')
 
 
-def test_audit_formula(operating_system):
+def test_audit_formula(operating_system, org_homebrew_repo):
+    #  Call process_input_formula first to set up the tap
+    main.process_input_formula(
+        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
     assert main.audit_formula(formula='hello_world')
 
 
-def test_brew_install_formula(operating_system):
+def test_brew_install_formula(operating_system, org_homebrew_repo):
+    # Call process_input_formula first to set up the tap
+    main.process_input_formula(
+        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
     assert main.install_formula(formula='hello_world')
 
 
-def test_test_formula(operating_system):
+def test_test_formula(brew_untap, operating_system, org_homebrew_repo):
+    # Call process_input_formula first to set up the tap
+    main.process_input_formula(
+        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+    # Install the formula first to set HOMEBREW_BUILDPATH (required by test_formula)
+    assert main.install_formula(formula='hello_world')
+    # Now test the formula
     assert main.test_formula(formula='hello_world')
 
 
-def test_main(brew_untap, homebrew_core_fork_repo, input_validate, operating_system):
+def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_validate, operating_system):
     main.args = main._parse_args(args_list=[])
     main.main()
     assert not main.ERROR
@@ -248,73 +342,134 @@ def test_main(brew_untap, homebrew_core_fork_repo, input_validate, operating_sys
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
-                ('brew_upgrade', False)
+                ('brew_upgrade', False),
             ],
             [],
     ),
-    # Scenario 3: Brew debug fails
+    # Scenario 3: brew test-bot --only-cleanup-before fails
     (
-            'brew_debug_fails',
+            'brew_test_bot_only_cleanup_before_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
                 ('brew_upgrade', True),
-                ('brew_debug', False)
+                ('brew_test_bot_only_cleanup_before', False),
             ],
             [],
     ),
-    # Scenario 4: Audit fails
+    # Scenario 4: brew test-bot --only-setup fails
+    (
+            'brew_test_bot_only_setup_fails',
+            [
+                ('is_brew_installed', True),
+                ('process_input_formula', 'hello_world'),
+                ('brew_upgrade', True),
+                ('brew_test_bot_only_cleanup_before', True),
+                ('brew_test_bot_only_setup', False),
+            ],
+            [],
+    ),
+    # Scenario 5: Audit fails
     (
             'audit_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
                 ('brew_upgrade', True),
-                ('brew_debug', True),
-                ('audit_formula', False)
+                ('brew_test_bot_only_cleanup_before', True),
+                ('brew_test_bot_only_setup', True),
+                ('audit_formula', False),
+                ('brew_test_bot_only_tap_syntax', True),
+                ('install_formula', True),
+                ('test_formula', True),
+                ('brew_test_bot_only_formulae', True),
             ],
             ['audit'],
     ),
-    # Scenario 5: Install fails
+    # Scenario 6: brew test-bot --only-tap-syntax fails
+    (
+            'brew_test_bot_only_tap_syntax_fails',
+            [
+                ('is_brew_installed', True),
+                ('process_input_formula', 'hello_world'),
+                ('brew_upgrade', True),
+                ('brew_test_bot_only_cleanup_before', True),
+                ('brew_test_bot_only_setup', True),
+                ('audit_formula', True),
+                ('brew_test_bot_only_tap_syntax', False),
+                ('install_formula', True),
+                ('test_formula', True),
+                ('brew_test_bot_only_formulae', True),
+            ],
+            ['tap-syntax'],
+    ),
+    # Scenario 7: Install fails
     (
             'install_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
                 ('brew_upgrade', True),
-                ('brew_debug', True),
+                ('brew_test_bot_only_cleanup_before', True),
+                ('brew_test_bot_only_setup', True),
                 ('audit_formula', True),
-                ('install_formula', False)
+                ('brew_test_bot_only_tap_syntax', True),
+                ('install_formula', False),
+                ('test_formula', True),
+                ('brew_test_bot_only_formulae', True),
             ],
             ['install'],
     ),
-    # Scenario 6: Test fails
+    # Scenario 8: Test fails
     (
             'test_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
                 ('brew_upgrade', True),
-                ('brew_debug', True),
+                ('brew_test_bot_only_cleanup_before', True),
+                ('brew_test_bot_only_setup', True),
                 ('audit_formula', True),
+                ('brew_test_bot_only_tap_syntax', True),
                 ('install_formula', True),
-                ('test_formula', False)
+                ('test_formula', False),
+                ('brew_test_bot_only_formulae', True),
             ],
             ['test'],
     ),
-    # Scenario 7: Multiple failures
+    # Scenario 9: brew test-bot --only-formulae fails
+    (
+            'brew_test_bot_only_formulae_fails',
+            [
+                ('is_brew_installed', True),
+                ('process_input_formula', 'hello_world'),
+                ('brew_upgrade', True),
+                ('brew_test_bot_only_cleanup_before', True),
+                ('brew_test_bot_only_setup', True),
+                ('audit_formula', True),
+                ('brew_test_bot_only_tap_syntax', True),
+                ('install_formula', True),
+                ('test_formula', True),
+                ('brew_test_bot_only_formulae', False),
+            ],
+            ['formulae'],
+    ),
+    # Scenario 10: Multiple failures
     (
             'multiple_failures',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
                 ('brew_upgrade', True),
-                ('brew_debug', True),
+                ('brew_test_bot_only_cleanup_before', True),
+                ('brew_test_bot_only_setup', True),
                 ('audit_formula', False),
+                ('brew_test_bot_only_tap_syntax', False),
                 ('install_formula', False),
-                ('test_formula', False)
+                ('test_formula', False),
+                ('brew_test_bot_only_formulae', False),
             ],
-            ['audit', 'install', 'test'],
+            ['audit', 'tap-syntax', 'install', 'test', 'formulae'],
     ),
 ])
 def test_main_error_cases(
@@ -393,11 +548,7 @@ def test_prepare_homebrew_core_fork_failure(mock_run, homebrew_core_fork_repo, o
 
 
 @patch('os.path.exists')
-def test_process_input_formula_copy_failure(mock_exists, tmp_path, operating_system):
-    # Create a test formula file
-    test_formula = tmp_path / "test_formula.rb"
-    test_formula.write_text("class TestFormula < Formula\nend")
-
+def test_process_input_formula_copy_failure(mock_exists, test_formula_file, tmp_path, operating_system):
     # Make the initial file check pass, but the copy verification fail
     # First call (checking if formula exists): True
     # Second call (checking if it's a file): True
@@ -406,7 +557,7 @@ def test_process_input_formula_copy_failure(mock_exists, tmp_path, operating_sys
 
     # Test that the function raises FileNotFoundError when copy verification fails
     with pytest.raises(FileNotFoundError, match="was not copied"):
-        main.process_input_formula(formula_file=str(test_formula))
+        main.process_input_formula(formula_file=str(test_formula_file))
 
 
 @patch('actions.release_homebrew.main._run_subprocess')
@@ -435,3 +586,161 @@ def test_brew_upgrade_update_failure(mock_run):
     call_args = mock_run.call_args_list[0][1]['args_list']
     assert 'update' in call_args
     assert 'upgrade' not in call_args
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_commit_formula_changes(mock_run, tmp_path, monkeypatch, operating_system):
+    """Test that commit_formula_changes commits the formula to git."""
+    # Set up environment variables
+    monkeypatch.setenv('INPUT_GIT_EMAIL', 'test@example.com')
+    monkeypatch.setenv('INPUT_GIT_USERNAME', 'Test User')
+
+    # Create a temporary git repo
+    repo_path = tmp_path / "test_repo"
+    repo_path.mkdir()
+
+    # Mock _run_subprocess to return True (success)
+    mock_run.return_value = True
+
+    # Call the function
+    main.commit_formula_changes(
+        path=str(repo_path),
+        formula_filename='test_formula.rb',
+        message='Test commit message'
+    )
+
+    # Verify git config was called
+    # call.kwargs contains the keyword arguments passed to _run_subprocess
+    assert any(
+        'git' in call.kwargs.get('args_list', []) and
+        'config' in call.kwargs.get('args_list', []) and
+        'user.email' in call.kwargs.get('args_list', [])
+        for call in mock_run.call_args_list
+    )
+    assert any(
+        'git' in call.kwargs.get('args_list', [])
+        and 'config' in call.kwargs.get('args_list', [])
+        and 'user.name' in call.kwargs.get('args_list', [])
+        for call in mock_run.call_args_list
+    )
+
+    # Verify git add was called
+    assert any(
+        'git' in call.kwargs.get('args_list', []) and
+        'add' in call.kwargs.get('args_list', [])
+        for call in mock_run.call_args_list
+    )
+
+    # Verify git commit was called
+    assert any(
+        'git' in call.kwargs.get('args_list', []) and
+        'commit' in call.kwargs.get('args_list', [])
+        for call in mock_run.call_args_list
+    )
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_commit_formula_changes_no_git_credentials(mock_run, tmp_path, monkeypatch, operating_system):
+    """Test that commit_formula_changes works without git credentials."""
+    # Ensure git credentials are not set
+    monkeypatch.delenv('INPUT_GIT_EMAIL', raising=False)
+    monkeypatch.delenv('INPUT_GIT_USERNAME', raising=False)
+
+    # Create a temporary git repo
+    repo_path = tmp_path / "test_repo"
+    repo_path.mkdir()
+
+    # Mock _run_subprocess to return True (success)
+    mock_run.return_value = True
+
+    # Call the function
+    main.commit_formula_changes(
+        path=str(repo_path),
+        formula_filename='test_formula.rb',
+        message='Test commit message'
+    )
+
+    # Verify git config was NOT called since no credentials
+    assert not any(
+        'git' in call.kwargs.get('args_list', []) and
+        'config' in call.kwargs.get('args_list', [])
+        for call in mock_run.call_args_list
+    )
+
+    # Verify git add was called
+    assert any(
+        'git' in call.kwargs.get('args_list', []) and
+        'add' in call.kwargs.get('args_list', [])
+        for call in mock_run.call_args_list
+    )
+
+    # Verify git commit was called
+    assert any(
+        'git' in call.kwargs.get('args_list', []) and
+        'commit' in call.kwargs.get('args_list', [])
+        for call in mock_run.call_args_list
+    )
+
+
+def test_start_group_pytest_mode(capsys, control_pytest_run):
+    """Test start_group outputs pytest format when PYTEST_RUN is set."""
+    control_pytest_run('true')
+
+    main.start_group('Test Group')
+
+    captured = capsys.readouterr()
+    assert captured.out == '>> Test Group\n'
+    assert captured.err == ''
+
+
+def test_start_group_github_actions_mode(capsys, control_pytest_run):
+    """Test start_group outputs GitHub Actions format when PYTEST_RUN is not set."""
+    control_pytest_run(None)
+
+    main.start_group('Test Group')
+
+    captured = capsys.readouterr()
+    assert captured.out == '::group::Test Group\n'
+    assert captured.err == ''
+
+
+def test_end_group_pytest_mode(capsys, control_pytest_run):
+    """Test end_group outputs pytest format when PYTEST_RUN is set."""
+    control_pytest_run('true')
+
+    main.end_group()
+
+    captured = capsys.readouterr()
+    assert captured.out == '<< END\n'
+    assert captured.err == ''
+
+
+def test_end_group_github_actions_mode(capsys, control_pytest_run):
+    """Test end_group outputs GitHub Actions format when PYTEST_RUN is not set."""
+    control_pytest_run(None)
+
+    main.end_group()
+
+    captured = capsys.readouterr()
+    assert captured.out == '::endgroup::\n'
+    assert captured.err == ''
+
+
+def test_process_input_formula_skips_commit_for_non_git_repo(capsys, operating_system, org_homebrew_repo, tmp_path):
+    """Test that process_input_formula skips commit when repo is not a git repository."""
+    # Remove the .git directory from org_homebrew_repo to simulate a non-git repo
+    git_dir = os.path.join(org_homebrew_repo, '.git')
+    if os.path.isdir(git_dir):
+        import shutil
+        shutil.rmtree(git_dir)
+
+    # Process the formula - it should skip the commit
+    formula = main.process_input_formula(
+        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+
+    assert formula == 'hello_world'
+
+    # Check that the "Skipping commit" message was printed
+    captured = capsys.readouterr()
+    assert 'Skipping commit for' in captured.out
+    assert '(not a git repository)' in captured.out
