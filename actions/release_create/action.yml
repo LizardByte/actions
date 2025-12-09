@@ -135,7 +135,7 @@ runs:
         } >> $GITHUB_OUTPUT
 
     - name: Create/Update GitHub Release
-      uses: ncipollo/release-action@v1.16.0
+      uses: ncipollo/release-action@v1.20.0
       with:
         allowUpdates: ${{ inputs.allowUpdates }}
         artifactErrorsFailBuild: ${{ inputs.artifactErrorsFailBuild }}
