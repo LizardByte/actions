@@ -14,3 +14,5 @@ else:
     os.environ['GITHUB_REPOSITORY'] = 'LizardByte/actions'
     os.environ['GITHUB_STEP_SUMMARY'] = os.path.join(os.getcwd(), 'build', 'github_step_summary.md')
     os.environ['GITHUB_WORKSPACE'] = os.path.join(os.getcwd(), 'build', 'workspace')
+
+    os.environ['PYTEST_RUN'] = 'true'
