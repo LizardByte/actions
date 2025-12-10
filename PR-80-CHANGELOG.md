@@ -88,50 +88,7 @@ LizardByte [release_changelog](https://github.com/LizardByte/actions) action.
 ## Contributors
 <a href="https://github.com/ReenigneArcher" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, ReenigneArcher" ><img src="https://github.com/ReenigneArcher.png?size=40" width="40" height="40" alt="ReenigneArcher" title="ReenigneArcher: 1 merge" ></a>
 
-## [v2025.927.193939] - 2025-09-27
-
-## What's Changed
-* feat: add monitor_space action by [@ReenigneArcher](https://github.com/ReenigneArcher) in [#34](https://github.com/LizardByte/actions/pull/34)
-* feat(more_space): add option to stop after specified amount freed by [@ReenigneArcher](https://github.com/ReenigneArcher) in [#35](https://github.com/LizardByte/actions/pull/35)
-* chore: update global workflows by [@LizardByte-bot](https://github.com/LizardByte-bot) in [#33](https://github.com/LizardByte/actions/pull/33)
-* fix(security): harden action inputs by [@ReenigneArcher](https://github.com/ReenigneArcher) in [#36](https://github.com/LizardByte/actions/pull/36)
-
-
-**Full Changelog**: https://github.com/LizardByte/actions/compare/v2025.917.25039...v2025.927.193939
-
----
-## Contributors
-<a href="https://github.com/ReenigneArcher" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, ReenigneArcher" ><img src="https://github.com/ReenigneArcher.png?size=40" width="40" height="40" alt="ReenigneArcher" title="ReenigneArcher: 3 merges" ></a><a href="https://github.com/LizardByte-bot" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, LizardByte-bot" ><img src="https://github.com/LizardByte-bot.png?size=40" width="40" height="40" alt="LizardByte-bot" title="LizardByte-bot: 1 merge" ></a>
-
-## [v2025.917.25039] - 2025-09-17
-
-## What's Changed
-* fix(release_setup)!: use github sha for PRs by [@ReenigneArcher](https://github.com/ReenigneArcher) in [#32](https://github.com/LizardByte/actions/pull/32)
-
-
-**Full Changelog**: https://github.com/LizardByte/actions/compare/v2025.914.154454...v2025.917.25039
-
----
-## Contributors
-<a href="https://github.com/ReenigneArcher" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, ReenigneArcher" ><img src="https://github.com/ReenigneArcher.png?size=40" width="40" height="40" alt="ReenigneArcher" title="ReenigneArcher: 1 merge" ></a>
-
-## [v2025.914.154454] - 2025-09-14
-
-## What's Changed
-* test: add tests for macos-26 by [@ReenigneArcher](https://github.com/ReenigneArcher) in [#31](https://github.com/LizardByte/actions/pull/31)
-* chore(deps-dev): bump pytest-cov from 6.3.0 to 7.0.0 in the pytest-dependencies group by [@dependabot](https://github.com/dependabot)[bot] in [#30](https://github.com/LizardByte/actions/pull/30)
-
-
-**Full Changelog**: https://github.com/LizardByte/actions/compare/v2025.907.21827...v2025.914.154454
-
----
-## Contributors
-<a href="https://github.com/ReenigneArcher" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, ReenigneArcher" ><img src="https://github.com/ReenigneArcher.png?size=40" width="40" height="40" alt="ReenigneArcher" title="ReenigneArcher: 1 merge" ></a><a href="https://github.com/dependabot" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, dependabot" ><img src="https://github.com/dependabot.png?size=40" width="40" height="40" alt="dependabot" title="dependabot: 1 merge" ></a>
-
 [v2025.1028.23217]: https://github.com/LizardByte/actions/releases/tag/v2025.1028.23217
 [v2025.1020.14905]: https://github.com/LizardByte/actions/releases/tag/v2025.1020.14905
 [v2025.1011.184228]: https://github.com/LizardByte/actions/releases/tag/v2025.1011.184228
 [v2025.929.125237]: https://github.com/LizardByte/actions/releases/tag/v2025.929.125237
-[v2025.927.193939]: https://github.com/LizardByte/actions/releases/tag/v2025.927.193939
-[v2025.917.25039]: https://github.com/LizardByte/actions/releases/tag/v2025.917.25039
-[v2025.914.154454]: https://github.com/LizardByte/actions/releases/tag/v2025.914.154454
