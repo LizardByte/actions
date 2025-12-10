@@ -242,18 +242,6 @@ LizardByte [release_changelog](https://github.com/LizardByte/actions) action.
 ## Contributors
 <a href="https://github.com/ReenigneArcher" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, ReenigneArcher" ><img src="https://github.com/ReenigneArcher.png?size=40" width="40" height="40" alt="ReenigneArcher" title="ReenigneArcher: 6 merges" ></a><a href="https://github.com/dependabot" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, dependabot" ><img src="https://github.com/dependabot.png?size=40" width="40" height="40" alt="dependabot" title="dependabot: 3 merges" ></a>
 
-## [v2025.627.5037] - 2025-06-27
-
-## What's Changed
-* chore: update global workflows by @LizardByte-bot in https://github.com/LizardByte/actions/pull/3
-* feat: migrate from standalone actions by @ReenigneArcher in https://github.com/LizardByte/actions/pull/2
-
-## New Contributors
-* @LizardByte-bot made their first contribution in https://github.com/LizardByte/actions/pull/3
-* @ReenigneArcher made their first contribution in https://github.com/LizardByte/actions/pull/2
-
-**Full Changelog**: https://github.com/LizardByte/actions/commits/v2025.627.5037
-
 [v2025.1028.23217]: https://github.com/LizardByte/actions/releases/tag/v2025.1028.23217
 [v2025.1020.14905]: https://github.com/LizardByte/actions/releases/tag/v2025.1020.14905
 [v2025.1011.184228]: https://github.com/LizardByte/actions/releases/tag/v2025.1011.184228
@@ -269,4 +257,3 @@ LizardByte [release_changelog](https://github.com/LizardByte/actions) action.
 [v2025.703.21447]: https://github.com/LizardByte/actions/releases/tag/v2025.703.21447
 [v2025.702.213340]: https://github.com/LizardByte/actions/releases/tag/v2025.702.213340
 [v2025.627.30023]: https://github.com/LizardByte/actions/releases/tag/v2025.627.30023
-[v2025.627.5037]: https://github.com/LizardByte/actions/releases/tag/v2025.627.5037
