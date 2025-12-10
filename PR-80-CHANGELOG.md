@@ -128,37 +128,6 @@ LizardByte [release_changelog](https://github.com/LizardByte/actions) action.
 ## Contributors
 <a href="https://github.com/ReenigneArcher" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, ReenigneArcher" ><img src="https://github.com/ReenigneArcher.png?size=40" width="40" height="40" alt="ReenigneArcher" title="ReenigneArcher: 1 merge" ></a><a href="https://github.com/dependabot" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, dependabot" ><img src="https://github.com/dependabot.png?size=40" width="40" height="40" alt="dependabot" title="dependabot: 1 merge" ></a>
 
-## [v2025.907.21827] - 2025-09-07
-
-## What's Changed
-* feat(setup_python)!: use py-env globally by [@ReenigneArcher](https://github.com/ReenigneArcher) in [#27](https://github.com/LizardByte/actions/pull/27)
-* chore: update global workflows by [@LizardByte-bot](https://github.com/LizardByte-bot) in [#24](https://github.com/LizardByte/actions/pull/24)
-* chore(deps): bump actions/setup-python from 5 to 6 in the github-actions group by [@dependabot](https://github.com/dependabot)[bot] in [#25](https://github.com/LizardByte/actions/pull/25)
-* chore(deps-dev): bump the pytest-dependencies group across 1 directory with 2 updates by [@dependabot](https://github.com/dependabot)[bot] in [#28](https://github.com/LizardByte/actions/pull/28)
-* chore(deps): bump requests from 2.32.4 to 2.32.5 by [@dependabot](https://github.com/dependabot)[bot] in [#23](https://github.com/LizardByte/actions/pull/23)
-* fix(release_homebrew): print all output for audit failures by [@ReenigneArcher](https://github.com/ReenigneArcher) in [#29](https://github.com/LizardByte/actions/pull/29)
-
-
-**Full Changelog**: https://github.com/LizardByte/actions/compare/v2025.814.40518...v2025.907.21827
-
----
-## Contributors
-<a href="https://github.com/dependabot" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, dependabot" ><img src="https://github.com/dependabot.png?size=40" width="40" height="40" alt="dependabot" title="dependabot: 3 merges" ></a><a href="https://github.com/ReenigneArcher" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, ReenigneArcher" ><img src="https://github.com/ReenigneArcher.png?size=40" width="40" height="40" alt="ReenigneArcher" title="ReenigneArcher: 2 merges" ></a><a href="https://github.com/LizardByte-bot" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, LizardByte-bot" ><img src="https://github.com/LizardByte-bot.png?size=40" width="40" height="40" alt="LizardByte-bot" title="LizardByte-bot: 1 merge" ></a>
-
-## [v2025.814.40518] - 2025-08-14
-
-## What's Changed
-* style: fix lint warnings by [@ReenigneArcher](https://github.com/ReenigneArcher) in [#20](https://github.com/LizardByte/actions/pull/20)
-* feat: add more_space action by [@ReenigneArcher](https://github.com/ReenigneArcher) in [#21](https://github.com/LizardByte/actions/pull/21)
-* chore(deps): bump actions/checkout from 4 to 5 in the github-actions group by [@dependabot](https://github.com/dependabot)[bot] in [#22](https://github.com/LizardByte/actions/pull/22)
-
-
-**Full Changelog**: https://github.com/LizardByte/actions/compare/v2025.715.25226...v2025.814.40518
-
----
-## Contributors
-<a href="https://github.com/ReenigneArcher" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, ReenigneArcher" ><img src="https://github.com/ReenigneArcher.png?size=40" width="40" height="40" alt="ReenigneArcher" title="ReenigneArcher: 2 merges" ></a><a href="https://github.com/dependabot" target="_blank" rel="external noopener noreferrer" aria-label="GitHub profile of contributor, dependabot" ><img src="https://github.com/dependabot.png?size=40" width="40" height="40" alt="dependabot" title="dependabot: 1 merge" ></a>
-
 [v2025.1028.23217]: https://github.com/LizardByte/actions/releases/tag/v2025.1028.23217
 [v2025.1020.14905]: https://github.com/LizardByte/actions/releases/tag/v2025.1020.14905
 [v2025.1011.184228]: https://github.com/LizardByte/actions/releases/tag/v2025.1011.184228
@@ -166,5 +135,3 @@ LizardByte [release_changelog](https://github.com/LizardByte/actions) action.
 [v2025.927.193939]: https://github.com/LizardByte/actions/releases/tag/v2025.927.193939
 [v2025.917.25039]: https://github.com/LizardByte/actions/releases/tag/v2025.917.25039
 [v2025.914.154454]: https://github.com/LizardByte/actions/releases/tag/v2025.914.154454
-[v2025.907.21827]: https://github.com/LizardByte/actions/releases/tag/v2025.907.21827
-[v2025.814.40518]: https://github.com/LizardByte/actions/releases/tag/v2025.814.40518
