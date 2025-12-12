@@ -10,15 +10,36 @@ import pytest
 # local imports
 from actions.release_homebrew import main
 
-os.environ['INPUT_FORMULA_FILE'] = os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb')
-os.environ['INPUT_CONTRIBUTE_TO_HOMEBREW_CORE'] = 'true'
-os.environ['INPUT_GIT_EMAIL'] = 'test@example.com'
-os.environ['INPUT_GIT_USERNAME'] = 'Test User'
-os.environ['INPUT_ORG_HOMEBREW_REPO'] = 'LizardByte/homebrew-homebrew'
-os.environ['INPUT_UPSTREAM_HOMEBREW_CORE_REPO'] = 'Homebrew/homebrew-core'
-
 
 og_dir = os.getcwd()
+
+
+@pytest.fixture(scope='function', autouse=True)
+def setup_release_homebrew_env():
+    """Set up environment variables for release_homebrew tests only."""
+    # Save original values
+    original_env = {}
+    env_vars = {
+        'INPUT_FORMULA_FILE': os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'),
+        'INPUT_CONTRIBUTE_TO_HOMEBREW_CORE': 'true',
+        'INPUT_GIT_EMAIL': 'test@example.com',
+        'INPUT_GIT_USERNAME': 'Test User',
+        'INPUT_ORG_HOMEBREW_REPO': 'LizardByte/homebrew-homebrew',
+        'INPUT_UPSTREAM_HOMEBREW_CORE_REPO': 'Homebrew/homebrew-core',
+    }
+
+    for key, value in env_vars.items():
+        original_env[key] = os.environ.get(key)
+        os.environ[key] = value
+
+    yield
+
+    # Restore original values
+    for key, original_value in original_env.items():
+        if original_value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = original_value
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -86,10 +107,21 @@ def org_homebrew_repo():
     if not os.path.isdir(repo_directory):
         # Create a minimal git repo structure
         os.makedirs(repo_directory, exist_ok=True)
-        os.chdir(repo_directory)
-        subprocess.run(['git', 'init'], cwd=repo_directory, capture_output=True)
-        subprocess.run(['git', 'config', 'user.email', 'test@test.com'], cwd=repo_directory, capture_output=True)
-        subprocess.run(['git', 'config', 'user.name', 'Test User'], cwd=repo_directory, capture_output=True)
+        subprocess.run(
+            ['git', 'init'],
+            cwd=repo_directory,
+            capture_output=True,
+        )
+        subprocess.run(
+            ['git', 'config', 'user.email', 'test@test.com'],
+            cwd=repo_directory,
+            capture_output=True,
+        )
+        subprocess.run(
+            ['git', 'config', 'user.name', 'Test User'],
+            cwd=repo_directory,
+            capture_output=True,
+        )
 
         # Create Formula directory structure
         os.makedirs(os.path.join(repo_directory, 'Formula'), exist_ok=True)
@@ -101,7 +133,6 @@ def org_homebrew_repo():
         # Initial commit
         subprocess.run(['git', 'add', '.'], cwd=repo_directory, capture_output=True)
         subprocess.run(['git', 'commit', '-m', 'Initial commit'], cwd=repo_directory, capture_output=True)
-        os.chdir(og_dir)
 
     # Reset the repository to clean state, removing any test artifacts
     subprocess.run(['git', 'reset', '--hard', 'HEAD'], cwd=repo_directory, capture_output=True)
@@ -120,7 +151,6 @@ def homebrew_core_fork_repo():
 
     if not os.path.isdir(repo_directory):
         # clone the homebrew-core fork, with depth 1
-        os.chdir(directory)
         proc = subprocess.run(
             [
                 'git',
@@ -132,7 +162,6 @@ def homebrew_core_fork_repo():
             cwd=directory,
             capture_output=True
         )
-        os.chdir(og_dir)
 
         if proc.returncode != 0:
             print(proc.stderr.decode('utf-8'))

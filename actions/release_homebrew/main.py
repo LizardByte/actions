@@ -94,16 +94,17 @@ def _setup_process(args_list: list, cwd: Optional[str], env: Optional[Mapping]) 
     if cwd:
         os.chdir(cwd)  # hack for unit testing on windows
 
-    process = subprocess.Popen(
-        args=args_list,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=cwd,
-        env=env,
-    )
-
-    if cwd:
-        os.chdir(og_dir)
+    try:
+        process = subprocess.Popen(
+            args=args_list,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=cwd,
+            env=env,
+        )
+    finally:
+        if cwd:
+            os.chdir(og_dir)
 
     return process
 
