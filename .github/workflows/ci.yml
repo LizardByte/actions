@@ -129,7 +129,7 @@ jobs:
           fi
 
       - name: Test action
-        uses: jenseng/dynamic-uses@1ff8da5708edce76b6ebd03bc2b3d302198abaab  # 1.1.0
+        uses: jenseng/dynamic-uses@8bc24f0360175e710da532c4d19eafdbed489a06  # 1.1.1
         id: action
         with:
           uses: ./actions/${{ matrix.action }}
