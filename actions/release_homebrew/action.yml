@@ -25,6 +25,16 @@ inputs:
     description: 'The forked homebrew-core repository to publish to.'
     default: 'LizardByte/homebrew-core'
     required: false
+  homebrew_core_base_branch:
+    description: 'The base branch of the homebrew-core fork to create PR against.'
+    default: 'main'
+    required: false
+  homebrew_core_head_branch:
+    description: >-
+      The head branch of the homebrew-core fork to create for the PR.
+      If empty, a branch name will be auto-generated.
+    default: ''
+    required: false
   org_homebrew_repo:
     description: |
       The target repository to publish to.
@@ -32,8 +42,14 @@ inputs:
       See: https://docs.brew.sh/Taps#repository-naming-conventions-and-assumptions
     default: 'LizardByte/homebrew-homebrew'
     required: false
-  org_homebrew_repo_branch:
-    description: 'The target repository branch to publish to.'
+  org_homebrew_repo_base_branch:
+    description: 'The base branch of the target repository to create PR against.'
+    default: ''
+    required: false
+  org_homebrew_repo_head_branch:
+    description: >-
+      The head branch of the target repository to create for the PR.
+      If empty, a branch name will be auto-generated.
     default: ''
     required: false
   publish:
@@ -115,7 +131,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: ${{ inputs.org_homebrew_repo }}
-        ref: ${{ inputs.org_homebrew_repo_branch }}
+        ref: ${{ inputs.org_homebrew_repo_base_branch }}
         path: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
         persist-credentials: false  # otherwise, the token used is the GITHUB_TOKEN, instead of the personal token
         fetch-depth: 1
@@ -125,6 +141,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: ${{ inputs.homebrew_core_fork_repo }}
+        ref: ${{ inputs.homebrew_core_base_branch }}
         path: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
         persist-credentials: false  # otherwise, the token used is the GITHUB_TOKEN, instead of the personal token
         fetch-depth: 1
@@ -136,6 +153,8 @@ runs:
         INPUT_GIT_EMAIL: ${{ inputs.git_email }}
         INPUT_GIT_USERNAME: ${{ inputs.git_username }}
         INPUT_ORG_HOMEBREW_REPO: ${{ inputs.org_homebrew_repo }}
+        INPUT_ORG_HOMEBREW_REPO_HEAD_BRANCH: ${{ inputs.org_homebrew_repo_head_branch }}
+        INPUT_HOMEBREW_CORE_HEAD_BRANCH: ${{ inputs.homebrew_core_head_branch }}
         INPUT_UPSTREAM_HOMEBREW_CORE_REPO: ${{ inputs.upstream_homebrew_core_repo }}
         INPUT_VALIDATE: ${{ inputs.validate }}
       id: homebrew-tests
@@ -160,7 +179,7 @@ runs:
       with:
         author_email: ${{ inputs.git_email }}
         author_name: ${{ inputs.git_username }}
-        branch: ${{ inputs.org_homebrew_repo_branch }}  # commit to target branch
+        branch: ${{ steps.homebrew-tests.outputs.org_homebrew_repo_branch }}
         directory: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
         github_token: ${{ inputs.token }}
         message: "chore: update ${{ github.repository }} to ${{ github.sha }}"
@@ -182,15 +201,19 @@ runs:
     - name: Create Pull Request (org homebrew repo)
       env:
         GH_TOKEN: ${{ inputs.token }}
-        INPUT_ORG_HOMEBREW_REPO_BRANCH: ${{ inputs.org_homebrew_repo_branch }}
+        ORG_HOMEBREW_REPO_BRANCH: ${{ steps.homebrew-tests.outputs.org_homebrew_repo_branch }}
+        ORG_HOMEBREW_REPO_BASE_BRANCH: ${{ inputs.org_homebrew_repo_base_branch }}
         INPUT_ORG_HOMEBREW_REPO: ${{ inputs.org_homebrew_repo }}
       if: ${{ inputs.publish == 'true' }}
       shell: bash
       working-directory: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
       run: |
+        # Use default branch 'master' if base branch is not specified
+        BASE_BRANCH=${ORG_HOMEBREW_REPO_BASE_BRANCH:-master}
+
         # Check if a pull request already exists with the same head branch
         PR_EXISTS=$(gh pr list \
-          --head ${INPUT_ORG_HOMEBREW_REPO_BRANCH} \
+          --head ${ORG_HOMEBREW_REPO_BRANCH} \
           --repo ${INPUT_ORG_HOMEBREW_REPO})
 
         # If the pull request does not exist, create it
@@ -199,12 +222,11 @@ runs:
 
           # https://cli.github.com/manual/gh_pr_create
           gh pr create \
-            --base master \
-            --head ${INPUT_ORG_HOMEBREW_REPO_BRANCH} \
+            --base ${BASE_BRANCH} \
+            --head ${ORG_HOMEBREW_REPO_BRANCH} \
             --title "chore: update ${{ github.repository }} to ${{ github.sha }}" \
             --body \
               "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action" \
-            --no-maintainer-edit \
             --repo ${INPUT_ORG_HOMEBREW_REPO}
         else
           echo "Pull request already exists"
@@ -214,29 +236,38 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.token }}
         HOMEBREW_CORE_BRANCH: ${{ steps.homebrew-tests.outputs.homebrew_core_branch }}
+        HOMEBREW_CORE_BASE_BRANCH: ${{ inputs.homebrew_core_base_branch }}
+        HOMEBREW_CORE_FORK_REPO: ${{ inputs.homebrew_core_fork_repo }}
         INPUT_UPSTREAM_HOMEBREW_CORE_REPO: ${{ inputs.upstream_homebrew_core_repo }}
       if: ${{ inputs.contribute_to_homebrew_core == 'true' && inputs.publish == 'true' }}
       shell: bash
       working-directory: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
       run: |
-        # Check if a pull request already exists with the same head branch
+        # Use default branch 'main' if base branch is not specified
+        BASE_BRANCH=${HOMEBREW_CORE_BASE_BRANCH:-main}
+
+        # Extract fork owner from fork repo (e.g., "owner/homebrew-core" -> "owner")
+        FORK_OWNER=$(echo ${HOMEBREW_CORE_FORK_REPO} | cut -d'/' -f1)
+
+        # Check if a pull request already exists from fork to upstream
+        # We check in the upstream repo for PRs from our fork
         PR_EXISTS=$(gh pr list \
-          --head ${HOMEBREW_CORE_BRANCH} \
+          --head ${FORK_OWNER}:${HOMEBREW_CORE_BRANCH} \
           --repo ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO})
 
         # If the pull request does not exist, create it
         if [[ -z "$PR_EXISTS" ]]; then
-          echo "Creating pull request"
+          echo "Creating pull request from ${HOMEBREW_CORE_FORK_REPO} to ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO}"
 
+          # Create PR in the upstream repo, from our fork
+          # Note: we're in the fork's working directory, so gh will use the fork's context
           # https://cli.github.com/manual/gh_pr_create
           gh pr create \
-            --base master \
-            --head ${HOMEBREW_CORE_BRANCH} \
+            --repo ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO} \
+            --base ${BASE_BRANCH} \
+            --head ${FORK_OWNER}:${HOMEBREW_CORE_BRANCH} \
             --title "${{ github.repository }}: update to ${{ github.sha }}" \
-            --body \
-              "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action" \
-            --no-maintainer-edit \
-            --repo ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO}
+            --body "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action"
         else
           echo "Pull request already exists"
         fi

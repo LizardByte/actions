@@ -74,15 +74,63 @@ def test_get_brew_repository(operating_system):
     assert main.get_brew_repository()
 
 
-def test_prepare_homebrew_core_fork(homebrew_core_fork_repo, operating_system):
-    main.prepare_homebrew_core_fork(
-        branch_suffix='release_homebrew_action_tests',
-        path=homebrew_core_fork_repo
+@pytest.mark.parametrize(
+    'repo_fixture, branch_suffix, repo_type, custom_branch_env_var, output_name, upstream_repo, upstream_branch',
+    [
+        # Test homebrew-core fork with upstream syncing
+        (
+                'homebrew_core_fork_repo',
+                'release_homebrew_action_tests',
+                'Homebrew/homebrew-core fork',
+                'INPUT_HOMEBREW_CORE_HEAD_BRANCH',
+                'homebrew_core_branch',
+                os.environ.get('INPUT_UPSTREAM_HOMEBREW_CORE_REPO', 'Homebrew/homebrew-core'),
+                'main',
+        ),
+        # Test org homebrew repo without upstream syncing
+        (
+                'org_homebrew_repo',
+                'test_formula',
+                'org homebrew repo',
+                'INPUT_ORG_HOMEBREW_REPO_HEAD_BRANCH',
+                'org_homebrew_repo_branch',
+                None,
+                'master',
+        ),
+    ]
+)
+def test_prepare_repo_branch(
+        repo_fixture,
+        branch_suffix,
+        repo_type,
+        custom_branch_env_var,
+        output_name,
+        upstream_repo,
+        upstream_branch,
+        request,
+        operating_system
+):
+    """Test prepare_repo_branch for different repository types."""
+    # Get the actual path from the fixture
+    repo_path = request.getfixturevalue(repo_fixture)
+
+    # Call prepare_repo_branch with appropriate parameters
+    branch = main.prepare_repo_branch(
+        branch_suffix=branch_suffix,
+        path=repo_path,
+        repo_type=repo_type,
+        custom_branch_env_var=custom_branch_env_var,
+        output_name=output_name,
+        upstream_repo=upstream_repo,
+        upstream_branch=upstream_branch,
     )
 
+    # assert that the branch name was returned
+    assert branch.endswith(branch_suffix)
+
     # assert that the current branch is the branch we created
-    branch = get_current_branch(cwd=homebrew_core_fork_repo)
-    assert branch.endswith('release_homebrew_action_tests')
+    current_branch = get_current_branch(cwd=repo_path)
+    assert current_branch.endswith(branch_suffix)
 
 
 def test_process_input_formula(operating_system, org_homebrew_repo):
@@ -530,16 +578,21 @@ def test_main_skip_validate(monkeypatch):
 
 
 @patch('actions.release_homebrew.main._run_subprocess')
-def test_prepare_homebrew_core_fork_failure(mock_run, homebrew_core_fork_repo, operating_system):
+def test_prepare_repo_branch_failure(mock_run, homebrew_core_fork_repo, operating_system):
     # Mock _run_subprocess to return False for the first call (branch creation)
     # and False for the second call (branch checkout)
     mock_run.return_value = False
 
     # Test that the function raises SystemExit when both branch operations fail
     with pytest.raises(SystemExit):
-        main.prepare_homebrew_core_fork(
+        main.prepare_repo_branch(
             branch_suffix='release_homebrew_action_tests',
-            path=homebrew_core_fork_repo
+            path=homebrew_core_fork_repo,
+            repo_type='Homebrew/homebrew-core fork',
+            custom_branch_env_var='INPUT_HOMEBREW_CORE_HEAD_BRANCH',
+            output_name='homebrew_core_branch',
+            upstream_repo=os.environ['INPUT_UPSTREAM_HOMEBREW_CORE_REPO'],
+            upstream_branch='main',
         )
 
     # Verify the function attempted to run git commands

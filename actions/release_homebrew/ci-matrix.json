@@ -7,7 +7,7 @@
       "git_email": "${ secrets.GH_BOT_EMAIL }",
       "git_username": "${ secrets.GH_BOT_NAME }",
       "org_homebrew_repo": "LizardByte/homebrew-homebrew",
-      "org_homebrew_repo_branch": "master",
+      "org_homebrew_repo_base_branch": "master",
       "publish": false,
       "token": "${ secrets.GH_BOT_TOKEN }",
       "upstream_homebrew_core_repo": "LizardByte/homebrew-core"
@@ -21,7 +21,7 @@
       "git_email": "${ secrets.GH_BOT_EMAIL }",
       "git_username": "${ secrets.GH_BOT_NAME }",
       "org_homebrew_repo": "LizardByte/homebrew-homebrew",
-      "org_homebrew_repo_branch": "master",
+      "org_homebrew_repo_base_branch": "master",
       "publish": false,
       "token": "${ secrets.GH_BOT_TOKEN }",
       "upstream_homebrew_core_repo": "LizardByte/homebrew-core"

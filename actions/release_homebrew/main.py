@@ -239,18 +239,55 @@ def commit_formula_changes(
     end_group()
 
 
-def prepare_homebrew_core_fork(
+def prepare_repo_branch(
         branch_suffix: str,
         path: str,
-) -> None:
+        repo_type: str,
+        custom_branch_env_var: str,
+        output_name: str,
+        upstream_repo: Optional[str] = None,
+        upstream_branch: str = 'main',
+) -> str:
+    """
+    Prepare a repository by creating or checking out a branch for the PR.
+
+    Parameters
+    ----------
+    branch_suffix : str
+        Suffix to use for the branch name (typically the formula name).
+    path : str
+        Path to the git repository.
+    repo_type : str
+        Type of repository for logging (e.g., 'org homebrew repo', 'Homebrew/homebrew-core fork').
+    custom_branch_env_var : str
+        Environment variable name to check for custom branch name.
+    output_name : str
+        Name of the GitHub Action output to set with the branch name.
+    upstream_repo : Optional[str]
+        If provided, add this as upstream remote and sync with it.
+    upstream_branch : str
+        Branch name in the upstream repo to sync with (default: 'main').
+
+    Returns
+    -------
+    str
+        The branch name that was created or checked out.
+    """
     global ERROR
 
     og_error = ERROR
 
-    start_group('Preparing Homebrew/homebrew-core fork')
+    start_group(f'Preparing {repo_type} branch')
 
-    # checkout a new branch
-    branch_name = f'release_homebrew_action/{branch_suffix}'
+    # Check if a custom head branch was specified
+    custom_branch = os.getenv(custom_branch_env_var, '').strip()
+
+    if custom_branch:
+        branch_name = custom_branch
+        print(f'Using custom head branch: {branch_name}')
+    else:
+        branch_name = f'release_homebrew_action/{branch_suffix}'
+        print(f'Auto-generating head branch: {branch_name}')
 
     # Check if we're already on the target branch
     process = subprocess.run(
@@ -284,39 +321,43 @@ def prepare_homebrew_core_fork(
             end_group()
             raise SystemExit(1, f'::error:: Failed to create or checkout branch {branch_name}')
 
-    # add the upstream remote
-    print('Adding upstream remote')
-    _run_subprocess(
-        args_list=[
-            'git',
-            'remote',
-            'add',
-            'upstream',
-            f'https://github.com/{os.environ["INPUT_UPSTREAM_HOMEBREW_CORE_REPO"]}'
-        ],
-        cwd=path,
-    )
+    # If upstream repo is provided, sync with it
+    if upstream_repo:
+        # add the upstream remote
+        print('Adding upstream remote')
+        _run_subprocess(
+            args_list=[
+                'git',
+                'remote',
+                'add',
+                'upstream',
+                f'https://github.com/{upstream_repo}'
+            ],
+            cwd=path,
+        )
 
-    # fetch the upstream remote
-    print('Fetching upstream remote')
-    _run_subprocess(
-        args_list=['git', 'fetch', 'upstream', '--depth=1'],
-        cwd=path,
-    )
+        # fetch the upstream remote
+        print('Fetching upstream remote')
+        _run_subprocess(
+            args_list=['git', 'fetch', 'upstream', '--depth=1'],
+            cwd=path,
+        )
 
-    # hard reset
-    print('Hard resetting to upstream/master')
-    _run_subprocess(
-        args_list=['git', 'reset', '--hard', 'upstream/master'],
-        cwd=path,
-    )
+        # hard reset
+        print(f'Hard resetting to upstream/{upstream_branch}')
+        _run_subprocess(
+            args_list=['git', 'reset', '--hard', f'upstream/{upstream_branch}'],
+            cwd=path,
+        )
 
     set_github_action_output(
-        output_name='homebrew_core_branch',
+        output_name=output_name,
         output_value=branch_name
     )
 
     end_group()
+
+    return branch_name
 
 
 def _get_tap_name_from_repo(org_homebrew_repo_input: str) -> tuple[str, str]:
@@ -417,8 +458,31 @@ def process_input_formula(formula_file: str) -> str:
 
     end_group()
 
+    # Prepare branches for both repositories
+    # Get base branches from inputs, with defaults
+    org_base_branch = os.getenv('INPUT_ORG_HOMEBREW_REPO_BASE_BRANCH', 'master')
+    homebrew_core_base_branch = os.getenv('INPUT_HOMEBREW_CORE_BASE_BRANCH', 'main')
+
+    prepare_repo_branch(
+        branch_suffix=formula,
+        path=org_homebrew_repo,
+        repo_type='org homebrew repo',
+        custom_branch_env_var='INPUT_ORG_HOMEBREW_REPO_HEAD_BRANCH',
+        output_name='org_homebrew_repo_branch',
+        upstream_repo=None,  # No upstream syncing for org repo
+        upstream_branch=org_base_branch,  # Not used, but for consistency
+    )
+
     if os.getenv('INPUT_CONTRIBUTE_TO_HOMEBREW_CORE').lower() == 'true':
-        prepare_homebrew_core_fork(branch_suffix=formula, path=homebrew_core_fork_repo)
+        prepare_repo_branch(
+            branch_suffix=formula,
+            path=homebrew_core_fork_repo,
+            repo_type='Homebrew/homebrew-core fork',
+            custom_branch_env_var='INPUT_HOMEBREW_CORE_HEAD_BRANCH',
+            output_name='homebrew_core_branch',
+            upstream_repo=os.getenv('INPUT_UPSTREAM_HOMEBREW_CORE_REPO'),
+            upstream_branch=homebrew_core_base_branch,
+        )
 
     # copy the formula file to the directories
     start_group(f'Copying formula {formula} to tap directories')
