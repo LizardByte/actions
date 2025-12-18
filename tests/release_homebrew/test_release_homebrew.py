@@ -133,6 +133,35 @@ def test_prepare_repo_branch(
     assert current_branch.endswith(branch_suffix)
 
 
+def test_prepare_repo_branch_custom_branch(capsys, org_homebrew_repo, monkeypatch, operating_system):
+    """Test prepare_repo_branch with a custom head branch specified via environment variable."""
+    # Set a custom branch name via environment variable
+    custom_branch_name = 'my-custom-feature-branch'
+    monkeypatch.setenv('INPUT_ORG_HOMEBREW_REPO_HEAD_BRANCH', custom_branch_name)
+
+    # Call prepare_repo_branch
+    branch = main.prepare_repo_branch(
+        branch_suffix='test_formula',
+        path=org_homebrew_repo,
+        repo_type='org homebrew repo',
+        custom_branch_env_var='INPUT_ORG_HOMEBREW_REPO_HEAD_BRANCH',
+        output_name='org_homebrew_repo_branch',
+        upstream_repo=None,
+        upstream_branch='master',
+    )
+
+    # Assert that the custom branch name was used
+    assert branch == custom_branch_name
+
+    # Assert that the current branch is the custom branch
+    current_branch = get_current_branch(cwd=org_homebrew_repo)
+    assert current_branch == custom_branch_name
+
+    # Verify the log message was printed
+    captured = capsys.readouterr()
+    assert f'Using custom head branch: {custom_branch_name}' in captured.out
+
+
 def test_process_input_formula(operating_system, org_homebrew_repo):
     with pytest.raises(FileNotFoundError):
         main.process_input_formula(formula_file='foo')
@@ -600,13 +629,43 @@ def test_prepare_repo_branch_failure(mock_run, homebrew_core_fork_repo, operatin
     assert mock_run.call_count >= 1
 
 
+@patch('actions.release_homebrew.main.prepare_repo_branch')
+@patch('actions.release_homebrew.main._run_subprocess')
+@patch('os.chmod')
 @patch('os.path.exists')
-def test_process_input_formula_copy_failure(mock_exists, test_formula_file, tmp_path, operating_system):
-    # Make the initial file check pass, but the copy verification fail
+@patch('os.makedirs')
+@patch('shutil.copy2')
+def test_process_input_formula_copy_failure(
+    mock_copy,
+    mock_makedirs,
+    mock_exists,
+    mock_chmod,
+    mock_run_subprocess,
+    mock_prepare_repo_branch,
+    test_formula_file,
+    tmp_path,
+    operating_system
+):
+    # Make the initial file checks pass
     # First call (checking if formula exists): True
     # Second call (checking if it's a file): True
-    # All subsequent calls (checking if copies exist): False
+    # All subsequent calls (checking if copies exist): False to simulate copy failure
     mock_exists.side_effect = [True, True] + [False] * 10
+
+    # Mock makedirs to do nothing (simulate successful directory creation)
+    mock_makedirs.return_value = None
+
+    # Mock copy2 to do nothing (simulate copy without actually copying)
+    mock_copy.return_value = None
+
+    # Mock chmod to do nothing (simulate successful permission change)
+    mock_chmod.return_value = None
+
+    # Mock prepare_repo_branch to return a branch name without doing actual git operations
+    mock_prepare_repo_branch.return_value = 'release_homebrew_action/test_formula'
+
+    # Mock _run_subprocess to simulate successful brew tap
+    mock_run_subprocess.return_value = True
 
     # Test that the function raises FileNotFoundError when copy verification fails
     with pytest.raises(FileNotFoundError, match="was not copied"):
