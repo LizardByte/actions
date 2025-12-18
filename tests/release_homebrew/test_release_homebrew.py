@@ -162,6 +162,177 @@ def test_prepare_repo_branch_custom_branch(capsys, org_homebrew_repo, monkeypatc
     assert f'Using custom head branch: {custom_branch_name}' in captured.out
 
 
+def test_extract_version_from_formula_with_version(tmp_path):
+    """Test extracting version from a formula with version field."""
+    formula_file = tmp_path / "test_formula.rb"
+    formula_file.write_text('''
+class TestFormula < Formula
+  desc "Test formula"
+  version "1.2.3"
+  url "https://example.com/test.tar.gz"
+end
+''')
+
+    version = main.extract_version_from_formula(str(formula_file))
+    assert version == "1.2.3"
+
+
+def test_extract_version_from_formula_with_tag(tmp_path):
+    """Test extracting version from a formula with tag field (fallback)."""
+    formula_file = tmp_path / "test_formula.rb"
+    formula_file.write_text('''
+class TestFormula < Formula
+  desc "Test formula"
+  url "https://example.com/test.tar.gz"
+    tag: "v2.0.0"
+end
+''')
+
+    version = main.extract_version_from_formula(str(formula_file))
+    assert version == "v2.0.0"
+
+
+def test_extract_version_from_formula_version_priority(tmp_path):
+    """Test that version field takes priority over tag field."""
+    formula_file = tmp_path / "test_formula.rb"
+    formula_file.write_text('''
+class TestFormula < Formula
+  desc "Test formula"
+  url "https://example.com/test.tar.gz"
+    tag: "v1.0.0"
+  version "2.0.0"
+end
+''')
+
+    version = main.extract_version_from_formula(str(formula_file))
+    assert version == "2.0.0"
+
+
+def test_extract_version_from_formula_first_tag_only(tmp_path):
+    """Test that only the first tag is processed."""
+    formula_file = tmp_path / "test_formula.rb"
+    formula_file.write_text('''
+class TestFormula < Formula
+  desc "Test formula"
+  url "https://example.com/test.tar.gz"
+    tag: "v1.0.0"
+    # tag: "v2.0.0" - this should not be picked up
+  tag: "v3.0.0"
+end
+''')
+
+    version = main.extract_version_from_formula(str(formula_file))
+    assert version == "v1.0.0"
+
+
+def test_extract_version_from_formula_no_version(tmp_path):
+    """Test extracting version when no version or tag field exists."""
+    formula_file = tmp_path / "test_formula.rb"
+    formula_file.write_text('''
+class TestFormula < Formula
+  desc "Test formula"
+  url "https://example.com/test.tar.gz"
+end
+''')
+
+    version = main.extract_version_from_formula(str(formula_file))
+    assert version is None
+
+
+def test_extract_version_from_formula_file_error(tmp_path, capsys):
+    """Test extracting version when file cannot be read."""
+    formula_file = tmp_path / "nonexistent.rb"
+
+    version = main.extract_version_from_formula(str(formula_file))
+    assert version is None
+
+    captured = capsys.readouterr()
+    assert 'Could not extract version from formula' in captured.out
+
+
+@pytest.mark.parametrize('formula, version, is_new, expected', [
+    ('hello_world', '1.2.3', True, 'hello_world 1.2.3 (new formula)'),
+    ('hello_world', None, True, 'hello_world (new formula)'),
+    ('hello_world', 'v2.0.0', False, 'hello_world v2.0.0'),
+    ('hello_world', None, False, 'hello_world'),
+    ('my_app', '3.1.4', True, 'my_app 3.1.4 (new formula)'),
+    ('my_app', '5.0.0', False, 'my_app 5.0.0'),
+])
+def test_generate_commit_message(formula, version, is_new, expected):
+    """Test generating commit messages for various scenarios."""
+    result = main.generate_commit_message(formula, version, is_new)
+    assert result == expected
+
+
+@patch('subprocess.run')
+def test_is_formula_tracked_true(mock_run):
+    """Test is_formula_tracked when file is tracked."""
+    mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+
+    result = main.is_formula_tracked('/path/to/formula.rb', '/path/to/repo')
+    assert result is True
+
+    mock_run.assert_called_once()
+    call_args = mock_run.call_args
+    assert 'git' in call_args[0][0]
+    assert 'ls-files' in call_args[0][0]
+
+
+@patch('subprocess.run')
+def test_is_formula_tracked_false(mock_run):
+    """Test is_formula_tracked when file is not tracked."""
+    mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=1)
+
+    result = main.is_formula_tracked('/path/to/formula.rb', '/path/to/repo')
+    assert result is False
+
+
+@patch('os.chmod')
+@patch('os.path.exists')
+@patch('shutil.copy2')
+@patch('os.makedirs')
+def test_copy_formula_to_directories(mock_makedirs, mock_copy, mock_exists, mock_chmod, capsys):
+    """Test copying formula to multiple directories."""
+    mock_exists.return_value = True
+
+    main.copy_formula_to_directories(
+        '/source/formula.rb',
+        'formula.rb',
+        ['/dest1', '/dest2']
+    )
+
+    # Verify makedirs called for each directory
+    assert mock_makedirs.call_count == 2
+
+    # Verify copy2 called for each directory
+    assert mock_copy.call_count == 2
+
+    # Verify chmod called for each directory
+    assert mock_chmod.call_count == 2
+
+    # Verify output messages
+    captured = capsys.readouterr()
+    assert 'Copying formula.rb to /dest1' in captured.out
+    assert 'Copying formula.rb to /dest2' in captured.out
+    assert 'Copied formula.rb to /dest1' in captured.out
+    assert 'Copied formula.rb to /dest2' in captured.out
+
+
+@patch('os.path.exists')
+@patch('shutil.copy2')
+@patch('os.makedirs')
+def test_copy_formula_to_directories_copy_failure(mock_makedirs, mock_copy, mock_exists):
+    """Test copy_formula_to_directories when copy verification fails."""
+    mock_exists.return_value = False
+
+    with pytest.raises(FileNotFoundError, match='was not copied'):
+        main.copy_formula_to_directories(
+            '/source/formula.rb',
+            'formula.rb',
+            ['/dest1']
+        )
+
+
 def test_process_input_formula(operating_system, org_homebrew_repo):
     with pytest.raises(FileNotFoundError):
         main.process_input_formula(formula_file='foo')

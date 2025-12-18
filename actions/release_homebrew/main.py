@@ -360,6 +360,141 @@ def prepare_repo_branch(
     return branch_name
 
 
+def extract_version_from_formula(formula_file: str) -> Optional[str]:
+    """
+    Extract version from a Homebrew formula file.
+
+    Looks for 'version "x.y.z"' first, then falls back to 'tag: "vx.y.z"'.
+
+    Parameters
+    ----------
+    formula_file : str
+        Path to the formula file.
+
+    Returns
+    -------
+    Optional[str]
+        The version string if found, None otherwise.
+    """
+    version = None
+    tag_found = False
+    try:
+        with open(formula_file, 'r') as f:
+            for line in f:
+                # Look for version line in formula (e.g., version "1.2.3")
+                if 'version' in line.lower() and '"' in line:
+                    # Extract version string between quotes
+                    start = line.find('"')
+                    end = line.find('"', start + 1)
+                    if start != -1 and end != -1:
+                        version = line[start + 1:end]
+                        break
+                # Fallback to tag if version not found (only process first occurrence)
+                elif not tag_found and version is None and 'tag:' in line.lower() and '"' in line:
+                    # Extract tag string between quotes (e.g., tag: "v1.2.3")
+                    start = line.find('"')
+                    end = line.find('"', start + 1)
+                    if start != -1 and end != -1:
+                        version = line[start + 1:end]
+                        tag_found = True
+                        # Don't break here, keep looking for version in case it comes later
+    except Exception as e:
+        print(f'Could not extract version from formula: {e}')
+
+    return version
+
+
+def generate_commit_message(formula: str, version: Optional[str], is_new: bool) -> str:
+    """
+    Generate a commit message for a formula update or addition.
+
+    Parameters
+    ----------
+    formula : str
+        The formula name.
+    version : Optional[str]
+        The version string, if available.
+    is_new : bool
+        True if this is a new formula, False if it's an update.
+
+    Returns
+    -------
+    str
+        The generated commit message.
+    """
+    if is_new:
+        # New formula format: "foobar 7.3 (new formula)"
+        if version:
+            return f'{formula} {version} (new formula)'
+        else:
+            return f'{formula} (new formula)'
+    else:
+        # Update format: "foobar 7.3"
+        if version:
+            return f'{formula} {version}'
+        else:
+            return f'{formula}'
+
+
+def is_formula_tracked(formula_path: str, repo_path: str) -> bool:
+    """
+    Check if a formula file is tracked in a git repository.
+
+    Parameters
+    ----------
+    formula_path : str
+        Path to the formula file.
+    repo_path : str
+        Path to the git repository root.
+
+    Returns
+    -------
+    bool
+        True if the file is tracked, False otherwise.
+    """
+    check_tracked = subprocess.run(
+        ['git', 'ls-files', '--error-unmatch', formula_path],
+        cwd=repo_path,
+        capture_output=True,
+    )
+    return check_tracked.returncode == 0
+
+
+def copy_formula_to_directories(
+        formula_file: str,
+        formula_filename: str,
+        tap_dirs: list,
+) -> None:
+    """
+    Copy a formula file to multiple tap directories and set permissions.
+
+    Parameters
+    ----------
+    formula_file : str
+        Path to the source formula file.
+    formula_filename : str
+        Name of the formula file.
+    tap_dirs : list
+        List of destination directories.
+    """
+    for d in tap_dirs:
+        print(f'Copying {formula_filename} to {d}')
+        os.makedirs(d, exist_ok=True)
+        dest_file = os.path.join(d, formula_filename)
+        shutil.copy2(formula_file, dest_file)
+
+        if not os.path.exists(dest_file):
+            raise FileNotFoundError(f'::error:: Formula file {formula_filename} was not copied to {d}')
+
+        # Set permissions required by Homebrew (rw-r--r--)
+        # Owner: read + write, Group: read, Others: read
+        # Homebrew requires formula files to be world-readable (brew audit enforces this)
+        # Only owner has write permission, complying with security best practices
+        # Formula files are Ruby scripts that should not be executable
+        os.chmod(dest_file, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+        print(f'Copied {formula_filename} to {d}')
+
+
 def _get_tap_name_from_repo(org_homebrew_repo_input: str) -> tuple[str, str]:
     """
     Extract tap name and owner from repository input.
@@ -514,84 +649,21 @@ def process_input_formula(formula_file: str) -> str:
         tap_dirs.append(brew_tap_path)
         tap_dir_to_repo[brew_tap_path] = brew_tap_root
 
-    for d in tap_dirs:
-        print(f'Copying {formula_filename} to {d}')
-        os.makedirs(d, exist_ok=True)
-        dest_file = os.path.join(d, formula_filename)
-        shutil.copy2(formula_file, dest_file)
-
-        if not os.path.exists(dest_file):
-            raise FileNotFoundError(f'::error:: Formula file {formula_filename} was not copied to {d}')
-
-        # Set permissions required by Homebrew (rw-r--r--)
-        # Owner: read + write, Group: read, Others: read
-        # Homebrew requires formula files to be world-readable (brew audit enforces this)
-        # Only owner has write permission, complying with security best practices
-        # Formula files are Ruby scripts that should not be executable
-        os.chmod(dest_file, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
-        print(f'Copied {formula_filename} to {d}')
+    copy_formula_to_directories(formula_file, formula_filename, tap_dirs)
 
     end_group()
 
     # Extract version from the formula file
-    version = None
-    tag_found = False
-    try:
-        with open(formula_file, 'r') as f:
-            for line in f:
-                # Look for version line in formula (e.g., version "1.2.3")
-                if 'version' in line.lower() and '"' in line:
-                    # Extract version string between quotes
-                    start = line.find('"')
-                    end = line.find('"', start + 1)
-                    if start != -1 and end != -1:
-                        version = line[start + 1:end]
-                        break
-                # Fallback to tag if version not found (only process first occurrence)
-                elif not tag_found and version is None and 'tag:' in line.lower() and '"' in line:
-                    # Extract tag string between quotes (e.g., tag: "v1.2.3")
-                    start = line.find('"')
-                    end = line.find('"', start + 1)
-                    if start != -1 and end != -1:
-                        version = line[start + 1:end]
-                        tag_found = True
-                        # Don't break here, keep looking for version in case it comes later
-    except Exception as e:
-        print(f'Could not extract version from formula: {e}')
+    version = extract_version_from_formula(formula_file)
 
     # Commit changes to the tap directories
     commit_messages = {}
 
     for formula_dir, repo_path in tap_dir_to_repo.items():
         if os.path.isdir(os.path.join(repo_path, '.git')):
-            # Check if the formula file already existed in the git repository
-            # to determine if this is an add or update
             formula_path = os.path.join(formula_dir, formula_filename)
-
-            # Use git ls-files to check if the file is tracked
-            check_tracked = subprocess.run(
-                ['git', 'ls-files', '--error-unmatch', formula_path],
-                cwd=repo_path,
-                capture_output=True,
-            )
-
-            # If exit code is 0, file is tracked (update), otherwise it's new (add)
-            is_new = check_tracked.returncode != 0
-
-            # Generate commit message based on whether it's new or update
-            if is_new:
-                # New formula format: "foobar 7.3 (new formula)"
-                if version:
-                    commit_message = f'{formula} {version} (new formula)'
-                else:
-                    commit_message = f'{formula} (new formula)'
-            else:
-                # Update format: "foobar 7.3"
-                if version:
-                    commit_message = f'{formula} {version}'
-                else:
-                    commit_message = f'{formula} (update)'
-
+            is_new = not is_formula_tracked(formula_path, repo_path)
+            commit_message = generate_commit_message(formula, version, is_new)
             commit_messages[repo_path] = commit_message
 
             commit_formula_changes(
