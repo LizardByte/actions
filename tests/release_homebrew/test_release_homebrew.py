@@ -250,6 +250,44 @@ def test_extract_version_from_formula_file_error(tmp_path, capsys):
     assert 'Could not extract version from formula' in captured.out
 
 
+def test_extract_version_from_formula_with_version_variable(tmp_path):
+    """Test that variables containing 'version' in their name don't get matched."""
+    formula_file = tmp_path / "test_formula.rb"
+    formula_file.write_text('''
+class TestFormula < Formula
+  GCC_VERSION = "14".freeze
+  GCC_FORMULA = "gcc@#{GCC_VERSION}".freeze
+  
+  desc "Test formula"
+  homepage "https://example.com"
+  url "https://example.com/test.tar.gz",
+    tag: "v1.0.0"
+  version "3.2.1"
+end
+''')
+
+    version = main.extract_version_from_formula(str(formula_file))
+    assert version == "3.2.1"
+
+
+def test_extract_version_from_formula_with_version_variable_no_version_field(tmp_path):
+    """Test that tag is used when only variables with 'version' exist."""
+    formula_file = tmp_path / "test_formula.rb"
+    formula_file.write_text('''
+class TestFormula < Formula
+  GCC_VERSION = "14".freeze
+  OTHER_VERSION = "2.0".freeze
+  
+  desc "Test formula"
+  url "https://example.com/test.tar.gz",
+    tag: "v5.6.7"
+end
+''')
+
+    version = main.extract_version_from_formula(str(formula_file))
+    assert version == "v5.6.7"
+
+
 @pytest.mark.parametrize('formula, version, is_new, expected', [
     ('hello_world', '1.2.3', True, 'hello_world 1.2.3 (new formula)'),
     ('hello_world', None, True, 'hello_world (new formula)'),

@@ -381,8 +381,10 @@ def extract_version_from_formula(formula_file: str) -> Optional[str]:
     try:
         with open(formula_file, 'r') as f:
             for line in f:
+                stripped = line.strip()
                 # Look for version line in formula (e.g., version "1.2.3")
-                if 'version' in line.lower() and '"' in line:
+                # Must start with 'version' (not just contain it) to avoid matching variables like GCC_VERSION
+                if stripped.startswith('version') and '"' in line:
                     # Extract version string between quotes
                     start = line.find('"')
                     end = line.find('"', start + 1)
@@ -390,7 +392,7 @@ def extract_version_from_formula(formula_file: str) -> Optional[str]:
                         version = line[start + 1:end]
                         break
                 # Fallback to tag if version not found (only process first occurrence)
-                elif not tag_found and version is None and 'tag:' in line.lower() and '"' in line:
+                elif not tag_found and version is None and stripped.startswith('tag:') and '"' in line:
                     # Extract tag string between quotes (e.g., tag: "v1.2.3")
                     start = line.find('"')
                     end = line.find('"', start + 1)
