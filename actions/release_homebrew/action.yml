@@ -75,6 +75,9 @@ outputs:
   testpath:
     description: "The path to Homebrew's temporary test directory."
     value: ${{ steps.homebrew-tests.outputs.testpath }}
+  commit_message:
+    description: "The commit message used for the formula update."
+    value: ${{ steps.homebrew-tests.outputs.commit_message }}
 
 runs:
   using: "composite"
@@ -182,7 +185,7 @@ runs:
         branch: ${{ steps.homebrew-tests.outputs.org_homebrew_repo_branch }}
         directory: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
         github_token: ${{ inputs.token }}
-        message: "chore: update ${{ github.repository }} to ${{ github.sha }}"
+        message: "chore: ${{ steps.homebrew-tests.outputs.commit_message }}"
         repository: ${{ inputs.org_homebrew_repo }}
 
     - name: GitHub Commit & Push (homebrew-core)
@@ -195,11 +198,12 @@ runs:
         directory: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
         force: true  # need to force since the branch is sometimes reset
         github_token: ${{ inputs.token }}
-        message: "${{ github.repository }}: update to ${{ github.sha }}"
+        message: "${{ steps.homebrew-tests.outputs.commit_message }}"
         repository: ${{ inputs.homebrew_core_fork_repo }}
 
     - name: Create Pull Request (org homebrew repo)
       env:
+        COMMIT_MESSAGE: ${{ steps.homebrew-tests.outputs.commit_message }}
         GH_TOKEN: ${{ inputs.token }}
         ORG_HOMEBREW_REPO_BRANCH: ${{ steps.homebrew-tests.outputs.org_homebrew_repo_branch }}
         ORG_HOMEBREW_REPO_BASE_BRANCH: ${{ inputs.org_homebrew_repo_base_branch }}
@@ -224,7 +228,7 @@ runs:
           gh pr create \
             --base ${BASE_BRANCH} \
             --head ${ORG_HOMEBREW_REPO_BRANCH} \
-            --title "chore: update ${{ github.repository }} to ${{ github.sha }}" \
+            --title "chore: ${COMMIT_MESSAGE}" \
             --body \
               "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action" \
             --repo ${INPUT_ORG_HOMEBREW_REPO}
@@ -234,6 +238,7 @@ runs:
 
     - name: Create Pull Request (homebrew-core)
       env:
+        COMMIT_MESSAGE: ${{ steps.homebrew-tests.outputs.commit_message }}
         GH_TOKEN: ${{ inputs.token }}
         HOMEBREW_CORE_BRANCH: ${{ steps.homebrew-tests.outputs.homebrew_core_branch }}
         HOMEBREW_CORE_BASE_BRANCH: ${{ inputs.homebrew_core_base_branch }}
@@ -266,7 +271,7 @@ runs:
             --repo ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO} \
             --base ${BASE_BRANCH} \
             --head ${FORK_OWNER}:${HOMEBREW_CORE_BRANCH} \
-            --title "${{ github.repository }}: update to ${{ github.sha }}" \
+            --title "${COMMIT_MESSAGE}" \
             --body "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action"
         else
           echo "Pull request already exists"

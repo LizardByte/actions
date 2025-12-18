@@ -533,14 +533,67 @@ def process_input_formula(formula_file: str) -> str:
 
     end_group()
 
+    # Extract version from the formula file
+    version = None
+    tag_found = False
+    try:
+        with open(formula_file, 'r') as f:
+            for line in f:
+                # Look for version line in formula (e.g., version "1.2.3")
+                if 'version' in line.lower() and '"' in line:
+                    # Extract version string between quotes
+                    start = line.find('"')
+                    end = line.find('"', start + 1)
+                    if start != -1 and end != -1:
+                        version = line[start + 1:end]
+                        break
+                # Fallback to tag if version not found (only process first occurrence)
+                elif not tag_found and version is None and 'tag:' in line.lower() and '"' in line:
+                    # Extract tag string between quotes (e.g., tag: "v1.2.3")
+                    start = line.find('"')
+                    end = line.find('"', start + 1)
+                    if start != -1 and end != -1:
+                        version = line[start + 1:end]
+                        tag_found = True
+                        # Don't break here, keep looking for version in case it comes later
+    except Exception as e:
+        print(f'Could not extract version from formula: {e}')
+
     # Commit changes to the tap directories
-    github_sha = os.getenv('GITHUB_SHA', '')
-    commit_message = f'Add/Update {formula} formula'
-    if github_sha:
-        commit_message = f'{commit_message} ({github_sha[:7]})'
+    commit_messages = {}
 
     for formula_dir, repo_path in tap_dir_to_repo.items():
         if os.path.isdir(os.path.join(repo_path, '.git')):
+            # Check if the formula file already existed in the git repository
+            # to determine if this is an add or update
+            formula_path = os.path.join(formula_dir, formula_filename)
+
+            # Use git ls-files to check if the file is tracked
+            check_tracked = subprocess.run(
+                ['git', 'ls-files', '--error-unmatch', formula_path],
+                cwd=repo_path,
+                capture_output=True,
+            )
+
+            # If exit code is 0, file is tracked (update), otherwise it's new (add)
+            is_new = check_tracked.returncode != 0
+
+            # Generate commit message based on whether it's new or update
+            if is_new:
+                # New formula format: "foobar 7.3 (new formula)"
+                if version:
+                    commit_message = f'{formula} {version} (new formula)'
+                else:
+                    commit_message = f'{formula} (new formula)'
+            else:
+                # Update format: "foobar 7.3"
+                if version:
+                    commit_message = f'{formula} {version}'
+                else:
+                    commit_message = f'{formula} (update)'
+
+            commit_messages[repo_path] = commit_message
+
             commit_formula_changes(
                 path=repo_path,
                 formula_filename=formula_filename,
@@ -548,6 +601,14 @@ def process_input_formula(formula_file: str) -> str:
             )
         else:
             print(f'Skipping commit for {repo_path} (not a git repository)')
+
+    # Set commit messages as outputs
+    # Use the org_homebrew_repo commit message as the primary output
+    if org_homebrew_repo in commit_messages:
+        set_github_action_output(
+            output_name='commit_message',
+            output_value=commit_messages[org_homebrew_repo]
+        )
 
     return formula
 
