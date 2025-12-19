@@ -56,6 +56,9 @@ inputs:
     description: 'Whether to publish the release.'
     default: 'false'
     required: false
+  skip_stable_version_audit:
+    description: 'Whether to skip stable version audit for brew test-bot'
+    default: 'true'
   token:
     description: 'Github Token. This is required when `publish` is enabled.'
     required: false
@@ -158,6 +161,7 @@ runs:
         INPUT_ORG_HOMEBREW_REPO: ${{ inputs.org_homebrew_repo }}
         INPUT_ORG_HOMEBREW_REPO_HEAD_BRANCH: ${{ inputs.org_homebrew_repo_head_branch }}
         INPUT_HOMEBREW_CORE_HEAD_BRANCH: ${{ inputs.homebrew_core_head_branch }}
+        INPUT_SKIP_STABLE_VERSION_AUDIT: ${{ inputs.skip_stable_version_audit }}
         INPUT_UPSTREAM_HOMEBREW_CORE_REPO: ${{ inputs.upstream_homebrew_core_repo }}
         INPUT_VALIDATE: ${{ inputs.validate }}
       id: homebrew-tests

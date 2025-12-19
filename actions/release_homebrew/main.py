@@ -796,16 +796,24 @@ def brew_test_bot_only_formulae(formula: str) -> bool:
 
     org_repo = os.environ['INPUT_ORG_HOMEBREW_REPO']
     root_url = f'https://ghcr.io/v2/{org_repo.rsplit("-", 1)[0].lower()}'
-    result = _run_subprocess(
-        args_list=[
-            'brew',
-            'test-bot',
-            '--only-formulae',
-            f'--tap={tap_repo_name}',
-            f'--testing-formulae={tap_repo_name}/{formula}',
-            f'--root-url={root_url}',
-        ],
-    )
+
+    # Check if we should skip stable version audit (default: true, meaning skip it)
+    skip_stable_version_audit = os.getenv('INPUT_SKIP_STABLE_VERSION_AUDIT', 'true').lower() == 'true'
+    stable_version_audit_arg = '--skip-stable-version-audit' if skip_stable_version_audit else ''
+    # Build args list, filtering out empty strings
+    args_list = [
+        'brew',
+        'test-bot',
+        '--only-formulae',
+        f'--tap={tap_repo_name}',
+        f'--testing-formulae={tap_repo_name}/{formula}',
+        f'--root-url={root_url}',
+    ]
+
+    if stable_version_audit_arg:
+        args_list.append(stable_version_audit_arg)
+
+    result = _run_subprocess(args_list=args_list)
 
     end_group()
     return result

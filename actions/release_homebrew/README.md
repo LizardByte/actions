@@ -45,6 +45,7 @@ steps:
 | org_homebrew_repo_base_branch | The base branch of the target repository to create PR against.                            |                                | `false`  |
 | org_homebrew_repo_head_branch | The head branch of the target repository to create for the PR. If empty, auto-generated.  |                                | `false`  |
 | publish                       | Whether to publish the release.                                                           | `false`                        | `false`  |
+| skip_stable_version_audit     | Whether to skip stable version audit for brew test-bot (useful for PR testing).           | `true`                         | `false`  |
 | token                         | GitHub Token. This is required when `publish` is enabled.                                 |                                | `false`  |
 | upstream_homebrew_core_repo   | The upstream homebrew-core repository that the fork is based on. Must be a GitHub repo.   | `Homebrew/homebrew-core`       | `false`  |
 | validate                      | Whether to validate the formula.                                                          | `true`                         | `false`  |

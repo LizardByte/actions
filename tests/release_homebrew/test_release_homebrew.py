@@ -257,7 +257,7 @@ def test_extract_version_from_formula_with_version_variable(tmp_path):
 class TestFormula < Formula
   GCC_VERSION = "14".freeze
   GCC_FORMULA = "gcc@#{GCC_VERSION}".freeze
-  
+
   desc "Test formula"
   homepage "https://example.com"
   url "https://example.com/test.tar.gz",
@@ -277,7 +277,7 @@ def test_extract_version_from_formula_with_version_variable_no_version_field(tmp
 class TestFormula < Formula
   GCC_VERSION = "14".freeze
   OTHER_VERSION = "2.0".freeze
-  
+
   desc "Test formula"
   url "https://example.com/test.tar.gz",
     tag: "v5.6.7"
