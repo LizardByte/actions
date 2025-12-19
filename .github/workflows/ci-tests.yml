@@ -56,7 +56,17 @@ jobs:
 
       - name: Install Node Dependencies
         shell: bash
-        run: npm install
+        run: npm install --ignore-scripts
+
+      - name: Backup CA
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          # `brew test-bot --only-cleanup-before` removes the CA bundle, so make a backup
+          cp \
+            "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/certifi/cacert.pem" \
+            "cacert.pem"
+          echo "REQUESTS_CA_BUNDLE=cacert.pem" >> "${GITHUB_ENV}"
 
       - name: Test with pytest
         id: pytest
@@ -79,6 +89,7 @@ jobs:
             --verbose \
             --color=yes \
             --cov=actions \
+            --cov-report=term \
             --cov-report=xml:coverage/python-coverage.xml \
             --cov-report=json:coverage/python-coverage.json \
             --junitxml=junit-python.xml \

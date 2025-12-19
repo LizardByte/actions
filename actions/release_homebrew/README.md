@@ -32,19 +32,23 @@ steps:
 
 ## 📥 Inputs
 
-| Name                        | Description                                                                             | Default                        | Required |
-|-----------------------------|-----------------------------------------------------------------------------------------|--------------------------------|----------|
-| contribute_to_homebrew_core | Whether to contribute to homebrew-core.                                                 | `false`                        | `false`  |
-| formula_file                | The full path to the formula file.                                                      |                                | `true`   |
-| git_email                   | The email to use for the commit.                                                        |                                | `true`   |
-| git_username                | The username to use for the commit.                                                     |                                | `true`   |
-| homebrew_core_fork_repo     | The forked homebrew-core repository to publish to.                                      | `LizardByte/homebrew-core`     | `false`  |
-| org_homebrew_repo           | The target repository to publish to.                                                    | `LizardByte/homebrew-homebrew` | `false`  |
-| org_homebrew_repo_branch    | The target repository branch to publish to.                                             |                                | `false`  |
-| publish                     | Whether to publish the release.                                                         | `false`                        | `false`  |
-| token                       | GitHub Token. This is required when `publish` is enabled.                               |                                | `false`  |
-| upstream_homebrew_core_repo | The upstream homebrew-core repository that the fork is based on. Must be a GitHub repo. | `Homebrew/homebrew-core`       | `false`  |
-| validate                    | Whether to validate the formula.                                                        | `true`                         | `false`  |
+| Name                          | Description                                                                               | Default                        | Required |
+|-------------------------------|-------------------------------------------------------------------------------------------|--------------------------------|----------|
+| contribute_to_homebrew_core   | Whether to contribute to homebrew-core.                                                   | `false`                        | `false`  |
+| formula_file                  | The full path to the formula file.                                                        |                                | `true`   |
+| git_email                     | The email to use for the commit.                                                          |                                | `true`   |
+| git_username                  | The username to use for the commit.                                                       |                                | `true`   |
+| homebrew_core_fork_repo       | The forked homebrew-core repository to publish to.                                        | `LizardByte/homebrew-core`     | `false`  |
+| homebrew_core_base_branch     | The base branch of the homebrew-core fork to create PR against.                           | `main`                         | `false`  |
+| homebrew_core_head_branch     | The head branch of the homebrew-core fork to create for the PR. If empty, auto-generated. |                                | `false`  |
+| org_homebrew_repo             | The target repository to publish to.                                                      | `LizardByte/homebrew-homebrew` | `false`  |
+| org_homebrew_repo_base_branch | The base branch of the target repository to create PR against.                            |                                | `false`  |
+| org_homebrew_repo_head_branch | The head branch of the target repository to create for the PR. If empty, auto-generated.  |                                | `false`  |
+| publish                       | Whether to publish the release.                                                           | `false`                        | `false`  |
+| skip_stable_version_audit     | Whether to skip stable version audit for brew test-bot (useful for PR testing).           | `true`                         | `false`  |
+| token                         | GitHub Token. This is required when `publish` is enabled.                                 |                                | `false`  |
+| upstream_homebrew_core_repo   | The upstream homebrew-core repository that the fork is based on. Must be a GitHub repo.   | `Homebrew/homebrew-core`       | `false`  |
+| validate                      | Whether to validate the formula.                                                          | `true`                         | `false`  |
 
 > [!NOTE]
 > `org_homebrew_repo` repo name should conform to the documentation.
@@ -71,8 +75,11 @@ steps:
       git_email: ${{ secrets.GIT_EMAIL }}
       git_username: ${{ secrets.GIT_USERNAME }}
       homebrew_core_fork_repo: repo_owner/homebrew-core
+      homebrew_core_base_branch: main
+      homebrew_core_head_branch: my-custom-branch  # optional, will be auto-generated if not specified
       org_homebrew_repo: repo_owner/repo_name
-      org_homebrew_repo_branch: master
+      org_homebrew_repo_base_branch: master
+      org_homebrew_repo_head_branch: my-custom-branch  # optional, will be auto-generated if not specified
       publish: true  # you probably want to use some conditional logic here
       token: ${{ secrets.PAT }}  # required to publish
       upstream_homebrew_core_repo: Homebrew/homebrew-core
@@ -118,7 +125,7 @@ jobs:
           git_email: ${{ secrets.GIT_EMAIL }}
           git_username: ${{ secrets.GIT_USERNAME }}
           org_homebrew_repo: repo_owner/repo_name
-          org_homebrew_repo_branch: main
+          org_homebrew_repo_base_branch: main
           publish: ${{ matrix.publish }}
           token: ${{ secrets.PAT }}
 ```

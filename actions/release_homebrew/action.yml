@@ -25,6 +25,16 @@ inputs:
     description: 'The forked homebrew-core repository to publish to.'
     default: 'LizardByte/homebrew-core'
     required: false
+  homebrew_core_base_branch:
+    description: 'The base branch of the homebrew-core fork to create PR against.'
+    default: 'main'
+    required: false
+  homebrew_core_head_branch:
+    description: >-
+      The head branch of the homebrew-core fork to create for the PR.
+      If empty, a branch name will be auto-generated.
+    default: ''
+    required: false
   org_homebrew_repo:
     description: |
       The target repository to publish to.
@@ -32,14 +42,23 @@ inputs:
       See: https://docs.brew.sh/Taps#repository-naming-conventions-and-assumptions
     default: 'LizardByte/homebrew-homebrew'
     required: false
-  org_homebrew_repo_branch:
-    description: 'The target repository branch to publish to.'
+  org_homebrew_repo_base_branch:
+    description: 'The base branch of the target repository to create PR against.'
+    default: ''
+    required: false
+  org_homebrew_repo_head_branch:
+    description: >-
+      The head branch of the target repository to create for the PR.
+      If empty, a branch name will be auto-generated.
     default: ''
     required: false
   publish:
     description: 'Whether to publish the release.'
     default: 'false'
     required: false
+  skip_stable_version_audit:
+    description: 'Whether to skip stable version audit for brew test-bot'
+    default: 'true'
   token:
     description: 'Github Token. This is required when `publish` is enabled.'
     required: false
@@ -59,6 +78,9 @@ outputs:
   testpath:
     description: "The path to Homebrew's temporary test directory."
     value: ${{ steps.homebrew-tests.outputs.testpath }}
+  commit_message:
+    description: "The commit message used for the formula update."
+    value: ${{ steps.homebrew-tests.outputs.commit_message }}
 
 runs:
   using: "composite"
@@ -111,59 +133,62 @@ runs:
         "${{ steps.venv.outputs.python-path }}" -m pip install -r requirements.txt
         echo "::endgroup::"
 
-    - name: Checkout org homebrew repo
+    - name: Checkout (org homebrew repo)
       uses: actions/checkout@v6
       with:
         repository: ${{ inputs.org_homebrew_repo }}
-        ref: ${{ inputs.org_homebrew_repo_branch }}
+        ref: ${{ inputs.org_homebrew_repo_base_branch }}
         path: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
         persist-credentials: false  # otherwise, the token used is the GITHUB_TOKEN, instead of the personal token
         fetch-depth: 1
 
-    - name: Checkout homebrew-core fork
+    - name: Checkout (homebrew-core)
       if: ${{ inputs.contribute_to_homebrew_core == 'true' }}
       uses: actions/checkout@v6
       with:
         repository: ${{ inputs.homebrew_core_fork_repo }}
+        ref: ${{ inputs.homebrew_core_base_branch }}
         path: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
         persist-credentials: false  # otherwise, the token used is the GITHUB_TOKEN, instead of the personal token
         fetch-depth: 1
+
+    - name: Set up Homebrew
+      id: set-up-homebrew
+      uses: Homebrew/actions/setup-homebrew@main
+      with:
+        stable: true
 
     - name: Homebrew tests
       env:
         INPUT_FORMULA_FILE: ${{ inputs.formula_file }}
         INPUT_CONTRIBUTE_TO_HOMEBREW_CORE: ${{ inputs.contribute_to_homebrew_core }}
+        INPUT_GIT_EMAIL: ${{ inputs.git_email }}
+        INPUT_GIT_USERNAME: ${{ inputs.git_username }}
+        INPUT_ORG_HOMEBREW_REPO: ${{ inputs.org_homebrew_repo }}
+        INPUT_ORG_HOMEBREW_REPO_HEAD_BRANCH: ${{ inputs.org_homebrew_repo_head_branch }}
+        INPUT_HOMEBREW_CORE_HEAD_BRANCH: ${{ inputs.homebrew_core_head_branch }}
+        INPUT_SKIP_STABLE_VERSION_AUDIT: ${{ inputs.skip_stable_version_audit }}
         INPUT_UPSTREAM_HOMEBREW_CORE_REPO: ${{ inputs.upstream_homebrew_core_repo }}
         INPUT_VALIDATE: ${{ inputs.validate }}
       id: homebrew-tests
       shell: bash
       working-directory: ${{ github.action_path }}
       run: |
-        echo "::group::Setup Homebrew PATH"
-        if [[ "${{ runner.os }}" == "Linux" ]]; then
-          # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md#homebrew-note
-          echo "Adding Homebrew to PATH"
-          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        fi
-        echo "::endgroup::"
-
-        echo "::group::Homebrew tests"
         "${{ steps.venv.outputs.python-path }}" -u main.py
-        echo "::endgroup::"
 
-    - name: GitHub Commit & Push
+    - name: GitHub Commit & Push (org homebrew repo)
       if: ${{ inputs.publish == 'true' }}
       uses: actions-js/push@v1.5
       with:
         author_email: ${{ inputs.git_email }}
         author_name: ${{ inputs.git_username }}
-        branch: ${{ inputs.org_homebrew_repo_branch }}  # commit to target branch
+        branch: ${{ steps.homebrew-tests.outputs.org_homebrew_repo_branch }}
         directory: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
         github_token: ${{ inputs.token }}
-        message: "Update ${{ github.repository }} to ${{ github.sha }}"
+        message: "chore: ${{ steps.homebrew-tests.outputs.commit_message }}"
         repository: ${{ inputs.org_homebrew_repo }}
 
-    - name: GitHub Commit & Push homebrew-core
+    - name: GitHub Commit & Push (homebrew-core)
       if: ${{ inputs.contribute_to_homebrew_core == 'true' && inputs.publish == 'true' }}
       uses: actions-js/push@v1.5
       with:
@@ -173,22 +198,27 @@ runs:
         directory: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
         force: true  # need to force since the branch is sometimes reset
         github_token: ${{ inputs.token }}
-        message: "Update ${{ github.repository }} to ${{ github.sha }}"
+        message: "${{ steps.homebrew-tests.outputs.commit_message }}"
         repository: ${{ inputs.homebrew_core_fork_repo }}
 
-    - name: Create Pull Request
+    - name: Create Pull Request (org homebrew repo)
       env:
+        COMMIT_MESSAGE: ${{ steps.homebrew-tests.outputs.commit_message }}
         GH_TOKEN: ${{ inputs.token }}
-        HOMEBREW_CORE_BRANCH: ${{ steps.homebrew-tests.outputs.homebrew_core_branch }}
-        INPUT_UPSTREAM_HOMEBREW_CORE_REPO: ${{ inputs.upstream_homebrew_core_repo }}
-      if: ${{ inputs.contribute_to_homebrew_core == 'true' && inputs.publish == 'true' }}
+        ORG_HOMEBREW_REPO_BRANCH: ${{ steps.homebrew-tests.outputs.org_homebrew_repo_branch }}
+        ORG_HOMEBREW_REPO_BASE_BRANCH: ${{ inputs.org_homebrew_repo_base_branch }}
+        INPUT_ORG_HOMEBREW_REPO: ${{ inputs.org_homebrew_repo }}
+      if: ${{ inputs.publish == 'true' }}
       shell: bash
-      working-directory: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
+      working-directory: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
       run: |
+        # Use default branch 'master' if base branch is not specified
+        BASE_BRANCH=${ORG_HOMEBREW_REPO_BASE_BRANCH:-master}
+
         # Check if a pull request already exists with the same head branch
         PR_EXISTS=$(gh pr list \
-          --head ${HOMEBREW_CORE_BRANCH} \
-          --repo ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO})
+          --head ${ORG_HOMEBREW_REPO_BRANCH} \
+          --repo ${INPUT_ORG_HOMEBREW_REPO})
 
         # If the pull request does not exist, create it
         if [[ -z "$PR_EXISTS" ]]; then
@@ -196,13 +226,53 @@ runs:
 
           # https://cli.github.com/manual/gh_pr_create
           gh pr create \
-            --base master \
-            --head ${HOMEBREW_CORE_BRANCH} \
-            --title "Update ${{ github.repository }} to ${{ github.sha }}" \
+            --base ${BASE_BRANCH} \
+            --head ${ORG_HOMEBREW_REPO_BRANCH} \
+            --title "chore: ${COMMIT_MESSAGE}" \
             --body \
               "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action" \
-            --no-maintainer-edit \
-            --repo ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO}
+            --repo ${INPUT_ORG_HOMEBREW_REPO}
+        else
+          echo "Pull request already exists"
+        fi
+
+    - name: Create Pull Request (homebrew-core)
+      env:
+        COMMIT_MESSAGE: ${{ steps.homebrew-tests.outputs.commit_message }}
+        GH_TOKEN: ${{ inputs.token }}
+        HOMEBREW_CORE_BRANCH: ${{ steps.homebrew-tests.outputs.homebrew_core_branch }}
+        HOMEBREW_CORE_BASE_BRANCH: ${{ inputs.homebrew_core_base_branch }}
+        HOMEBREW_CORE_FORK_REPO: ${{ inputs.homebrew_core_fork_repo }}
+        INPUT_UPSTREAM_HOMEBREW_CORE_REPO: ${{ inputs.upstream_homebrew_core_repo }}
+      if: ${{ inputs.contribute_to_homebrew_core == 'true' && inputs.publish == 'true' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}/release_homebrew_action/homebrew_core_fork_repo
+      run: |
+        # Use default branch 'main' if base branch is not specified
+        BASE_BRANCH=${HOMEBREW_CORE_BASE_BRANCH:-main}
+
+        # Extract fork owner from fork repo (e.g., "owner/homebrew-core" -> "owner")
+        FORK_OWNER=$(echo ${HOMEBREW_CORE_FORK_REPO} | cut -d'/' -f1)
+
+        # Check if a pull request already exists from fork to upstream
+        # We check in the upstream repo for PRs from our fork
+        PR_EXISTS=$(gh pr list \
+          --head ${FORK_OWNER}:${HOMEBREW_CORE_BRANCH} \
+          --repo ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO})
+
+        # If the pull request does not exist, create it
+        if [[ -z "$PR_EXISTS" ]]; then
+          echo "Creating pull request from ${HOMEBREW_CORE_FORK_REPO} to ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO}"
+
+          # Create PR in the upstream repo, from our fork
+          # Note: we're in the fork's working directory, so gh will use the fork's context
+          # https://cli.github.com/manual/gh_pr_create
+          gh pr create \
+            --repo ${INPUT_UPSTREAM_HOMEBREW_CORE_REPO} \
+            --base ${BASE_BRANCH} \
+            --head ${FORK_OWNER}:${HOMEBREW_CORE_BRANCH} \
+            --title "${COMMIT_MESSAGE}" \
+            --body "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action"
         else
           echo "Pull request already exists"
         fi
