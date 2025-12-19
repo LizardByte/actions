@@ -813,7 +813,18 @@ def brew_test_bot_only_formulae(formula: str) -> bool:
     if stable_version_audit_arg:
         args_list.append(stable_version_audit_arg)
 
-    result = _run_subprocess(args_list=args_list)
+    # setting this will allow us to skip advanced tests when building bottles
+    env = {
+        'HOMEBREW_BOTTLE_BUILD': 'true',
+    }
+
+    # combine with os environment
+    env.update(os.environ)
+
+    result = _run_subprocess(
+        args_list=args_list,
+        env=env,
+    )
 
     end_group()
     return result
