@@ -152,6 +152,12 @@ runs:
         persist-credentials: false  # otherwise, the token used is the GITHUB_TOKEN, instead of the personal token
         fetch-depth: 1
 
+    - name: Set up Homebrew
+      id: set-up-homebrew
+      uses: Homebrew/actions/setup-homebrew@main
+      with:
+        stable: true
+
     - name: Homebrew tests
       env:
         INPUT_FORMULA_FILE: ${{ inputs.formula_file }}
@@ -168,17 +174,7 @@ runs:
       shell: bash
       working-directory: ${{ github.action_path }}
       run: |
-        echo "::group::Setup Homebrew PATH"
-        if [[ "${{ runner.os }}" == "Linux" ]]; then
-          # https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md#homebrew-note
-          echo "Adding Homebrew to PATH"
-          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        fi
-        echo "::endgroup::"
-
-        echo "::group::Homebrew tests"
         "${{ steps.venv.outputs.python-path }}" -u main.py
-        echo "::endgroup::"
 
     - name: GitHub Commit & Push (org homebrew repo)
       if: ${{ inputs.publish == 'true' }}
