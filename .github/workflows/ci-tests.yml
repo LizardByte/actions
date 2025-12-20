@@ -107,26 +107,7 @@ jobs:
         shell: bash
         run: npm test
 
-      - name: Upload test results to Codecov
-        # any except canceled or skipped
-        if: >-
-          always() &&
-          (
-            steps.pytest.outcome == 'success' ||
-            steps.pytest.outcome == 'failure' ||
-            steps.jest.outcome == 'success' ||
-            steps.jest.outcome == 'failure'
-          ) &&
-          startsWith(github.repository, 'LizardByte/')
-        uses: codecov/test-results-action@47f89e9acb64b76debcd5ea40642d25a4adced9f  # v1.1.1
-        with:
-          fail_ci_if_error: true
-          files: ./junit-python.xml,./junit.xml
-          flags: ${{ runner.os }}
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-
-      - name: Upload coverage to Codecov
+      - name: Upload coverage
         # any except canceled or skipped
         if: >-
           always() &&
@@ -142,5 +123,26 @@ jobs:
           fail_ci_if_error: true
           files: ./coverage/python-coverage.xml,./coverage/coverage-final.json
           flags: ${{ runner.os }}
+          report_type: coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+      - name: Upload test results
+        # any except canceled or skipped
+        if: >-
+          always() &&
+          (
+            steps.pytest.outcome == 'success' ||
+            steps.pytest.outcome == 'failure' ||
+            steps.jest.outcome == 'success' ||
+            steps.jest.outcome == 'failure'
+          ) &&
+          startsWith(github.repository, 'LizardByte/')
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de  # v5.5.2
+        with:
+          fail_ci_if_error: true
+          files: ./junit-python.xml,./junit.xml
+          flags: ${{ runner.os }}
+          report_type: test_results
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
