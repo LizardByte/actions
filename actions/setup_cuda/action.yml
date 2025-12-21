@@ -1,0 +1,53 @@
+---
+name: "Setup CUDA Toolkit"
+description: "A reusable action to install NVIDIA CUDA Toolkit on Linux runners using runfile installer."
+author: "LizardByte"
+
+branding:
+  icon: cpu
+  color: green
+
+inputs:
+  cuda-version:
+    description: The version of CUDA Toolkit to install (e.g., '12.6.2', '11.8.0').
+    required: true
+  driver-version:
+    description: >
+      The driver version included in the CUDA installer (e.g., '560.35.03', '520.61.05').
+      This can be found on NVIDIA's CUDA Toolkit download page.
+    required: true
+  install-path:
+    description: "Installation path for CUDA Toolkit"
+    required: false
+    default: "/usr/local/cuda"
+
+outputs:
+  cuda-version:
+    description: "The version of CUDA that was installed"
+    value: ${{ steps.setup.outputs.cuda-version }}
+  cuda-path:
+    description: "The installation path of CUDA Toolkit"
+    value: ${{ steps.setup.outputs.cuda-path }}
+  nvcc-path:
+    description: "The path to the nvcc compiler"
+    value: ${{ steps.setup.outputs.nvcc-path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Make script executable
+      shell: bash
+      run: chmod +x "${GITHUB_ACTION_PATH}/setup_cuda.sh"
+
+    - name: Setup CUDA Toolkit
+      env:
+        INPUT_CUDA_VERSION: ${{ inputs.cuda-version }}
+        INPUT_DRIVER_VERSION: ${{ inputs.driver-version }}
+        INPUT_INSTALL_PATH: ${{ inputs.install-path }}
+      id: setup
+      shell: bash
+      run: |
+        "${GITHUB_ACTION_PATH}/setup_cuda.sh" \
+          --cuda-version="${INPUT_CUDA_VERSION}" \
+          --driver-version="${INPUT_DRIVER_VERSION}" \
+          --install-path="${INPUT_INSTALL_PATH}"

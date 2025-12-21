@@ -1,0 +1,16 @@
+[
+  {
+    "runs-on": "ubuntu-24.04-arm",
+    "with": {
+      "cuda-version": "13.1.0",
+      "driver-version": "590.44.01"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "cuda-version": "13.1.0",
+      "driver-version": "590.44.01"
+    }
+  }
+]

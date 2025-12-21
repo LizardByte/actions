@@ -19,6 +19,7 @@ This is a monorepo containing a collection of GitHub Actions maintained by Lizar
 | [release_create](actions/release_create#readme)       | Create a new release                         | composite | bash, javascript |
 | [release_homebrew](actions/release_homebrew#readme)   | Validate and update Homebrew formula         | composite | bash, python     |
 | [release_setup](actions/release_setup#readme)         | Prepare a release                            | docker    | python           |
+| [setup_cuda](actions/setup_cuda#readme)               | Set up NVIDIA CUDA Toolkit on Linux runners  | composite | bash             |
 | [setup_python](actions/setup_python#readme)           | Set up Python environment                    | composite | bash             |
 
 ## Contributions
