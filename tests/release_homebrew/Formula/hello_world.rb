@@ -4,6 +4,15 @@ class HelloWorld < Formula
   url "https://github.com/LizardByte/actions.git"
   version "0.0.1"
 
+  bottle do
+    root_url "https://ghcr.io/v2/lizardbyte/homebrew"
+    rebuild 1
+    sha256 arm64_tahoe:   "0000000000000000000000000000000000000000000000000000000000000000"
+    sha256 arm64_sequoia: "0000000000000000000000000000000000000000000000000000000000000000"
+    sha256 arm64_sonoma:  "0000000000000000000000000000000000000000000000000000000000000000"
+    sha256 x86_64_linux:  "0000000000000000000000000000000000000000000000000000000000000000"
+  end
+
   def install
     # create hello world sh file with echo command
     (buildpath/"hello-world").write <<~EOS

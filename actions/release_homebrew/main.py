@@ -877,6 +877,7 @@ def install_formula(formula: str) -> bool:
         args_list=[
             'brew',
             'install',
+            '--build-from-source',
             '--include-test',
             '--keep-tmp',
             '--verbose',
