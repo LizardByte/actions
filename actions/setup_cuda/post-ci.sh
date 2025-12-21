@@ -43,10 +43,13 @@ else
     exit 1
 fi
 
+# Check for lib directory (Windows uses lib, Linux uses lib64)
 if [[ -d "${CUDA_PATH}/lib64" ]]; then
     echo "✓ ${CUDA_PATH}/lib64 exists"
+elif [[ -d "${CUDA_PATH}/lib" ]]; then
+    echo "✓ ${CUDA_PATH}/lib exists"
 else
-    echo "✗ ${CUDA_PATH}/lib64 not found"
+    echo "✗ ${CUDA_PATH}/lib or lib64 not found"
     exit 1
 fi
 
