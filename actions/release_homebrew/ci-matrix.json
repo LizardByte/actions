@@ -26,5 +26,17 @@
       "token": "${ secrets.GH_BOT_TOKEN }",
       "upstream_homebrew_core_repo": "LizardByte/homebrew-core"
     }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "contribute_to_homebrew_core": false,
+      "formula_file": "${ github.workspace }/tests/release_homebrew/Formula/hello_world.rb",
+      "git_email": "${ secrets.GH_BOT_EMAIL }",
+      "git_username": "${ secrets.GH_BOT_NAME }",
+      "publish": true,
+      "token": "${ secrets.GH_BOT_TOKEN }",
+      "validate": false
+    }
   }
 ]
