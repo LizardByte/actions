@@ -932,6 +932,9 @@ def main():
     if not is_brew_installed():
         raise SystemExit(1, 'Homebrew is not installed')
 
+    # Always process the formula to set up branches and copy files, even if validation is skipped
+    formula = process_input_formula(args.formula_file)
+
     if os.environ['INPUT_VALIDATE'].lower() != 'true':
         print('Skipping audit, install, and test')
         return
@@ -940,8 +943,6 @@ def main():
     if not upgrade_status:
         print('::error:: Homebrew update or upgrade failed')
         raise SystemExit(1)
-
-    formula = process_input_formula(args.formula_file)
 
     if not brew_test_bot_only_cleanup_before():
         print('::error:: brew test-bot --only-cleanup-before failed')
