@@ -384,7 +384,13 @@ def extract_version_from_formula(formula_file: str) -> Optional[str]:
                 stripped = line.strip()
                 # Look for version line in formula (e.g., version "1.2.3")
                 # Must start with 'version' (not just contain it) to avoid matching variables like GCC_VERSION
-                if stripped.startswith('version') and '"' in line:
+                # Also, ensure it's at class level (2 spaces) and not inside deeper blocks (4+ spaces)
+                if (
+                        line.startswith('  ') and
+                        not line.startswith('    ') and
+                        stripped.startswith('version') and
+                        '"' in line
+                ):
                     # Extract version string between quotes
                     start = line.find('"')
                     end = line.find('"', start + 1)

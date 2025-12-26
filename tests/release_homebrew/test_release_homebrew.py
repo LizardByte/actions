@@ -288,6 +288,46 @@ end
     assert version == "v5.6.7"
 
 
+def test_extract_version_from_formula_indented_version_ignored(tmp_path):
+    """Test that indented version lines (e.g., in fails_with blocks) are ignored."""
+    formula_file = tmp_path / "test_formula.rb"
+    formula_file.write_text('''
+class TestFormula < Formula
+  desc "Test formula"
+  version "1.2.3"
+  url "https://example.com/test.tar.gz"
+
+  fails_with :gcc do
+    version "12"
+    cause "Requires C++23 support"
+  end
+end
+''')
+
+    version = main.extract_version_from_formula(str(formula_file))
+    assert version == "1.2.3"
+
+
+def test_extract_version_from_formula_indented_version_ignored_with_tag(tmp_path):
+    """Test that indented version lines (e.g., in fails_with blocks) are ignored."""
+    formula_file = tmp_path / "test_formula.rb"
+    formula_file.write_text('''
+class TestFormula < Formula
+  desc "Test formula"
+  url "https://example.com/test.tar.gz"
+    tag: "1.2.3"
+
+  fails_with :gcc do
+    version "12"
+    cause "Requires C++23 support"
+  end
+end
+''')
+
+    version = main.extract_version_from_formula(str(formula_file))
+    assert version == "1.2.3"
+
+
 @pytest.mark.parametrize('formula, version, is_new, expected', [
     ('hello_world', '1.2.3', True, 'hello_world 1.2.3 (new formula)'),
     ('hello_world', None, True, 'hello_world (new formula)'),
