@@ -35,6 +35,7 @@
       "git_email": "${ secrets.GH_BOT_EMAIL }",
       "git_username": "${ secrets.GH_BOT_NAME }",
       "publish": true,
+      "remove_labels": "",
       "token": "${ secrets.GH_BOT_TOKEN }",
       "validate": false
     }

@@ -56,6 +56,10 @@ inputs:
     description: 'Whether to publish the release.'
     default: 'false'
     required: false
+  remove_labels:
+    description: 'A comma-separated list of labels to remove from the PR in the org homebrew repo.'
+    default: 'bottle-published,pr-pull'
+    required: false
   skip_stable_version_audit:
     description: 'Whether to skip stable version audit for brew test-bot'
     default: 'true'
@@ -211,6 +215,7 @@ runs:
         ORG_HOMEBREW_REPO_BRANCH: ${{ steps.homebrew-tests.outputs.org_homebrew_repo_branch }}
         ORG_HOMEBREW_REPO_BASE_BRANCH: ${{ inputs.org_homebrew_repo_base_branch }}
         INPUT_ORG_HOMEBREW_REPO: ${{ inputs.org_homebrew_repo }}
+        INPUT_REMOVE_LABELS: ${{ inputs.remove_labels }}
       if: ${{ inputs.publish == 'true' }}
       shell: bash
       working-directory: ${{ github.workspace }}/release_homebrew_action/org_homebrew_repo
@@ -236,7 +241,15 @@ runs:
               "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action" \
             --repo "${INPUT_ORG_HOMEBREW_REPO}"
         else
-          echo "Pull request already exists"
+          echo "Editing pull request"
+
+          PR_NUMBER=$(echo "${PR_EXISTS}" | grep -oE '^[0-9]+')
+
+          # https://cli.github.com/manual/gh_pr_edit
+          gh pr edit "${PR_NUMBER}" \
+            --title "chore: ${COMMIT_MESSAGE}" \
+            --remove-label "${INPUT_REMOVE_LABELS}" \
+            --repo "${INPUT_ORG_HOMEBREW_REPO}"
         fi
 
     - name: Create Pull Request (homebrew-core)
