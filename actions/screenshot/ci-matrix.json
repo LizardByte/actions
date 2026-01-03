@@ -1,0 +1,14 @@
+[
+  {
+    "runs-on": "macos-latest",
+    "with": {}
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {}
+  },
+  {
+    "runs-on": "windows-latest",
+    "with": {}
+  }
+]
