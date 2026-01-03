@@ -72,3 +72,4 @@ runs:
       with:
         name: screenshot-${{ runner.os }}
         path: screenshot.png
+        if-no-files-found: error
