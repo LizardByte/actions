@@ -1,0 +1,74 @@
+---
+name: "Screenshot Tool"
+description: "Install and setup cross-platform screenshot CLI tool for GitHub runners."
+author: "LizardByte"
+
+branding:
+  icon: camera
+  color: green
+
+outputs:
+  tool-path:
+    description: 'Path or command to the screenshot tool that can be used to capture screenshots'
+    value: ${{ steps.setup.outputs.tool-path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup script
+      id: setup
+      shell: bash
+      run: |
+        # Convert Windows path to Unix path for bash compatibility
+        ACTION_PATH="${GITHUB_ACTION_PATH}"
+        if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+          ACTION_PATH=$(cygpath -u "${GITHUB_ACTION_PATH}")
+        fi
+
+        chmod +x "${ACTION_PATH}/screenshot.sh"
+
+        # Output the tool path (use original GITHUB_ACTION_PATH for consistency)
+        echo "tool-path=${ACTION_PATH}/screenshot.sh" >> "${GITHUB_OUTPUT}"
+
+    - name: Setup dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        # Check if ImageMagick is already installed
+        if ! command -v import &> /dev/null; then
+          echo "Installing ImageMagick..."
+          if command -v apt-get &> /dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq imagemagick
+            sudo apt-get clean
+            sudo rm -rf /var/lib/apt/lists/*
+          elif command -v yum &> /dev/null; then
+            sudo yum install -y -q ImageMagick
+            sudo yum clean all
+          elif command -v dnf &> /dev/null; then
+            sudo dnf install -y -q ImageMagick
+            sudo dnf clean all
+          elif command -v pacman &> /dev/null; then
+            sudo pacman -S --noconfirm imagemagick
+            sudo pacman -Scc --noconfirm
+          fi
+        fi
+
+    - name: Minimize all windows
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        $shell = New-Object -ComObject Shell.Application
+        $shell.MinimizeAll()
+
+    - name: Take screenshot
+      if: github.repository == 'LizardByte/actions'
+      shell: bash
+      run: ${{ steps.setup.outputs.tool-path }} --output-path=screenshot.png
+
+    - name: Upload artifacts
+      if: github.repository == 'LizardByte/actions'
+      uses: actions/upload-artifact@v6
+      with:
+        name: screenshot-${{ runner.os }}
+        path: screenshot.png
