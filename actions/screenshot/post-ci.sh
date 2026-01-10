@@ -39,15 +39,3 @@ fi
 
 echo ""
 echo "Screenshot validation successful!"
-
-# Cleanup Xvfb if running on Linux
-if [[ "$OSTYPE" == "linux-gnu"* && -f /tmp/xvfb_screenshot.pid ]]; then
-  XVFB_PID=$(cat /tmp/xvfb_screenshot.pid)
-  if ps -p "$XVFB_PID" > /dev/null 2>&1; then
-    echo ""
-    echo "Cleaning up Xvfb (PID: $XVFB_PID)..."
-    kill "$XVFB_PID" || true
-    rm -f /tmp/xvfb_screenshot.pid
-    echo "✓ Xvfb stopped"
-  fi
-fi

@@ -1,0 +1,48 @@
+[
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "environment": "fluxbox"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "environment": "lxde"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "environment": "mate",
+      "appindicator-version": "ayatana"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "environment": "mate",
+      "appindicator-version": "legacy"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "environment": "openbox"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "environment": "xfce",
+      "appindicator-version": "ayatana"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "environment": "xfce",
+      "appindicator-version": "legacy"
+    }
+  }
+]

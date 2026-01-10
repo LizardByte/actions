@@ -12,11 +12,13 @@ points in time or for debugging purposes.
 No preparation needed! These platforms have built-in screenshot capabilities.
 
 ### Linux
-Linux requires a display server (X11 or Wayland) to be running. Use a display setup action before this one:
+Linux requires a display server (X11 or Wayland) to be running. Use the virtual desktop setup action before this one:
 
 ```yaml
 - name: Setup virtual display
-  uses: aganders3/headless-gui@v2
+  uses: LizardByte/actions/actions/setup_virtual_desktop@master
+  with:
+    environment: xfce
 ```
 
 ## 🚀 Basic Usage
@@ -189,22 +191,25 @@ jobs:
   screenshot:
     runs-on: ubuntu-latest
     steps:
+      - name: Setup virtual desktop
+        uses: LizardByte/actions/actions/setup_virtual_desktop@master
+        with:
+          environment: xfce
+
       - name: Setup screenshot tool
         id: screenshot
         uses: LizardByte/actions/actions/screenshot@master
 
-      - name: Setup and use headless display
-        uses: aganders3/headless-gui@v2
-        with:
-          run: |
-            # Launch something visual
-            xeyes &
-            sleep 2
+      - name: Take screenshots
+        run: |
+          # Launch something visual
+          xeyes &
+          sleep 2
 
-            # Take multiple screenshots
-            ${{ steps.screenshot.outputs.tool-path }} --output-path=screenshot1.png
-            sleep 1
-            ${{ steps.screenshot.outputs.tool-path }} --output-path=screenshot2.png --delay=500
+          # Take multiple screenshots
+          ${{ steps.screenshot.outputs.tool-path }} --output-path=screenshot1.png
+          sleep 1
+          ${{ steps.screenshot.outputs.tool-path }} --output-path=screenshot2.png --delay=500
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v6

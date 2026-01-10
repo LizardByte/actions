@@ -1,0 +1,194 @@
+---
+name: "Setup Virtual Desktop"
+description: "Setup a virtual desktop environment on Linux for GUI applications, tray icons, and notifications."
+author: "LizardByte"
+
+branding:
+  icon: monitor
+  color: green
+
+inputs:
+  appindicator-version:
+    description: 'AppIndicator version to use (ayatana, legacy). Only applies to mate and xfce environments.'
+    required: false
+    default: 'ayatana'
+  display-size:
+    description: 'Display resolution (e.g., 1280x720, 1920x1080)'
+    required: false
+    default: '1280x720'
+  environment:
+    description: 'Desktop environment to setup (fluxbox, lxde, mate, openbox, xfce)'
+    required: false
+    default: 'xfce'
+
+outputs:
+  display:
+    description: 'DISPLAY environment variable value'
+    value: ${{ steps.setup.outputs.display }}
+  xvfb-pid:
+    description: 'Process ID of the Xvfb server'
+    value: ${{ steps.setup.outputs.xvfb-pid }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Verify Linux platform
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" != "Linux" ]]; then
+          echo "Error: This action only works on Linux runners"
+          echo "Current runner OS: $RUNNER_OS"
+          exit 1
+        fi
+
+    - name: Make script executable
+      shell: bash
+      run: chmod +x "${GITHUB_ACTION_PATH}/setup_desktop.sh"
+
+    - name: Setup virtual desktop
+      id: setup
+      shell: bash
+      env:
+        INPUT_APPINDICATOR_VERSION: ${{ inputs.appindicator-version }}
+        INPUT_DISPLAY_SIZE: ${{ inputs.display-size }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+      run: |
+        "${GITHUB_ACTION_PATH}/setup_desktop.sh" \
+          --appindicator-version="${INPUT_APPINDICATOR_VERSION}" \
+          --display-size="${INPUT_DISPLAY_SIZE}" \
+          --environment="${INPUT_ENVIRONMENT}"
+
+    # For PR testing only
+    - name: Checkout
+      if: github.repository == 'LizardByte/actions'
+      uses: actions/checkout@v6
+
+    - name: Tests
+      if: github.repository == 'LizardByte/actions'
+      env:
+        INPUT_APPINDICATOR_VERSION: ${{ inputs.appindicator-version }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+        SCREENSHOT_PATH: ${{ github.workspace }}/actions/screenshot/screenshot.sh
+      shell: bash
+      run: |
+        echo "::group::Setup directories"
+        mkdir -p tests/screenshots
+        cd tests/screenshots
+        echo "::endgroup::"
+
+        echo "::group::Script setup"
+        chmod +x ${SCREENSHOT_PATH}
+        echo "::endgroup::"
+
+        echo "::group::Install test dependencies"
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq \
+          imagemagick \
+          python3-gi \
+          xterm \
+          yad
+        echo "::endgroup::"
+
+        echo "::group::Baseline screenshot"
+        ${SCREENSHOT_PATH} --output-path=00-baseline.png
+        echo "::endgroup::"
+
+        echo "::group::Test notification"
+        notify-send \
+          --icon=dialog-information \
+          --expire-time=5000 \
+          "Test Notification" \
+          "This is a test notification."
+        ${SCREENSHOT_PATH} --output-path=01-notification.png --delay=2000
+        echo "::endgroup::"
+
+        echo "::group::Test tray icon"
+        # Create a simple tray icon using yad
+        yad --notification \
+          --image=info \
+          --text="Test Tray Icon" \
+          --command="echo 'Tray icon clicked'" &
+        YAD_PID=$!
+        ${SCREENSHOT_PATH} --output-path=02-tray-icon.png --delay=3000
+        kill $YAD_PID 2>/dev/null || true
+        echo "::endgroup::"
+
+        echo "::group::Test window manager"
+        # Open a simple terminal window to verify WM is working
+        xterm -T "Test Window" -e "echo 'Test window'; sleep 2" &
+        XTERM_PID=$!
+        ${SCREENSHOT_PATH} --output-path=03-window.png --delay=1000
+        kill $XTERM_PID 2>/dev/null || true
+        echo "::endgroup::"
+
+        echo "::group::Test multiple tray icons"
+        # Create multiple tray icons to verify tray is working properly
+        yad --notification \
+          --image=preferences-system \
+          --text="Settings Icon" &
+        YAD1=$!
+
+        yad --notification \
+          --image=dialog-warning \
+          --text="Warning Icon" &
+        YAD2=$!
+
+        ${SCREENSHOT_PATH} --output-path=04-multiple-tray.png --delay=2000
+        kill $YAD1 $YAD2 2>/dev/null || true
+        echo "::endgroup::"
+
+        echo "::group::Test AppIndicator"
+        # Test ayatana-appindicator (only on MATE/XFCE which have indicator support)
+        if [[ "$INPUT_ENVIRONMENT" == "mate" ]] || [[ "$INPUT_ENVIRONMENT" == "xfce" ]]; then
+          echo "::group::AppIndicator Debug Info"
+          bash "${GITHUB_ACTION_PATH}/debug_indicators.sh"
+          echo "::endgroup::"
+
+          echo "Testing AppIndicator support (${INPUT_APPINDICATOR_VERSION})..."
+          # Run the test in the background so we can screenshot while it's active
+          python3 "${GITHUB_ACTION_PATH}/test_appindicator.py" "${INPUT_APPINDICATOR_VERSION}" &
+          APPINDICATOR_PID=$!
+
+          # Wait a moment for the indicator to appear, then take screenshot
+          sleep 1
+          ${SCREENSHOT_PATH} --output-path=05-appindicator.png --delay=500
+
+          # Wait for the test to complete
+          if wait $APPINDICATOR_PID; then
+            echo "AppIndicator test completed successfully"
+          else
+            echo "::error::AppIndicator test failed"
+            exit 1
+          fi
+        else
+          echo "Skipping AppIndicator test (not supported on ${INPUT_ENVIRONMENT})"
+        fi
+        echo "::endgroup::"
+
+        ls -lh
+
+    - name: Set artifact name
+      if: github.repository == 'LizardByte/actions'
+      id: artifact-name
+      shell: bash
+      env:
+        INPUT_APPINDICATOR_VERSION: ${{ inputs.appindicator-version }}
+        INPUT_ENVIRONMENT: ${{ inputs.environment }}
+      run: |
+        case "$INPUT_ENVIRONMENT" in
+          mate|xfce)
+            name="virtual-desktop-screenshots-${INPUT_ENVIRONMENT}-${INPUT_APPINDICATOR_VERSION}"
+            ;;
+          *)
+            name="virtual-desktop-screenshots-${INPUT_ENVIRONMENT}"
+            ;;
+        esac
+        echo "name=${name}" >> "${GITHUB_OUTPUT}"
+
+    - name: Upload screenshots
+      if: github.repository == 'LizardByte/actions'
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ steps.artifact-name.outputs.name }}
+        path: tests/screenshots/*.png
+        if-no-files-found: error

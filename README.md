@@ -9,18 +9,20 @@ This is a monorepo containing a collection of GitHub Actions maintained by Lizar
 
 ## actions
 
-| Action                                                | Description                                  | Type      | Language         |
-|-------------------------------------------------------|----------------------------------------------|-----------|------------------|
-| [audit_repos](actions/audit_repos#readme)             | Audit repositories in an organization        | composite | javascript       |
-| [facebook_post](actions/facebook_post#readme)         | Post to Facebook page/group using Graph API  | docker    | python           |
-| [monitor_space](actions/monitor_space#readme)         | Monitor and track minimum free disk space    | composite | bash             |
-| [more_space](actions/more_space#readme)               | Free up disk space in GitHub Actions runners | composite | bash             |
-| [release_changelog](actions/release_changelog#readme) | Generate a changelog for the latest release  | composite | javascript       |
-| [release_create](actions/release_create#readme)       | Create a new release                         | composite | bash, javascript |
-| [release_homebrew](actions/release_homebrew#readme)   | Validate and update Homebrew formula         | composite | bash, python     |
-| [release_setup](actions/release_setup#readme)         | Prepare a release                            | docker    | python           |
-| [setup_cuda](actions/setup_cuda#readme)               | Set up NVIDIA CUDA Toolkit on Linux runners  | composite | bash             |
-| [setup_python](actions/setup_python#readme)           | Set up Python environment                    | composite | bash             |
+| Action                                                        | Description                                  | Type      | Language         |
+|---------------------------------------------------------------|----------------------------------------------|-----------|------------------|
+| [audit_repos](actions/audit_repos#readme)                     | Audit repositories in an organization        | composite | javascript       |
+| [facebook_post](actions/facebook_post#readme)                 | Post to Facebook page/group using Graph API  | docker    | python           |
+| [monitor_space](actions/monitor_space#readme)                 | Monitor and track minimum free disk space    | composite | bash             |
+| [more_space](actions/more_space#readme)                       | Free up disk space in GitHub Actions runners | composite | bash             |
+| [release_changelog](actions/release_changelog#readme)         | Generate a changelog for the latest release  | composite | javascript       |
+| [release_create](actions/release_create#readme)               | Create a new release                         | composite | bash, javascript |
+| [release_homebrew](actions/release_homebrew#readme)           | Validate and update Homebrew formula         | composite | bash, python     |
+| [release_setup](actions/release_setup#readme)                 | Prepare a release                            | docker    | python           |
+| [screenshot](actions/screenshot#readme)                       | Setup cross-platform screenshot CLI tool     | composite | bash             |
+| [setup_cuda](actions/setup_cuda#readme)                       | Set up NVIDIA CUDA Toolkit on Linux runners  | composite | bash             |
+| [setup_python](actions/setup_python#readme)                   | Set up Python environment                    | composite | bash             |
+| [setup_virtual_desktop](actions/setup_virtual_desktop#readme) | Setup virtual desktop for GUI apps on Linux  | composite | bash             |
 
 ## Contributions
 
