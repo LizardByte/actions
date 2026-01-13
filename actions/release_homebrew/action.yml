@@ -75,7 +75,7 @@ inputs:
     default: 'true'
     required: false
   brew-gh-api-token:
-    description: 'Token to be used for GitHub API operations within brew. This is used to avoid rate limiting when running from forks.'
+    description: 'Token to be used for GitHub API operations within brew. This is required to allow access to the GitHub API when running from forks.'
     default: ${{ github.token }}
     required: false
 
