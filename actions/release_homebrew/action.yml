@@ -74,6 +74,10 @@ inputs:
     description: 'Whether to validate the formula.'
     default: 'true'
     required: false
+  brew-gh-api-token:
+    description: 'Token to be used for GitHub API operations within brew. This is used to avoid rate limiting when running from forks.'
+    default: ${{ github.token }}
+    required: false
 
 outputs:
   buildpath:
@@ -160,6 +164,7 @@ runs:
       id: set-up-homebrew
       uses: Homebrew/actions/setup-homebrew@main
       with:
+        brew-gh-api-token: ${{ inputs.brew-gh-api-token }}
         stable: true
 
     - name: Homebrew tests

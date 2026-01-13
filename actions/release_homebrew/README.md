@@ -34,6 +34,7 @@ steps:
 
 | Name                          | Description                                                                               | Default                        | Required |
 |-------------------------------|-------------------------------------------------------------------------------------------|--------------------------------|----------|
+| brew-gh-api-token             | Token to be used for GitHub API operations within brew. Useful for avoiding rate limits. | `${{ github.token }}`          | `false`  |
 | contribute_to_homebrew_core   | Whether to contribute to homebrew-core.                                                   | `false`                        | `false`  |
 | formula_file                  | The full path to the formula file.                                                        |                                | `true`   |
 | git_email                     | The email to use for the commit.                                                          |                                | `true`   |
