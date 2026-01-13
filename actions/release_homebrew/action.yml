@@ -169,6 +169,7 @@ runs:
 
     - name: Homebrew tests
       env:
+        HOMEBREW_GITHUB_API_TOKEN: ${{ inputs.brew-gh-api-token || github.token }}
         INPUT_FORMULA_FILE: ${{ inputs.formula_file }}
         INPUT_CONTRIBUTE_TO_HOMEBREW_CORE: ${{ inputs.contribute_to_homebrew_core }}
         INPUT_GIT_EMAIL: ${{ inputs.git_email }}
