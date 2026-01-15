@@ -234,13 +234,16 @@ runs:
           echo "Creating pull request"
 
           # https://cli.github.com/manual/gh_pr_create
-          gh pr create \
+          PR_URL=$(gh pr create \
             --base "${BASE_BRANCH}" \
             --head "${ORG_HOMEBREW_REPO_BRANCH}" \
             --title "chore: ${COMMIT_MESSAGE}" \
             --body \
               "Created by the LizardByte [release_homebrew](https://github.com/LizardByte/actions) action" \
-            --repo "${INPUT_ORG_HOMEBREW_REPO}"
+            --repo "${INPUT_ORG_HOMEBREW_REPO}")
+
+          # Extract PR number from URL (e.g., https://github.com/owner/repo/pull/123 -> 123)
+          PR_NUMBER=$(echo "${PR_URL}" | grep -oE '[0-9]+$')
         else
           echo "Editing pull request"
 
