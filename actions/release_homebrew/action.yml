@@ -253,6 +253,16 @@ runs:
             --repo "${INPUT_ORG_HOMEBREW_REPO}"
         fi
 
+        # automerge the PR
+        if [[ "$GITHUB_REPOSITORY" != "LizardByte/actions" ]]; then
+          gh pr merge "${PR_NUMBER}" \
+            --auto \
+            --delete-branch \
+            --repo "${INPUT_ORG_HOMEBREW_REPO}" \
+            --squash \
+            --subject "chore: ${COMMIT_MESSAGE}"
+        fi
+
     - name: Create Pull Request (homebrew-core)
       env:
         COMMIT_MESSAGE: ${{ steps.homebrew-tests.outputs.commit_message }}
