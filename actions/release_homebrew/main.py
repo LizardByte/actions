@@ -806,6 +806,10 @@ def brew_test_bot_only_formulae(formula: str) -> bool:
     # Check if we should skip stable version audit (default: true, meaning skip it)
     skip_stable_version_audit = os.getenv('INPUT_SKIP_STABLE_VERSION_AUDIT', 'true').lower() == 'true'
     stable_version_audit_arg = '--skip-stable-version-audit' if skip_stable_version_audit else ''
+
+    # Check if running from a fork PR to skip livecheck
+    is_fork_pr = os.getenv('INPUT_IS_FORK_PR', 'false').lower() == 'true'
+
     # Build args list, filtering out empty strings
     args_list = [
         'brew',
@@ -818,6 +822,10 @@ def brew_test_bot_only_formulae(formula: str) -> bool:
 
     if stable_version_audit_arg:
         args_list.append(stable_version_audit_arg)
+
+    if is_fork_pr:
+        args_list.append('--skip-livecheck')
+        print('Skipping livecheck (running from fork PR)')
 
     # setting this will allow us to skip advanced tests when building bottles
     env = {

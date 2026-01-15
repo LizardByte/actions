@@ -648,6 +648,94 @@ def test_test_formula(brew_untap, operating_system, org_homebrew_repo):
     assert main.test_formula(formula='hello_world')
 
 
+@patch.dict(os.environ, {'INPUT_IS_FORK_PR': 'true'})
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_brew_test_bot_only_formulae_fork_pr(
+        mock_run_subprocess,
+        capsys,
+        org_homebrew_repo,
+        operating_system,
+):
+    """Test that brew_test_bot_only_formulae includes --skip-livecheck when running from fork PR."""
+    mock_run_subprocess.return_value = True
+
+    # Call process_input_formula first to set up the tap
+    main.process_input_formula(
+        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+
+    result = main.brew_test_bot_only_formulae(formula='hello_world')
+
+    assert result is True
+    assert mock_run_subprocess.called
+
+    # Get the args_list that was passed to _run_subprocess
+    call_args = mock_run_subprocess.call_args
+    args_list = call_args[1]['args_list']
+
+    # Verify --skip-livecheck is in the args
+    assert '--skip-livecheck' in args_list
+
+    # Verify the message was printed
+    captured = capsys.readouterr()
+    assert 'Skipping livecheck (running from fork PR)' in captured.out
+
+
+@patch.dict(os.environ, {'INPUT_IS_FORK_PR': 'false'})
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_brew_test_bot_only_formulae_not_fork_pr(
+        mock_run_subprocess,
+        org_homebrew_repo,
+        operating_system,
+):
+    """Test that brew_test_bot_only_formulae does not include --skip-livecheck when not running from fork PR."""
+    mock_run_subprocess.return_value = True
+
+    # Call process_input_formula first to set up the tap
+    main.process_input_formula(
+        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+
+    result = main.brew_test_bot_only_formulae(formula='hello_world')
+
+    assert result is True
+    assert mock_run_subprocess.called
+
+    # Get the args_list that was passed to _run_subprocess
+    call_args = mock_run_subprocess.call_args
+    args_list = call_args[1]['args_list']
+
+    # Verify --skip-livecheck is NOT in the args
+    assert '--skip-livecheck' not in args_list
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_brew_test_bot_only_formulae_no_fork_pr_env(
+        mock_run_subprocess,
+        org_homebrew_repo,
+        operating_system,
+):
+    """Test that brew_test_bot_only_formulae does not include --skip-livecheck when INPUT_IS_FORK_PR is not set."""
+    mock_run_subprocess.return_value = True
+
+    # Ensure INPUT_IS_FORK_PR is not set
+    os.environ.pop('INPUT_IS_FORK_PR', None)
+
+    # Call process_input_formula first to set up the tap
+    main.process_input_formula(
+        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+
+    result = main.brew_test_bot_only_formulae(formula='hello_world')
+
+    assert result is True
+    assert mock_run_subprocess.called
+
+    # Get the args_list that was passed to _run_subprocess
+    call_args = mock_run_subprocess.call_args
+    args_list = call_args[1]['args_list']
+
+    # Verify --skip-livecheck is NOT in the args
+    assert '--skip-livecheck' not in args_list
+
+
 def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_validate, operating_system):
     main.args = main._parse_args(args_list=[])
     main.main()
