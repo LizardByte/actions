@@ -1,7 +1,6 @@
 ---
 name: CI Tests
-permissions:
-  contents: write  # write is required for release_setup
+permissions: {}
 
 on:
   pull_request:
@@ -22,6 +21,8 @@ concurrency:
 
 jobs:
   tests:
+    permissions:
+      contents: write  # write is required for release_setup
     runs-on: ${{ matrix.runner }}
     env:
       DEFAULT_PYTHON_VERSION: '3.12'
