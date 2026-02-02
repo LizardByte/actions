@@ -1,0 +1,10 @@
+[
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "dryRun": "true",
+      "repo": "LizardByte/actions",
+      "token": "${ secrets.GITHUB_TOKEN }"
+    }
+  }
+]
