@@ -7,12 +7,16 @@
 
 const { execSync } = require('node:child_process');
 const fs = require('node:fs');
+const https = require('node:https');
 
 // Mock child_process
 jest.mock('node:child_process');
 
 // Mock fs
 jest.mock('node:fs');
+
+// Mock https
+jest.mock('node:https');
 
 // Mock the GitHub Actions core, context, and GitHub objects
 const mockCore = {
@@ -119,6 +123,37 @@ beforeEach(() => {
       return '';  // No diff by default
     }
     return '';
+  });
+
+  // Setup default https.get mock for fetching latest release
+  const mockResponse = {
+    on: jest.fn((event, callback) => {
+      if (event === 'data') {
+        // Immediately call with mock data
+        callback(JSON.stringify({
+          tag_name: 'v3.9.0',
+          name: 'v3.9.0',
+          draft: false,
+          prerelease: false
+        }));
+      } else if (event === 'end') {
+        // Immediately call end
+        callback();
+      }
+      return mockResponse;
+    })
+  };
+
+  const mockRequest = {
+    on: jest.fn(() => {
+      // Don't call error callback by default
+      return mockRequest;
+    })
+  };
+
+  https.get.mockImplementation((options, callback) => {
+    callback(mockResponse);
+    return mockRequest;
   });
 });
 
@@ -394,6 +429,44 @@ async function testRepositoryFiltering(repos, expectedCount, expectedMessage) {
   }
 }
 
+/**
+ * Setup https.get mock to return specific response or error
+ * @param {Object} options - Mock configuration
+ * @param {string} options.responseData - JSON string to return in response
+ * @param {Error} options.error - Error to throw
+ */
+function setupHttpsMock(options = {}) {
+  if (options.error) {
+    const mockRequest = {
+      on: jest.fn((event, callback) => {
+        if (event === 'error') {
+          callback(options.error);
+        }
+        return mockRequest;
+      })
+    };
+    https.get.mockImplementation(() => mockRequest);
+  } else {
+    const mockResponse = {
+      on: jest.fn((event, callback) => {
+        if (event === 'data') {
+          callback(options.responseData);
+        } else if (event === 'end') {
+          callback();
+        }
+        return mockResponse;
+      })
+    };
+    const mockRequest = {
+      on: jest.fn(() => mockRequest)
+    };
+    https.get.mockImplementation((opts, callback) => {
+      callback(mockResponse);
+      return mockRequest;
+    });
+  }
+}
+
 describe('Pinact Action', () => {
   describe('Installation', () => {
     test('should install pinact with latest version', async () => {
@@ -401,8 +474,17 @@ describe('Pinact Action', () => {
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
+      // Should fetch latest release via https
+      expect(https.get).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hostname: 'api.github.com',
+          path: '/repos/suzuki-shunsuke/pinact/releases/latest'
+        }),
+        expect.any(Function)
+      );
+      // Should install with resolved version (v3.9.0)
       expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('go install github.com/suzuki-shunsuke/pinact/cmd/pinact@latest'),
+        expect.stringContaining('go install github.com/suzuki-shunsuke/pinact/cmd/pinact@v3.9.0'),
         expect.any(Object)
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -426,6 +508,14 @@ describe('Pinact Action', () => {
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
+      // Should fetch latest release tag via https
+      expect(https.get).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hostname: 'api.github.com',
+          path: '/repos/custom-org/pinact-fork/releases/latest'
+        }),
+        expect.any(Function)
+      );
       // Custom repos should use clone and build, not go install
       expect(execSync).toHaveBeenCalledWith(
         expect.stringContaining('git clone https://github.com/custom-org/pinact-fork.git'),
@@ -475,18 +565,38 @@ describe('Pinact Action', () => {
     });
 
     test('should handle installation failure', async () => {
-      execSync.mockImplementation((command) => {
-        if (command.includes('go install')) {
-          throw new Error('Installation failed');
-        }
-        return '';
-      });
+      // Mock https.get to simulate network error
+      setupHttpsMock({ error: new Error('Network error') });
       setupBasicMocks();
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining('Installation failed')
+        expect.stringContaining('Failed to install pinact')
+      );
+    });
+
+    test('should handle invalid JSON response from GitHub API', async () => {
+      // Mock https response with invalid JSON
+      setupHttpsMock({ responseData: 'invalid json{' });
+      setupBasicMocks();
+
+      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to install pinact')
+      );
+    });
+
+    test('should handle missing tag_name in GitHub API response', async () => {
+      // Mock https response without tag_name
+      setupHttpsMock({ responseData: JSON.stringify({ name: 'some release' }) });
+      setupBasicMocks();
+
+      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to install pinact')
       );
     });
 

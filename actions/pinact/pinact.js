@@ -5,6 +5,7 @@
 
 const { execSync } = require('node:child_process');
 const fs = require('node:fs');
+const https = require('node:https');
 const path = require('node:path');
 
 // ANSI color codes for console output
@@ -110,12 +111,56 @@ function execCommand(command, options = {}) {
 }
 
 /**
+ * Fetch the latest release tag from GitHub
+ * @param {string} repo - Repository in format owner/repo
+ * @returns {Promise<string>} Latest release tag
+ */
+async function fetchLatestReleaseTag(repo) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: `/repos/${repo}/releases/latest`,
+      headers: {
+        'User-Agent': 'LizardByte-Actions-Pinact',
+        'Accept': 'application/vnd.github+json'
+      }
+    };
+
+    https.get(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const release = JSON.parse(data);
+
+          if (!release.tag_name) {
+            reject(new Error('No tag_name found in release data'));
+            return;
+          }
+
+          Logger.info('Latest release: ' + release.tag_name);
+          resolve(release.tag_name);
+        } catch (error) {
+          reject(new Error('Failed to parse release data: ' + error.message));
+        }
+      });
+    }).on('error', (error) => {
+      reject(new Error('Failed to fetch latest release: ' + error.message));
+    });
+  });
+}
+
+/**
  * Install pinact
  * @param {string} pinactRepo - Repository to install from (format: owner/repo)
  * @param {string} pinactVersion - Version to install (tag, commit hash, or 'latest')
- * @returns {string} Path to pinact binary
+ * @returns {Promise<string>} Path to pinact binary
  */
-function installPinact(pinactRepo, pinactVersion) {
+async function installPinact(pinactRepo, pinactVersion) {
   Logger.log('');
   Logger.header('=== Installing pinact ===');
   Logger.log('Repository: ' + pinactRepo);
@@ -126,21 +171,25 @@ function installPinact(pinactRepo, pinactVersion) {
     const gopath = execCommand('go env GOPATH').trim();
     const pinactPath = path.join(gopath, 'bin', process.platform === 'win32' ? 'pinact.exe' : 'pinact');
 
+    // Resolve 'latest' to actual version tag
+    let actualVersion = pinactVersion;
+    if (pinactVersion === 'latest') {
+      actualVersion = await fetchLatestReleaseTag(pinactRepo);
+      Logger.log('');
+    }
+
     // Check if this is using a custom repo or non-standard version
     const isDefaultRepo = pinactRepo === 'suzuki-shunsuke/pinact';
-    const isStandardVersion = pinactVersion === 'latest' || /^v?\d+\.\d+\.\d+/.test(pinactVersion);
+    const isStandardVersion = /^v?\d+\.\d+\.\d+/.test(actualVersion);
 
     // Only use go install for default repo with standard versions
     if (isDefaultRepo && isStandardVersion) {
       // Use go install for standard versions from the default repo
-      const installUrl = pinactVersion === 'latest'
-        ? 'github.com/' + pinactRepo + '/cmd/pinact@latest'
-        : 'github.com/' + pinactRepo + '/cmd/pinact@' + pinactVersion;
-
+      const installUrl = 'github.com/' + pinactRepo + '/cmd/pinact@' + actualVersion;
       execCommand('go install ' + installUrl, { stdio: 'inherit' });
     } else {
       // For custom repos, branches, or commit hashes, clone and build manually
-      Logger.info('Building from source (repo: ' + pinactRepo + ', version: ' + pinactVersion + ')...');
+      Logger.info('Building from source (repo: ' + pinactRepo + ', version: ' + actualVersion + ')...');
       Logger.log('');
 
       const tmpDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'pinact-build-'));
@@ -151,7 +200,7 @@ function installPinact(pinactRepo, pinactVersion) {
         execCommand('git clone https://github.com/' + pinactRepo + '.git ' + repoPath, { stdio: 'inherit' });
 
         // Checkout the specific version (branch or commit)
-        execCommand('git checkout ' + pinactVersion, { cwd: repoPath, stdio: 'inherit' });
+        execCommand('git checkout ' + actualVersion, { cwd: repoPath, stdio: 'inherit' });
 
         // Build and install
         execCommand('go install ./cmd/pinact', { cwd: repoPath, stdio: 'inherit' });
@@ -772,7 +821,7 @@ async function runPinactAction({ github, context, core }) {
     let pinactConfigPath = '';
 
     // Install pinact
-    const pinactPath = installPinact(pinactRepo, pinactVersion);
+    const pinactPath = await installPinact(pinactRepo, pinactVersion);
 
     // Create config file if config is provided
     pinactConfigPath = setupPinactConfig(pinactConfig);
