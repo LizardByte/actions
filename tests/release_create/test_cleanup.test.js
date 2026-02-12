@@ -3,7 +3,14 @@
  * @jest-environment node
  */
 
-/* eslint-env jest */
+import {
+  jest,
+  describe,
+  test,
+  expect,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
 
 const { createMockContext, createMockGithub, setupConsoleMocks, createMockRelease, createMockReleases, setupDeleteMocks, verifyDeleteCalls, setupCleanupEnv } = require('../testUtils.js');
 

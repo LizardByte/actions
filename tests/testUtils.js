@@ -2,7 +2,10 @@
  * Shared test utilities for JavaScript tests
  */
 
-/* eslint-env jest */
+import {
+  jest,
+  expect,
+} from '@jest/globals';
 
 /**
  * Create mock GitHub context object
