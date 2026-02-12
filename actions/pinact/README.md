@@ -27,19 +27,19 @@ steps:
 
 ## 📥 Inputs
 
-| Name           | Description                                                                                                               | Default                                                 | Required |
-|----------------|---------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------|----------|
-| dryRun         | Dry run mode. If true, will not push changes or create pull requests.                                                     | `false`                                                 | `false`  |
-| gitAuthorEmail | Git commit author email.                                                                                                  | `41898282+github-actions[bot]@users.noreply.github.com` | `false`  |
-| gitAuthorName  | Git commit author name.                                                                                                   | `github-actions[bot]`                                   | `false`  |
-| githubOrg      | GitHub organization or user to process repositories from. Defaults to current repo owner. Ignored if repo is specified.   | Current repository owner                                | `false`  |
-| includeForks   | Include forked repositories when processing an organization. Has no effect when repo is specified.                        | `false`                                                 | `false`  |
-| pinactConfig   | Pinact configuration file content (YAML).                                                                                 | Empty (no config file)                                  | `false`  |
-| pinactRepo     | Repository to use for pinact. Allows using a fork. Format: owner/repo.                                                    | `suzuki-shunsuke/pinact`                                | `false`  |
-| pinactVersion  | Version of pinact to use.                                                                                                 | `latest`                                                | `false`  |
-| prBranchName   | Name of the branch to create for the pull request.                                                                        | `pinact-updates`                                        | `false`  |
-| repo           | Specific repository to run pinact on (format: owner/repo). If specified, runs only on this repo instead of all org repos. | Empty (runs on all org repos)                           | `false`  |
-| token          | GitHub Token with permissions to read repositories and create pull requests.                                              | N/A                                                     | `true`   |
+| Name           | Description                                                                                                                | Default                                                 | Required |
+|----------------|----------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------|----------|
+| dryRun         | Dry run mode. If true, will not push changes or create pull requests.                                                      | `false`                                                 | `false`  |
+| gitAuthorEmail | Git commit author email.                                                                                                   | `41898282+github-actions[bot]@users.noreply.github.com` | `false`  |
+| gitAuthorName  | Git commit author name.                                                                                                    | `github-actions[bot]`                                   | `false`  |
+| githubOrg      | GitHub organization or user to process repositories from. Defaults to current repo owner. Ignored if repo is specified.    | Current repository owner                                | `false`  |
+| includeForks   | Include forked repositories when processing an organization. Has no effect when repo is specified.                         | `false`                                                 | `false`  |
+| pinactConfig   | Pinact configuration file content (YAML).                                                                                  | Empty (no config file)                                  | `false`  |
+| pinactRepo     | Repository to use for pinact. Allows using a fork. Format: owner/repo.                                                     | `suzuki-shunsuke/pinact`                                | `false`  |
+| pinactVersion  | Version of pinact to use. Use `latest` for the newest release, or specify a tag (e.g., `v3.9.0`) or branch (e.g., `main`). | `latest`                                                | `false`  |
+| prBranchName   | Name of the branch to create for the pull request.                                                                         | `pinact-updates`                                        | `false`  |
+| repo           | Specific repository to run pinact on (format: owner/repo). If specified, runs only on this repo instead of all org repos.  | Empty (runs on all org repos)                           | `false`  |
+| token          | GitHub Token with permissions to read repositories and create pull requests.                                               | N/A                                                     | `true`   |
 
 ## 📤 Outputs
 

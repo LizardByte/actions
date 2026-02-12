@@ -3,9 +3,27 @@
  * This script runs pinact on repositories to update GitHub Actions to use commit hashes.
  */
 
-const { execSync } = require('node:child_process');
+const { execSync, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const https = require('node:https');
 const path = require('node:path');
+
+/**
+ * Validate that a string is safe for use in shell commands
+ * Only allows alphanumeric characters, dots, hyphens, underscores, and forward slashes
+ * @param {string} value - Value to validate
+ * @param {string} fieldName - Name of the field for error messages
+ * @returns {boolean} True if valid
+ * @throws {Error} If validation fails
+ */
+function validateSafeString(value, fieldName) {
+  // Allow word characters (alphanumeric + underscore), dots, hyphens, and forward slashes
+  // \w = [a-zA-Z0-9_], then add ., /, and - (hyphen at the end is literal)
+  if (!/^[\w./-]+$/.test(value)) {
+    throw new Error(`Invalid ${fieldName}: "${value}". Contains unsafe characters.`);
+  }
+  return true;
+}
 
 // ANSI color codes for console output
 const colors = {
@@ -109,13 +127,95 @@ function execCommand(command, options = {}) {
   }
 }
 
+// Cache for executable paths
+const executablePaths = {};
+
+/**
+ * Find the full path to an executable
+ * @param {string} executable - Executable name (e.g., 'git', 'go')
+ * @returns {string} Full path to executable
+ */
+function findExecutable(executable) {
+  // Return cached path if available
+  if (executablePaths[executable]) {
+    return executablePaths[executable];
+  }
+
+  try {
+    // Use 'where' on Windows, 'which' on Unix-like systems
+    const command = process.platform === 'win32' ? 'where' : 'which';
+    const result = execCommand(`${command} ${executable}`);
+
+    // On Windows, 'where' might return multiple paths, take the first one
+    const execPath = result.split('\n')[0].trim();
+
+    // Cache the result
+    executablePaths[executable] = execPath;
+    return execPath;
+  } catch (error) {
+    throw new Error(`Could not find ${executable} executable in PATH: ${error.message}`);
+  }
+}
+
+/**
+ * Fetch the latest release tag from GitHub
+ * @param {string} repo - Repository in format owner/repo
+ * @returns {Promise<string>} Latest release tag
+ */
+async function fetchLatestReleaseTag(repo) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.github.com',
+      path: `/repos/${repo}/releases/latest`,
+      headers: {
+        'User-Agent': 'LizardByte-Actions-Pinact',
+        'Accept': 'application/vnd.github+json'
+      }
+    };
+
+    https.get(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        try {
+          const release = JSON.parse(data);
+
+          if (!release.tag_name) {
+            reject(new Error('No tag_name found in release data'));
+            return;
+          }
+
+          // Validate tag_name to prevent command injection
+          try {
+            validateSafeString(release.tag_name, 'tag_name');
+          } catch (error) {
+            reject(error);
+            return;
+          }
+
+          Logger.info('Latest release: ' + release.tag_name);
+          resolve(release.tag_name);
+        } catch (error) {
+          reject(new Error('Failed to parse release data: ' + error.message));
+        }
+      });
+    }).on('error', (error) => {
+      reject(new Error('Failed to fetch latest release: ' + error.message));
+    });
+  });
+}
+
 /**
  * Install pinact
  * @param {string} pinactRepo - Repository to install from (format: owner/repo)
  * @param {string} pinactVersion - Version to install (tag, commit hash, or 'latest')
- * @returns {string} Path to pinact binary
+ * @returns {Promise<string>} Path to pinact binary
  */
-function installPinact(pinactRepo, pinactVersion) {
+async function installPinact(pinactRepo, pinactVersion) {
   Logger.log('');
   Logger.header('=== Installing pinact ===');
   Logger.log('Repository: ' + pinactRepo);
@@ -123,49 +223,50 @@ function installPinact(pinactRepo, pinactVersion) {
   Logger.log('');
 
   try {
-    const gopath = execCommand('go env GOPATH').trim();
+    // Validate inputs to prevent command injection
+    validateSafeString(pinactRepo, 'pinactRepo');
+    validateSafeString(pinactVersion, 'pinactVersion');
+
+    // Find git and go executables once with full paths for security
+    // These are cached in executablePaths for reuse throughout the action
+    executablePaths.go = findExecutable('go');
+    executablePaths.git = findExecutable('git');
+
+    // Use the found go executable to get GOPATH
+    const gopath = execFileSync(executablePaths.go, ['env', 'GOPATH'], { encoding: 'utf-8' }).trim();
     const pinactPath = path.join(gopath, 'bin', process.platform === 'win32' ? 'pinact.exe' : 'pinact');
 
-    // Check if this is using a custom repo or non-standard version
-    const isDefaultRepo = pinactRepo === 'suzuki-shunsuke/pinact';
-    const isStandardVersion = pinactVersion === 'latest' || /^v?\d+\.\d+\.\d+/.test(pinactVersion);
-
-    // Only use go install for default repo with standard versions
-    if (isDefaultRepo && isStandardVersion) {
-      // Use go install for standard versions from the default repo
-      const installUrl = pinactVersion === 'latest'
-        ? 'github.com/' + pinactRepo + '/cmd/pinact@latest'
-        : 'github.com/' + pinactRepo + '/cmd/pinact@' + pinactVersion;
-
-      execCommand('go install ' + installUrl, { stdio: 'inherit' });
-    } else {
-      // For custom repos, branches, or commit hashes, clone and build manually
-      Logger.info('Building from source (repo: ' + pinactRepo + ', version: ' + pinactVersion + ')...');
+    // Resolve 'latest' to actual version tag
+    let actualVersion = pinactVersion;
+    if (pinactVersion === 'latest') {
+      actualVersion = await fetchLatestReleaseTag(pinactRepo);
       Logger.log('');
+    }
 
-      const tmpDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'pinact-build-'));
-      const repoPath = path.join(tmpDir, 'pinact');
+    // Always build from source for reliability
+    // Using go install with specific versions can be problematic with module paths
+    Logger.info('Building from source (repo: ' + pinactRepo + ', version: ' + actualVersion + ')...');
+    Logger.log('');
 
+    const tmpDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'pinact-build-'));
+    const repoPath = path.join(tmpDir, 'pinact');
+
+    try {
+      // Clone the repository using execFileSync (use cached git path)
+      const cloneUrl = 'https://github.com/' + pinactRepo + '.git';
+      execFileSync(executablePaths.git, ['clone', cloneUrl, repoPath], { stdio: 'inherit' });
+
+      // Checkout the specific version (branch or commit)
+      execFileSync(executablePaths.git, ['checkout', actualVersion], { cwd: repoPath, stdio: 'inherit' });
+
+      // Build and install (use cached go path)
+      execFileSync(executablePaths.go, ['install', './cmd/pinact'], { cwd: repoPath, stdio: 'inherit' });
+    } finally {
+      // Clean up
       try {
-        // Clone the repository
-        execCommand('git clone https://github.com/' + pinactRepo + '.git ' + repoPath, { stdio: 'inherit' });
-
-        // Checkout the specific version (branch or commit)
-        execCommand('git checkout ' + pinactVersion, { cwd: repoPath, stdio: 'inherit' });
-
-        // Build and install
-        execCommand('go install ./cmd/pinact', { cwd: repoPath, stdio: 'inherit' });
-
-        // Clean up
         fs.rmSync(tmpDir, { recursive: true, force: true });
-      } catch (buildError) {
-        // Clean up on error
-        try {
-          fs.rmSync(tmpDir, { recursive: true, force: true });
-        } catch {
-          // Ignore cleanup errors
-        }
-        throw buildError;
+      } catch {
+        // Ignore cleanup errors
       }
     }
 
@@ -187,17 +288,16 @@ function installPinact(pinactRepo, pinactVersion) {
 function runPinact(pinactPath, repoPath, pinactConfigPath = '') {
   Logger.log('Running pinact on repository...');
 
-
   try {
     // Run pinact with the 'run' command, optionally with --config
-    let pinactCommand = '"' + pinactPath + '" run';
+    const pinactArgs = ['run'];
     if (pinactConfigPath) {
-      pinactCommand += ' --config "' + pinactConfigPath + '"';
+      pinactArgs.push('--config', pinactConfigPath);
     }
-    execCommand(pinactCommand, { cwd: repoPath, stdio: 'inherit' });
+    execFileSync(pinactPath, pinactArgs, { cwd: repoPath, stdio: 'inherit' });
 
     // Check if there are any changes
-    const status = execCommand('git status --porcelain', { cwd: repoPath }).trim();
+    const status = execFileSync(executablePaths.git, ['status', '--porcelain'], { cwd: repoPath, encoding: 'utf-8' }).trim();
 
     if (status) {
       Logger.success('✅ Pinact made changes to workflow files');
@@ -207,7 +307,7 @@ function runPinact(pinactPath, repoPath, pinactConfigPath = '') {
       Logger.header('=== Changes made by pinact ===');
       Logger.log('');
       try {
-        const diff = execCommand('git diff --color=always .github/workflows', { cwd: repoPath });
+        const diff = execFileSync(executablePaths.git, ['diff', '--color=always', '.github/workflows'], { cwd: repoPath, encoding: 'utf-8' });
         Logger.log(diff);
       } catch (diffError) {
         Logger.warning('⚠️  Could not display diff: ' + diffError.message);
@@ -233,8 +333,8 @@ function runPinact(pinactPath, repoPath, pinactConfigPath = '') {
  * @param {string} authorEmail - Git author email
  */
 function configureGit(repoPath, authorName, authorEmail) {
-  execCommand(`git config user.name "${authorName}"`, { cwd: repoPath });
-  execCommand(`git config user.email "${authorEmail}"`, { cwd: repoPath });
+  execFileSync(executablePaths.git, ['config', 'user.name', authorName], { cwd: repoPath });
+  execFileSync(executablePaths.git, ['config', 'user.email', authorEmail], { cwd: repoPath });
 }
 
 /**
@@ -257,25 +357,27 @@ function commitAndPush(repoPath, options) {
   configureGit(repoPath, authorName, authorEmail);
 
   // Create and checkout new branch
-  execCommand('git checkout -b ' + branchName, { cwd: repoPath });
+  execFileSync(executablePaths.git, ['checkout', '-b', branchName], { cwd: repoPath });
 
   // Add all changes
-  execCommand('git add .github/workflows', { cwd: repoPath });
+  execFileSync(executablePaths.git, ['add', '.github/workflows'], { cwd: repoPath });
 
   // Commit changes
   const commitMessage = 'chore: update GitHub Actions to use commit hashes';
-  execCommand('git commit -m "' + commitMessage + '"', { cwd: repoPath });
+  execFileSync(executablePaths.git, ['commit', '-m', commitMessage], { cwd: repoPath });
 
   if (dryRun) {
     Logger.info('🔍 DRY RUN: Would push to branch: ' + branchName + ' (skipping)');
     Logger.log('');
   } else {
     // Set remote URL with token to ensure authentication works
+    // Security Note: Token is from GitHub Actions secrets, used only for authentication
+    // It's passed via URL which is necessary for git authentication but not logged
     const repoUrl = 'https://x-access-token:' + token + '@github.com/' + owner + '/' + repo + '.git';
-    execCommand('git remote set-url origin ' + repoUrl, { cwd: repoPath });
+    execFileSync(executablePaths.git, ['remote', 'set-url', 'origin', repoUrl], { cwd: repoPath });
 
     // Push branch
-    execCommand('git push -u origin ' + branchName, { cwd: repoPath });
+    execFileSync(executablePaths.git, ['push', '-u', 'origin', branchName], { cwd: repoPath });
     Logger.success('✅ Changes committed and pushed to branch: ' + branchName);
     Logger.log('');
   }
@@ -425,22 +527,18 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
  * @returns {Promise<string>} Default branch name
  */
 async function getDefaultBranch(github, owner, repo) {
-  try {
-    const { data: repository } = await retryWithBackoff(async () => {
-      return await github.rest.repos.get({
-        owner: owner,
-        repo: repo
-      });
+  const { data: repository } = await retryWithBackoff(async () => {
+    return await github.rest.repos.get({
+      owner: owner,
+      repo: repo
     });
+  });
 
-    if (!repository.default_branch) {
-      throw new Error('Could not determine default branch for ' + owner + '/' + repo);
-    }
-
-    return repository.default_branch;
-  } catch (error) {
-    throw new Error('Failed to fetch default branch for ' + owner + '/' + repo + ': ' + error.message);
+  if (!repository.default_branch) {
+    throw new Error('Could not determine default branch for ' + owner + '/' + repo);
   }
+
+  return repository.default_branch;
 }
 
 /**
@@ -455,7 +553,7 @@ function cloneRepository(owner, repo, token, targetPath, defaultBranch) {
   Logger.log('Cloning repository ' + owner + '/' + repo + '...');
 
   const repoUrl = 'https://x-access-token:' + token + '@github.com/' + owner + '/' + repo + '.git';
-  execCommand('git clone --depth 1 --branch ' + defaultBranch + ' ' + repoUrl + ' ' + targetPath, { stdio: 'inherit' });
+  execFileSync(executablePaths.git, ['clone', '--depth', '1', '--branch', defaultBranch, repoUrl, targetPath], { stdio: 'inherit' });
 
   Logger.success('✅ Repository cloned');
   Logger.log('');
@@ -614,13 +712,35 @@ function setupPinactConfig(pinactConfig) {
  * @returns {Promise<Object>} Object with owner and repos array
  */
 async function determineRepositories(repo, github, githubOrg, includeForks, core) {
-  if (repo) {
+  // Normalize repo input - handle cases like "owner/" or just "owner"
+  const normalizedRepo = repo ? repo.trim() : '';
+
+  if (normalizedRepo && normalizedRepo !== githubOrg && normalizedRepo !== githubOrg + '/') {
     // Process single repository
-    const parts = repo.split('/');
-    if (parts.length !== 2) {
-      core.setFailed('Invalid repo format: ' + repo + '. Expected format: owner/repo');
+    const parts = normalizedRepo.split('/');
+
+    // Handle case where repo is in format "owner/" with empty repo name
+    if (parts.length === 2 && !parts[1]) {
+      Logger.warning('⚠️  Repo input appears to be incomplete: "' + normalizedRepo + '". Processing all repositories instead.');
+      Logger.log('');
+      const repos = await fetchRepositories(github, githubOrg, includeForks);
+      return { owner: githubOrg, repos: repos };
+    }
+
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      core.setFailed('Invalid repo format: "' + normalizedRepo + '". Expected format: owner/repo');
       return null;
     }
+
+    // Validate owner and repo names
+    try {
+      validateSafeString(parts[0], 'repository owner');
+      validateSafeString(parts[1], 'repository name');
+    } catch (error) {
+      core.setFailed(error.message);
+      return null;
+    }
+
     return { owner: parts[0], repos: [parts[1]] };
   } else {
     // Process all repositories in org
@@ -769,13 +889,11 @@ async function runPinactAction({ github, context, core }) {
   });
 
   try {
-    let pinactConfigPath = '';
-
     // Install pinact
-    const pinactPath = installPinact(pinactRepo, pinactVersion);
+    const pinactPath = await installPinact(pinactRepo, pinactVersion);
 
     // Create config file if config is provided
-    pinactConfigPath = setupPinactConfig(pinactConfig);
+    const pinactConfigPath = setupPinactConfig(pinactConfig);
 
     // Determine which repositories to process
     const repoInfo = await determineRepositories(repo, github, githubOrg, includeForks, core);

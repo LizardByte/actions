@@ -5,14 +5,18 @@
 
 /* eslint-env jest */
 
-const { execSync } = require('node:child_process');
+const { execSync, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
+const https = require('node:https');
 
 // Mock child_process
 jest.mock('node:child_process');
 
 // Mock fs
 jest.mock('node:fs');
+
+// Mock https
+jest.mock('node:https');
 
 // Mock the GitHub Actions core, context, and GitHub objects
 const mockCore = {
@@ -112,13 +116,66 @@ beforeEach(() => {
     if (command.includes('go env GOPATH')) {
       return '/home/user/go\n';
     }
-    if (command.includes('git status --porcelain')) {
+    // Mock 'which' and 'where' commands for findExecutable
+    if (command.includes('which git') || command.includes('where git')) {
+      return '/usr/bin/git\n';
+    }
+    if (command.includes('which go') || command.includes('where go')) {
+      return '/usr/bin/go\n';
+    }
+    return '';
+  });
+
+  // Setup default execFileSync mocks
+  execFileSync.mockImplementation((file, args = []) => {
+    // Handle git commands (file will be the full path from findExecutable)
+    const isGit = file && (file.includes('git') || file === '/usr/bin/git' || file === 'git');
+    const isGo = file && (file.includes('go') || file === '/usr/bin/go' || file === 'go');
+
+    // Handle go env GOPATH
+    if (isGo && args[0] === 'env' && args[1] === 'GOPATH') {
+      return '/home/user/go\n';
+    }
+    // Handle git status --porcelain
+    if (isGit && args[0] === 'status' && args[1] === '--porcelain') {
       return '';  // No changes by default
     }
-    if (command.includes('git diff')) {
+    // Handle git diff
+    if (isGit && args[0] === 'diff') {
       return '';  // No diff by default
     }
     return '';
+  });
+
+  // Setup default https.get mock for fetching latest release
+  const mockResponse = {
+    on: jest.fn((event, callback) => {
+      if (event === 'data') {
+        // Immediately call with mock data
+        callback(JSON.stringify({
+          tag_name: 'v3.9.0',
+          name: 'v3.9.0',
+          draft: false,
+          prerelease: false
+        }));
+      } else if (event === 'end') {
+        // Immediately call end
+        callback();
+      }
+      return mockResponse;
+    })
+  };
+
+  const mockRequest = {
+    on: jest.fn(() => {
+      // Don't call error callback by default
+      return mockRequest;
+    })
+  };
+
+  https.get.mockImplementation((options, callback) => {
+    callback(mockResponse);
+    return mockRequest;
   });
 });
 
@@ -132,6 +189,146 @@ const runPinactAction = require('../../actions/pinact/pinact.js');
 // Helper functions to reduce code duplication
 
 /**
+ * Setup execSync and execFileSync mocks with customizable behavior
+ * @param {Object} options - Mock configuration options
+ * @param {boolean} options.hasChanges - Whether git status should show changes
+ * @param {boolean} options.showDiff - Whether git diff should return diff output
+ * @param {string} options.cloneError - Error to throw on git clone
+ * @param {string} options.pinactError - Error to throw on pinact execution
+ * @param {string} options.diffError - Error to throw on git diff
+ * @param {string} options.goPathError - Error to throw on go env GOPATH
+ * @param {string} options.findGitError - Error to throw when finding git executable
+ * @param {string} options.findGoError - Error to throw when finding go executable
+ */
+function setupExecMocks(options = {}) {
+  const {
+    hasChanges = false,
+    showDiff = false,
+    cloneError = null,
+    pinactError = null,
+    diffError = null,
+    goPathError = null,
+    findGitError = null,
+    findGoError = null,
+    checkoutError = null
+  } = options;
+
+  execSync.mockImplementation((command) => {
+    if (command.includes('go env GOPATH')) {
+      return '/home/user/go\n';
+    }
+    if (command.includes('which git') || command.includes('where git')) {
+      if (findGitError) {
+        const error = new Error(findGitError);
+        error.status = 127;
+        throw error;
+      }
+      return '/usr/bin/git\n';
+    }
+    if (command.includes('which go') || command.includes('where go')) {
+      if (findGoError) {
+        const error = new Error(findGoError);
+        error.status = 127;
+        throw error;
+      }
+      return '/usr/bin/go\n';
+    }
+    return '';
+  });
+
+  execFileSync.mockImplementation((file, args = []) => {
+    // Handle pinact execution first (path might contain 'go')
+    if (pinactError && file?.includes?.('pinact')) {
+      const error = new Error(pinactError);
+      error.status = 1;
+      throw error;
+    }
+
+    const isGit = file?.includes?.('git') || file === '/usr/bin/git';
+    const isGo = file?.includes?.('go') || file === '/usr/bin/go';
+
+    // Handle go commands
+    if (isGo) {
+      return handleGoCommand(args, goPathError);
+    }
+
+    // Handle git commands
+    if (isGit) {
+      return handleGitCommand(args, {
+        cloneError,
+        checkoutError,
+        diffError,
+        hasChanges,
+        showDiff
+      });
+    }
+
+    return '';
+  });
+}
+
+/**
+ * Handle go command mocking
+ */
+function handleGoCommand(args, goPathError) {
+  if (args[0] === 'env' && args[1] === 'GOPATH') {
+    if (goPathError) {
+      throw new Error(goPathError);
+    }
+    return '/home/user/go\n';
+  }
+  return '';
+}
+
+/**
+ * Handle git command mocking
+ */
+function handleGitCommand(args, options) {
+  const { cloneError, checkoutError, diffError, hasChanges, showDiff } = options;
+
+  // Handle git clone
+  if (cloneError && args[0] === 'clone') {
+    throw new Error(cloneError);
+  }
+
+  // Handle git checkout
+  if (checkoutError && args[0] === 'checkout') {
+    throw new Error(checkoutError);
+  }
+
+  // Handle git status
+  if (args[0] === 'status' && args[1] === '--porcelain') {
+    return hasChanges ? 'M .github/workflows/test.yml\n' : '';
+  }
+
+  // Handle git diff
+  if (args[0] === 'diff') {
+    return handleGitDiff(diffError, showDiff, hasChanges);
+  }
+
+  // Handle git config
+  if (args[0] === 'config') {
+    return '';
+  }
+
+  return '';
+}
+
+/**
+ * Handle git diff command mocking
+ */
+function handleGitDiff(diffError, showDiff, hasChanges) {
+  if (diffError) {
+    throw new Error(diffError);
+  }
+  if (showDiff) {
+    return 'diff --git a/.github/workflows/test.yml\n--- a/.github/workflows/test.yml\n+++ b/.github/workflows/test.yml';
+  }
+  return hasChanges ? 'diff --git a/.github/workflows/test.yml' : '';
+}
+
+
+/**
  * Setup basic mocks for a successful action run with no repos
  */
 function setupBasicMocks() {
@@ -140,36 +337,31 @@ function setupBasicMocks() {
 }
 
 /**
- * Setup execSync mock for repository with changes
+ * Setup execSync and execFileSync mock for repository with changes
  */
 function setupExecSyncWithChanges() {
-  execSync.mockImplementation((command) => {
-    if (command.includes('go env GOPATH')) {
-      return '/home/user/go\n';
-    }
-    if (command.includes('git status --porcelain')) {
-      return 'M .github/workflows/test.yml\n';
-    }
-    if (command.includes('git diff')) {
-      return 'diff --git a/.github/workflows/test.yml';
-    }
-    return '';
-  });
+  setupExecMocks({ hasChanges: true });
 }
 
 /**
- * Setup execSync mock for default branch detection with changes
+ * Setup execSync and execFileSync mock for default branch detection with changes
  */
 function setupExecSyncForDefaultBranch() {
-  execSync.mockImplementation((command) => {
-    if (command.includes('go env GOPATH')) {
-      return '/home/user/go\n';
-    }
-    if (command.includes('git status --porcelain')) {
-      return 'M .github/workflows/test.yml\n';
-    }
-    return '';
-  });
+  setupExecMocks({ hasChanges: true });
+}
+
+/**
+ * Setup execSync and execFileSync mock for no changes
+ */
+function setupExecSyncNoChanges() {
+  setupExecMocks({ hasChanges: false });
+}
+
+/**
+ * Setup execSync and execFileSync mock with detailed diff output
+ */
+function setupExecSyncWithDetailedDiff() {
+  setupExecMocks({ hasChanges: true, showDiff: true });
 }
 
 /**
@@ -219,41 +411,20 @@ function setupMultipleReposWithChanges() {
  * Setup mocks for error scenarios
  */
 function setupErrorMocks(errorType) {
-  execSync.mockImplementation((command) => {
-    if (command.includes('go env GOPATH')) {
-      return '/home/user/go\n';
-    }
-    if (errorType === 'clone' && command.includes('git clone')) {
-      throw new Error('Clone failed');
-    }
-    if (errorType === 'pinact' && command.includes('pinact') && command.includes('run') && !command.includes('go install')) {
-      const error = new Error('Command failed: pinact run\nPinact execution failed');
-      error.status = 1;
-      throw error;
-    }
-    if (command.includes('git status') || command.includes('git config')) {
-      return '';
-    }
-    return '';
-  });
+  const options = {};
+  if (errorType === 'clone') {
+    options.cloneError = 'Clone failed';
+  } else if (errorType === 'pinact') {
+    options.pinactError = 'Command failed: pinact run\nPinact execution failed';
+  }
+  setupExecMocks(options);
 }
 
 /**
  * Setup mocks for diff error
  */
 function setupDiffErrorMocks() {
-  execSync.mockImplementation((command) => {
-    if (command.includes('go env GOPATH')) {
-      return '/home/user/go\n';
-    }
-    if (command.includes('git status --porcelain')) {
-      return 'M .github/workflows/test.yml\n';
-    }
-    if (command.includes('git diff')) {
-      throw new Error('Diff failed');
-    }
-    return '';
-  });
+  setupExecMocks({ hasChanges: true, diffError: 'Diff failed' });
 }
 
 /**
@@ -287,66 +458,36 @@ async function runWithPlatform(platform, testFn) {
 }
 
 /**
- * Verify execSync was called with git clone
+ * Verify execFileSync was called with git clone
  */
 function expectGitClone(repoUrl) {
-  expect(execSync).toHaveBeenCalledWith(
-    expect.stringContaining('git clone ' + repoUrl),
+  expect(execFileSync).toHaveBeenCalledWith(
+    expect.stringMatching(/git/),  // Match any path containing 'git'
+    expect.arrayContaining(['clone', repoUrl]),
     expect.any(Object)
   );
 }
 
 /**
- * Verify execSync was called with git checkout
+ * Verify execFileSync was called with git checkout
  */
 function expectGitCheckout(ref) {
-  expect(execSync).toHaveBeenCalledWith(
-    'git checkout ' + ref,
-    expect.any(Object)
+  expect(execFileSync).toHaveBeenCalledWith(
+    expect.stringMatching(/git/),  // Match any path containing 'git'
+    ['checkout', ref],
+    expect.objectContaining({ stdio: 'inherit' })
   );
 }
 
 /**
- * Verify execSync was called with go install ./cmd/pinact
+ * Verify execFileSync was called with go install ./cmd/pinact
  */
 function expectGoInstallLocal() {
-  expect(execSync).toHaveBeenCalledWith(
-    'go install ./cmd/pinact',
-    expect.any(Object)
+  expect(execFileSync).toHaveBeenCalledWith(
+    expect.stringMatching(/go/),  // Match any path containing 'go'
+    ['install', './cmd/pinact'],
+    expect.objectContaining({ stdio: 'inherit' })
   );
-}
-
-/**
- * Setup execSync mock for no changes
- */
-function setupExecSyncNoChanges() {
-  execSync.mockImplementation((command) => {
-    if (command.includes('go env GOPATH')) {
-      return '/home/user/go\n';
-    }
-    if (command.includes('git status --porcelain')) {
-      return '';  // No changes
-    }
-    return '';
-  });
-}
-
-/**
- * Setup execSync mock with detailed diff output
- */
-function setupExecSyncWithDetailedDiff() {
-  execSync.mockImplementation((command) => {
-    if (command.includes('go env GOPATH')) {
-      return '/home/user/go\n';
-    }
-    if (command.includes('git status --porcelain')) {
-      return 'M .github/workflows/test.yml\n';
-    }
-    if (command.includes('git diff')) {
-      return 'diff --git a/.github/workflows/test.yml\n--- a/.github/workflows/test.yml\n+++ b/.github/workflows/test.yml';
-    }
-    return '';
-  });
 }
 
 /**
@@ -394,17 +535,77 @@ async function testRepositoryFiltering(repos, expectedCount, expectedMessage) {
   }
 }
 
+/**
+ * Setup https.get mock to return specific response or error
+ * @param {Object} options - Mock configuration
+ * @param {string} options.responseData - JSON string to return in response
+ * @param {Error} options.error - Error to throw
+ */
+function setupHttpsMock(options = {}) {
+  if (options.error) {
+    const mockRequest = {
+      on: jest.fn((event, callback) => {
+        if (event === 'error') {
+          callback(options.error);
+        }
+        return mockRequest;
+      })
+    };
+    https.get.mockImplementation(() => mockRequest);
+  } else {
+    const mockResponse = {
+      on: jest.fn((event, callback) => {
+        if (event === 'data') {
+          callback(options.responseData);
+        } else if (event === 'end') {
+          callback();
+        }
+        return mockResponse;
+      })
+    };
+    const mockRequest = {
+      on: jest.fn(() => mockRequest)
+    };
+    https.get.mockImplementation((opts, callback) => {
+      callback(mockResponse);
+      return mockRequest;
+    });
+  }
+}
+
 describe('Pinact Action', () => {
   describe('Installation', () => {
+    test('should handle executable not found in PATH', async () => {
+      // This test MUST run first to test before executables are cached
+      setupExecMocks({ findGitError: 'git: command not found' });
+      setupBasicMocks();
+
+      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('Could not find git executable in PATH')
+      );
+    });
+
     test('should install pinact with latest version', async () => {
       setupBasicMocks();
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('go install github.com/suzuki-shunsuke/pinact/cmd/pinact@latest'),
-        expect.any(Object)
+      // Should fetch latest release via https
+      expect(https.get).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hostname: 'api.github.com',
+          path: '/repos/suzuki-shunsuke/pinact/releases/latest'
+        }),
+        expect.any(Function)
       );
+      // Should build from source (git clone)
+      expectGitClone('https://github.com/suzuki-shunsuke/pinact.git');
+      // Should checkout the resolved version
+      expectGitCheckout('v3.9.0');
+      // Should install locally
+      expectGoInstallLocal();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -414,10 +615,12 @@ describe('Pinact Action', () => {
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('go install github.com/suzuki-shunsuke/pinact/cmd/pinact@v1.2.3'),
-        expect.any(Object)
-      );
+      // Should build from source (git clone)
+      expectGitClone('https://github.com/suzuki-shunsuke/pinact.git');
+      // Should checkout specific version
+      expectGitCheckout('v1.2.3');
+      // Should install locally
+      expectGoInstallLocal();
     });
 
     test('should install pinact from custom repository', async () => {
@@ -426,15 +629,17 @@ describe('Pinact Action', () => {
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
+      // Should fetch latest release tag via https
+      expect(https.get).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hostname: 'api.github.com',
+          path: '/repos/custom-org/pinact-fork/releases/latest'
+        }),
+        expect.any(Function)
+      );
       // Custom repos should use clone and build, not go install
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('git clone https://github.com/custom-org/pinact-fork.git'),
-        expect.any(Object)
-      );
-      expect(execSync).toHaveBeenCalledWith(
-        'go install ./cmd/pinact',
-        expect.any(Object)
-      );
+      expectGitClone('https://github.com/custom-org/pinact-fork.git');
+      expectGoInstallLocal();
     });
 
     test('should install pinact from custom repository with specific version', async () => {
@@ -467,51 +672,80 @@ describe('Pinact Action', () => {
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('git clone'),
-        expect.any(Object)
-      );
+      expectGitClone('https://github.com/suzuki-shunsuke/pinact.git');
       expectGitCheckout('abc123def456');
     });
 
     test('should handle installation failure', async () => {
-      execSync.mockImplementation((command) => {
-        if (command.includes('go install')) {
-          throw new Error('Installation failed');
-        }
-        return '';
-      });
+      // Mock https.get to simulate network error
+      setupHttpsMock({ error: new Error('Network error') });
       setupBasicMocks();
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining('Installation failed')
+        expect.stringContaining('Failed to install pinact')
+      );
+    });
+
+    test('should handle invalid JSON response from GitHub API', async () => {
+      // Mock https response with invalid JSON
+      setupHttpsMock({ responseData: 'invalid json{' });
+      setupBasicMocks();
+
+      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to install pinact')
+      );
+    });
+
+    test('should handle missing tag_name in GitHub API response', async () => {
+      // Mock https response without tag_name
+      setupHttpsMock({ responseData: JSON.stringify({ name: 'some release' }) });
+      setupBasicMocks();
+
+      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to install pinact')
+      );
+    });
+
+    test('should handle unsafe tag_name in GitHub API response', async () => {
+      // Mock https response with unsafe tag_name
+      setupHttpsMock({ responseData: JSON.stringify({ tag_name: 'v1.0.0; rm -rf /' }) });
+      setupBasicMocks();
+
+      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to install pinact')
+      );
+    });
+
+    test('should handle go env GOPATH failure', async () => {
+      setupExecMocks({ goPathError: 'go env GOPATH failed' });
+      setupBasicMocks();
+
+      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to install pinact')
       );
     });
 
     test('should handle build from source failure and cleanup errors', async () => {
       process.env.INPUT_PINACT_VERSION = 'feat/my-branch';
 
-      execSync.mockImplementation((command) => {
-        if (command.includes('go env GOPATH')) {
-          return '/home/user/go\n';
-        }
-        if (command.includes('git clone')) {
-          return '';
-        }
-        if (command.includes('git checkout')) {
-          throw new Error('Checkout failed');
-        }
-        return '';
-      });
+      setupExecMocks({ checkoutError: 'Checkout failed' });
 
       // Make cleanup also fail
       let rmSyncCallCount = 0;
       fs.rmSync.mockImplementation(() => {
         rmSyncCallCount++;
         if (rmSyncCallCount === 1) {
-          // First cleanup attempt (in catch block) should fail
+          // First cleanup attempt (in finally block) should fail
           throw new Error('Cleanup failed');
         }
         // Other cleanup calls succeed
@@ -522,7 +756,7 @@ describe('Pinact Action', () => {
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(
-        expect.stringContaining('Checkout failed')
+        expect.stringContaining('Failed to install pinact')
       );
       // Verify cleanup was attempted despite failing
       expect(fs.rmSync).toHaveBeenCalled();
@@ -535,8 +769,9 @@ describe('Pinact Action', () => {
         await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
       });
 
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('go install'),
+      expect(execFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/go/),  // Match any path containing 'go'
+        expect.arrayContaining(['install']),
         expect.any(Object)
       );
     });
@@ -548,8 +783,9 @@ describe('Pinact Action', () => {
         await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
       });
 
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('go install'),
+      expect(execFileSync).toHaveBeenCalledWith(
+        expect.stringMatching(/go/),  // Match any path containing 'go'
+        expect.arrayContaining(['install']),
         expect.any(Object)
       );
     });
@@ -577,11 +813,14 @@ describe('Pinact Action', () => {
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
       // Verify token was used (check for git clone with token)
-      const cloneCalls = execSync.mock.calls.filter(call =>
-        typeof call[0] === 'string' && call[0].includes('git clone')
+      // There will be 2 clone calls: 1 for building pinact, 1 for the repo
+      const cloneCalls = execFileSync.mock.calls.filter(call =>
+        call[0]?.includes?.('git') && call[1]?.[0] === 'clone'
       );
-      expect(cloneCalls.length).toBeGreaterThan(0);
-      expect(cloneCalls[0][0]).toContain('x-access-token:');
+      expect(cloneCalls.length).toBeGreaterThan(1); // Should have at least 2 clones
+      // Check that the repository clone URL (second one) contains the token
+      const repoCloneCall = cloneCalls[1]; // Second clone is for the actual repository
+      expect(repoCloneCall[1].some(arg => typeof arg === 'string' && arg.includes('x-access-token:'))).toBe(true);
 
       // Restore GITHUB_TOKEN
       process.env.GITHUB_TOKEN = 'test-token';
@@ -685,6 +924,30 @@ describe('Pinact Action', () => {
       );
     });
 
+    test('should handle unsafe characters in repo name', async () => {
+      process.env.INPUT_REPO = 'owner/repo;rm -rf';
+
+      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        expect.stringContaining('unsafe characters')
+      );
+    });
+
+    test('should handle incomplete repo format with trailing slash', async () => {
+      process.env.INPUT_REPO = 'different-org/';
+      process.env.INPUT_GITHUB_ORG = 'test-org';
+      mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
+      mockGithub.paginate.mockResolvedValue([createRepoListItem()]);
+      mockGithub.rest.repos.get.mockResolvedValue({ data: createRepoData() });
+
+      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+      // Check for warning in console output
+      expect(consoleOutput.some(line => line.includes('Repo input appears to be incomplete'))).toBe(true);
+      expect(consoleOutput.some(line => line.includes('Processing all repositories instead'))).toBe(true);
+    });
+
     test('should use correct owner when repo is specified', async () => {
       process.env.INPUT_REPO = 'different-org/repo';
       mockGithub.rest.repos.get.mockResolvedValue({
@@ -767,11 +1030,11 @@ describe('Pinact Action', () => {
       );
 
       // Verify pinact was called with --config option
-      const pinactCalls = execSync.mock.calls.filter(call =>
-        typeof call[0] === 'string' && call[0].includes('pinact') && call[0].includes('run')
+      const pinactCalls = execFileSync.mock.calls.filter(call =>
+        call[0]?.includes?.('pinact') && call[1]?.[0] === 'run'
       );
       expect(pinactCalls.length).toBeGreaterThan(0);
-      expect(pinactCalls[0][0]).toContain('--config');
+      expect(pinactCalls[0][1]).toContain('--config');
 
       // Verify config file was cleaned up
       expect(fs.rmSync).toHaveBeenCalledWith(
@@ -781,49 +1044,53 @@ describe('Pinact Action', () => {
     });
   });
 
-  describe('Git Operations', () => {
-    test('should configure git with custom author', async () => {
-      process.env.INPUT_GIT_AUTHOR_NAME = 'Custom Bot';
-      process.env.INPUT_GIT_AUTHOR_EMAIL = 'bot@example.com';
+    describe('Git Operations', () => {
+      test('should configure git with custom author', async () => {
+        process.env.INPUT_GIT_AUTHOR_NAME = 'Custom Bot';
+        process.env.INPUT_GIT_AUTHOR_EMAIL = 'bot@example.com';
 
-      setupSingleRepoWithChanges();
+        setupSingleRepoWithChanges();
 
-      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+        await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('git config user.name "Custom Bot"'),
-        expect.any(Object)
-      );
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('git config user.email "bot@example.com"'),
-        expect.any(Object)
-      );
+        expect(execFileSync).toHaveBeenCalledWith(
+          expect.stringMatching(/git/),  // Match any path containing 'git'
+          ['config', 'user.name', 'Custom Bot'],
+          expect.any(Object)
+        );
+        expect(execFileSync).toHaveBeenCalledWith(
+          expect.stringMatching(/git/),  // Match any path containing 'git'
+          ['config', 'user.email', 'bot@example.com'],
+          expect.any(Object)
+        );
+      });
+
+      test('should create branch with custom name', async () => {
+        process.env.INPUT_PR_BRANCH_NAME = 'custom-branch';
+
+        setupSingleRepoWithChanges();
+
+        await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+        expect(execFileSync).toHaveBeenCalledWith(
+          expect.stringMatching(/git/),  // Match any path containing 'git'
+          ['checkout', '-b', 'custom-branch'],
+          expect.any(Object)
+        );
+      });
+
+      test('should commit with appropriate message', async () => {
+        setupSingleRepoWithChanges();
+
+        await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+        expect(execFileSync).toHaveBeenCalledWith(
+          expect.stringMatching(/git/),  // Match any path containing 'git'
+          ['commit', '-m', 'chore: update GitHub Actions to use commit hashes'],
+          expect.any(Object)
+        );
+      });
     });
-
-    test('should create branch with custom name', async () => {
-      process.env.INPUT_PR_BRANCH_NAME = 'custom-branch';
-
-      setupSingleRepoWithChanges();
-
-      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
-
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('git checkout -b custom-branch'),
-        expect.any(Object)
-      );
-    });
-
-    test('should commit with appropriate message', async () => {
-      setupSingleRepoWithChanges();
-
-      await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
-
-      expect(execSync).toHaveBeenCalledWith(
-        expect.stringContaining('chore: update GitHub Actions to use commit hashes'),
-        expect.any(Object)
-      );
-    });
-  });
 
   describe('Pull Request Creation', () => {
     beforeEach(() => {
@@ -885,7 +1152,8 @@ describe('Pinact Action', () => {
 
   describe('Error Handling', () => {
     test('should handle repository processing errors gracefully', async () => {
-      setupErrorMocks('clone');
+      // Use pinact error instead of clone error since clone now happens during install
+      setupErrorMocks('pinact');
       setupSingleRepoNoChanges();
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
@@ -931,8 +1199,8 @@ describe('Pinact Action', () => {
       expect(consoleOutput.some(line => line.includes('Dry Run Mode:') && line.includes('ENABLED'))).toBe(true);
       expect(consoleOutput.some(line => line.includes('DRY RUN:') && line.includes('Would push'))).toBe(true);
 
-      const pushCalls = execSync.mock.calls.filter(call =>
-        typeof call[0] === 'string' && call[0].includes('git push')
+      const pushCalls = execFileSync.mock.calls.filter(call =>
+        call[0]?.includes?.('git') && call[1]?.[0] === 'push'
       );
       expect(pushCalls).toHaveLength(0);
     });

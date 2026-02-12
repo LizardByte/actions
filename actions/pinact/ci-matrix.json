@@ -3,6 +3,7 @@
     "runs-on": "ubuntu-latest",
     "with": {
       "dryRun": "true",
+      "pinactConfig": "---\nversion: 3\nignore_actions:\n  - name: LizardByte/.*\n    ref: master\n  - name: Homebrew/actions/.*\n    ref: main\nseparator: \"  # \"",
       "repo": "LizardByte/actions",
       "token": "${ secrets.GITHUB_TOKEN }"
     }
