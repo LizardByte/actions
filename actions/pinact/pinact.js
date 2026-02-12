@@ -249,8 +249,9 @@ async function installPinact(pinactRepo, pinactVersion) {
 
     // Only use go install for default repo with standard versions
     if (isDefaultRepo && isStandardVersion) {
-      const installUrl = 'github.com/' + pinactRepo + '/cmd/pinact@' + actualVersion;
-      execFileSync(executablePaths.go, ['install', installUrl], { stdio: 'inherit' });
+      // Use the module path (not package path) with version for go install
+      const installUrl = 'github.com/' + pinactRepo + '@' + actualVersion;
+      execFileSync(executablePaths.go, ['install', installUrl + '/cmd/pinact'], { stdio: 'inherit' });
     } else {
       // For custom repos, branches, or commit hashes, clone and build manually
       Logger.info('Building from source (repo: ' + pinactRepo + ', version: ' + actualVersion + ')...');

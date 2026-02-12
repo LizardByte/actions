@@ -237,58 +237,96 @@ function setupExecMocks(options = {}) {
   });
 
   execFileSync.mockImplementation((file, args = []) => {
-    const isGit = file && (file.includes('git') || file === '/usr/bin/git' || file === 'git');
-    const isGo = file && (file.includes('go') || file === '/usr/bin/go' || file === 'go');
-
-    // Handle go env GOPATH
-    if (isGo && args[0] === 'env' && args[1] === 'GOPATH') {
-      if (goPathError) {
-        throw new Error(goPathError);
-      }
-      return '/home/user/go\n';
-    }
-
-    // Handle git clone
-    if (cloneError && isGit && args[0] === 'clone') {
-      throw new Error(cloneError);
-    }
-
-    // Handle git checkout
-    if (checkoutError && isGit && args[0] === 'checkout') {
-      throw new Error(checkoutError);
-    }
-
-    // Handle pinact execution
-    if (pinactError && file && typeof file === 'string' && file.includes('pinact')) {
+    // Handle pinact execution first (path might contain 'go')
+    if (pinactError && file?.includes?.('pinact')) {
       const error = new Error(pinactError);
       error.status = 1;
       throw error;
     }
 
-    // Handle git status
-    if (isGit && args[0] === 'status' && args[1] === '--porcelain') {
-      return hasChanges ? 'M .github/workflows/test.yml\n' : '';
+    const isGit = file?.includes?.('git') || file === '/usr/bin/git';
+    const isGo = file?.includes?.('go') || file === '/usr/bin/go';
+
+    // Handle go commands
+    if (isGo) {
+      return handleGoCommand(args, goPathError);
     }
 
-    // Handle git diff
-    if (isGit && args[0] === 'diff') {
-      if (diffError) {
-        throw new Error(diffError);
-      }
-      if (showDiff) {
-        return 'diff --git a/.github/workflows/test.yml\n--- a/.github/workflows/test.yml\n+++ b/.github/workflows/test.yml';
-      }
-      return hasChanges ? 'diff --git a/.github/workflows/test.yml' : '';
-    }
-
-    // Handle git config
-    if (isGit && args[0] === 'config') {
-      return '';
+    // Handle git commands
+    if (isGit) {
+      return handleGitCommand(args, {
+        cloneError,
+        checkoutError,
+        diffError,
+        hasChanges,
+        showDiff
+      });
     }
 
     return '';
   });
 }
+
+/**
+ * Handle go command mocking
+ */
+function handleGoCommand(args, goPathError) {
+  if (args[0] === 'env' && args[1] === 'GOPATH') {
+    if (goPathError) {
+      throw new Error(goPathError);
+    }
+    return '/home/user/go\n';
+  }
+  return '';
+}
+
+/**
+ * Handle git command mocking
+ */
+function handleGitCommand(args, options) {
+  const { cloneError, checkoutError, diffError, hasChanges, showDiff } = options;
+
+  // Handle git clone
+  if (cloneError && args[0] === 'clone') {
+    throw new Error(cloneError);
+  }
+
+  // Handle git checkout
+  if (checkoutError && args[0] === 'checkout') {
+    throw new Error(checkoutError);
+  }
+
+  // Handle git status
+  if (args[0] === 'status' && args[1] === '--porcelain') {
+    return hasChanges ? 'M .github/workflows/test.yml\n' : '';
+  }
+
+  // Handle git diff
+  if (args[0] === 'diff') {
+    return handleGitDiff(diffError, showDiff, hasChanges);
+  }
+
+  // Handle git config
+  if (args[0] === 'config') {
+    return '';
+  }
+
+  return '';
+}
+
+/**
+ * Handle git diff command mocking
+ */
+function handleGitDiff(diffError, showDiff, hasChanges) {
+  if (diffError) {
+    throw new Error(diffError);
+  }
+  if (showDiff) {
+    return 'diff --git a/.github/workflows/test.yml\n--- a/.github/workflows/test.yml\n+++ b/.github/workflows/test.yml';
+  }
+  return hasChanges ? 'diff --git a/.github/workflows/test.yml' : '';
+}
+
 
 /**
  * Setup basic mocks for a successful action run with no repos
@@ -565,7 +603,7 @@ describe('Pinact Action', () => {
       // Should install with resolved version (v3.9.0)
       expect(execFileSync).toHaveBeenCalledWith(
         expect.stringMatching(/go/),  // Match any path containing 'go'
-        ['install', 'github.com/suzuki-shunsuke/pinact/cmd/pinact@v3.9.0'],
+        ['install', 'github.com/suzuki-shunsuke/pinact@v3.9.0/cmd/pinact'],
         expect.objectContaining({ stdio: 'inherit' })
       );
       expect(mockCore.setFailed).not.toHaveBeenCalled();
@@ -579,7 +617,7 @@ describe('Pinact Action', () => {
 
       expect(execFileSync).toHaveBeenCalledWith(
         expect.stringMatching(/go/),  // Match any path containing 'go'
-        ['install', 'github.com/suzuki-shunsuke/pinact/cmd/pinact@v1.2.3'],
+        ['install', 'github.com/suzuki-shunsuke/pinact@v1.2.3/cmd/pinact'],
         expect.objectContaining({ stdio: 'inherit' })
       );
     });
@@ -775,7 +813,7 @@ describe('Pinact Action', () => {
 
       // Verify token was used (check for git clone with token)
       const cloneCalls = execFileSync.mock.calls.filter(call =>
-        call[0] && call[0].includes && call[0].includes('git') && call[1] && call[1][0] === 'clone'
+        call[0]?.includes?.('git') && call[1]?.[0] === 'clone'
       );
       expect(cloneCalls.length).toBeGreaterThan(0);
       // Check that the URL contains the token
@@ -990,7 +1028,7 @@ describe('Pinact Action', () => {
 
       // Verify pinact was called with --config option
       const pinactCalls = execFileSync.mock.calls.filter(call =>
-        call[0] && typeof call[0] === 'string' && call[0].includes('pinact') && call[1] && call[1][0] === 'run'
+        call[0]?.includes?.('pinact') && call[1]?.[0] === 'run'
       );
       expect(pinactCalls.length).toBeGreaterThan(0);
       expect(pinactCalls[0][1]).toContain('--config');
@@ -1158,7 +1196,7 @@ describe('Pinact Action', () => {
       expect(consoleOutput.some(line => line.includes('DRY RUN:') && line.includes('Would push'))).toBe(true);
 
       const pushCalls = execFileSync.mock.calls.filter(call =>
-        call[0] && call[0].includes && call[0].includes('git') && call[1] && call[1][0] === 'push'
+        call[0]?.includes?.('git') && call[1]?.[0] === 'push'
       );
       expect(pushCalls).toHaveLength(0);
     });
