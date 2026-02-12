@@ -600,12 +600,12 @@ describe('Pinact Action', () => {
         }),
         expect.any(Function)
       );
-      // Should install with resolved version (v3.9.0)
-      expect(execFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/go/),  // Match any path containing 'go'
-        ['install', 'github.com/suzuki-shunsuke/pinact@v3.9.0/cmd/pinact'],
-        expect.objectContaining({ stdio: 'inherit' })
-      );
+      // Should build from source (git clone)
+      expectGitClone('https://github.com/suzuki-shunsuke/pinact.git');
+      // Should checkout the resolved version
+      expectGitCheckout('v3.9.0');
+      // Should install locally
+      expectGoInstallLocal();
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
 
@@ -615,11 +615,12 @@ describe('Pinact Action', () => {
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
-      expect(execFileSync).toHaveBeenCalledWith(
-        expect.stringMatching(/go/),  // Match any path containing 'go'
-        ['install', 'github.com/suzuki-shunsuke/pinact@v1.2.3/cmd/pinact'],
-        expect.objectContaining({ stdio: 'inherit' })
-      );
+      // Should build from source (git clone)
+      expectGitClone('https://github.com/suzuki-shunsuke/pinact.git');
+      // Should checkout specific version
+      expectGitCheckout('v1.2.3');
+      // Should install locally
+      expectGoInstallLocal();
     });
 
     test('should install pinact from custom repository', async () => {
@@ -812,12 +813,14 @@ describe('Pinact Action', () => {
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
       // Verify token was used (check for git clone with token)
+      // There will be 2 clone calls: 1 for building pinact, 1 for the repo
       const cloneCalls = execFileSync.mock.calls.filter(call =>
         call[0]?.includes?.('git') && call[1]?.[0] === 'clone'
       );
-      expect(cloneCalls.length).toBeGreaterThan(0);
-      // Check that the URL contains the token
-      expect(cloneCalls[0][1].some(arg => typeof arg === 'string' && arg.includes('x-access-token:'))).toBe(true);
+      expect(cloneCalls.length).toBeGreaterThan(1); // Should have at least 2 clones
+      // Check that the repository clone URL (second one) contains the token
+      const repoCloneCall = cloneCalls[1]; // Second clone is for the actual repository
+      expect(repoCloneCall[1].some(arg => typeof arg === 'string' && arg.includes('x-access-token:'))).toBe(true);
 
       // Restore GITHUB_TOKEN
       process.env.GITHUB_TOKEN = 'test-token';
@@ -1149,7 +1152,8 @@ describe('Pinact Action', () => {
 
   describe('Error Handling', () => {
     test('should handle repository processing errors gracefully', async () => {
-      setupErrorMocks('clone');
+      // Use pinact error instead of clone error since clone now happens during install
+      setupErrorMocks('pinact');
       setupSingleRepoNoChanges();
 
       await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });

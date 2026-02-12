@@ -243,40 +243,30 @@ async function installPinact(pinactRepo, pinactVersion) {
       Logger.log('');
     }
 
-    // Check if this is using a custom repo or non-standard version
-    const isDefaultRepo = pinactRepo === 'suzuki-shunsuke/pinact';
-    const isStandardVersion = /^v?\d+\.\d+\.\d+/.test(actualVersion);
+    // Always build from source for reliability
+    // Using go install with specific versions can be problematic with module paths
+    Logger.info('Building from source (repo: ' + pinactRepo + ', version: ' + actualVersion + ')...');
+    Logger.log('');
 
-    // Only use go install for default repo with standard versions
-    if (isDefaultRepo && isStandardVersion) {
-      // Use the module path (not package path) with version for go install
-      const installUrl = 'github.com/' + pinactRepo + '@' + actualVersion;
-      execFileSync(executablePaths.go, ['install', installUrl + '/cmd/pinact'], { stdio: 'inherit' });
-    } else {
-      // For custom repos, branches, or commit hashes, clone and build manually
-      Logger.info('Building from source (repo: ' + pinactRepo + ', version: ' + actualVersion + ')...');
-      Logger.log('');
+    const tmpDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'pinact-build-'));
+    const repoPath = path.join(tmpDir, 'pinact');
 
-      const tmpDir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'pinact-build-'));
-      const repoPath = path.join(tmpDir, 'pinact');
+    try {
+      // Clone the repository using execFileSync (use cached git path)
+      const cloneUrl = 'https://github.com/' + pinactRepo + '.git';
+      execFileSync(executablePaths.git, ['clone', cloneUrl, repoPath], { stdio: 'inherit' });
 
+      // Checkout the specific version (branch or commit)
+      execFileSync(executablePaths.git, ['checkout', actualVersion], { cwd: repoPath, stdio: 'inherit' });
+
+      // Build and install (use cached go path)
+      execFileSync(executablePaths.go, ['install', './cmd/pinact'], { cwd: repoPath, stdio: 'inherit' });
+    } finally {
+      // Clean up
       try {
-        // Clone the repository using execFileSync
-        const cloneUrl = 'https://github.com/' + pinactRepo + '.git';
-        execFileSync(executablePaths.git, ['clone', cloneUrl, repoPath], { stdio: 'inherit' });
-
-        // Checkout the specific version (branch or commit)
-        execFileSync(executablePaths.git, ['checkout', actualVersion], { cwd: repoPath, stdio: 'inherit' });
-
-        // Build and install
-        execFileSync(executablePaths.go, ['install', './cmd/pinact'], { cwd: repoPath, stdio: 'inherit' });
-      } finally {
-        // Clean up
-        try {
-          fs.rmSync(tmpDir, { recursive: true, force: true });
-        } catch {
-          // Ignore cleanup errors
-        }
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      } catch {
+        // Ignore cleanup errors
       }
     }
 
