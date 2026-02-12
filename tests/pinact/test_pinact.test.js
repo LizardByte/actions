@@ -3,7 +3,14 @@
  * @jest-environment node
  */
 
-/* eslint-env jest */
+import {
+  jest,
+  describe,
+  test,
+  expect,
+  beforeEach,
+  afterEach,
+} from '@jest/globals';
 
 const { execSync, execFileSync } = require('node:child_process');
 const fs = require('node:fs');
