@@ -1193,3 +1193,40 @@ def test_process_input_formula_skips_commit_for_non_git_repo(capsys, operating_s
     captured = capsys.readouterr()
     assert 'Skipping commit for' in captured.out
     assert '(not a git repository)' in captured.out
+
+
+def test_override_actionlint_config_no_config(capsys, monkeypatch, operating_system):
+    """Test override_actionlint_config when no custom config is provided."""
+    monkeypatch.setenv('INPUT_ACTIONLINT_CONFIG', '')
+
+    main.override_actionlint_config()
+
+    captured = capsys.readouterr()
+    assert 'No custom actionlint config provided, using default' in captured.out
+
+
+def test_override_actionlint_config_with_config(capsys, monkeypatch, operating_system, tmp_path):
+    """Test override_actionlint_config with a custom config."""
+    # Create a mock brew repository
+    mock_brew_repo = tmp_path / "brew_repo"
+    mock_brew_repo.mkdir()
+
+    # Mock get_brew_repository to return our temp directory
+    with patch.object(main, 'get_brew_repository', return_value=str(mock_brew_repo)):
+        custom_config = 'self-hosted-runner:\n  labels:\n    - self-hosted'
+        monkeypatch.setenv('INPUT_ACTIONLINT_CONFIG', custom_config)
+
+        main.override_actionlint_config()
+
+        # Check that the file was created
+        actionlint_config_file = mock_brew_repo / '.github' / 'actionlint.yaml'
+        assert actionlint_config_file.exists()
+
+        # Check the content
+        with open(actionlint_config_file, 'r') as f:
+            content = f.read()
+        assert content == custom_config
+
+    captured = capsys.readouterr()
+    assert 'Overriding actionlint config' in captured.out
+    assert 'Successfully overrode actionlint config' in captured.out

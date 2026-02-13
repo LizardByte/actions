@@ -34,6 +34,7 @@ steps:
 
 | Name                          | Description                                                                               | Default                        | Required |
 |-------------------------------|-------------------------------------------------------------------------------------------|--------------------------------|----------|
+| actionlint_config             | Contents of actionlint config file, used to override the default brew config.             |                                | `false`  |
 | contribute_to_homebrew_core   | Whether to contribute to homebrew-core.                                                   | `false`                        | `false`  |
 | formula_file                  | The full path to the formula file.                                                        |                                | `true`   |
 | git_email                     | The email to use for the commit.                                                          |                                | `true`   |

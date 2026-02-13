@@ -4,12 +4,6 @@ permissions: {}
 
 on:
   pull_request:
-    branches:
-      - master
-    types:
-      - opened
-      - synchronize
-      - reopened
   push:
     branches:
       - master
@@ -75,13 +69,13 @@ jobs:
       - name: Process variables in with parameters
         id: process-with
         env:
+          ENV_GH_BOT_NAME: ${{ vars.GH_BOT_NAME }}
           ENV_GITHUB_EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
           ENV_GITHUB_EVENT_REPO_HTML_URL: ${{ github.event.repository.html_url }}
           ENV_GITHUB_EVENT_REPO_NAME: ${{ github.event.repository.name }}
           SECRETS_FACEBOOK_ACCESS_TOKEN: ${{ secrets.FACEBOOK_ACCESS_TOKEN }}
           SECRETS_FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           SECRETS_GH_BOT_EMAIL: ${{ secrets.GH_BOT_EMAIL }}
-          SECRETS_GH_BOT_NAME: ${{ secrets.GH_BOT_NAME }}
           SECRETS_GH_BOT_TOKEN: ${{ secrets.GH_BOT_TOKEN }}
           SECRETS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SECRETS_VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
@@ -97,13 +91,13 @@ jobs:
             -e "s|\${ github.run_id }|${GITHUB_RUN_ID}|g" \
             -e "s|\${ github.workspace }|${GITHUB_WORKSPACE}|g" \
             -e "s|\${ runner.os }|${RUNNER_OS}|g" \
+            -e "s|\${ vars.GH_BOT_NAME }|${ENV_GH_BOT_NAME}|g" \
             -e "s|\${ github.event.pull_request.number }|${ENV_GITHUB_EVENT_PR_NUMBER}|g" \
             -e "s|\${ github.event.repository.html_url }|${ENV_GITHUB_EVENT_REPO_HTML_URL}|g" \
             -e "s|\${ github.event.repository.name }|${ENV_GITHUB_EVENT_REPO_NAME}|g" \
             -e "s|\${ secrets.FACEBOOK_ACCESS_TOKEN }|${SECRETS_FACEBOOK_ACCESS_TOKEN}|g" \
             -e "s|\${ secrets.FACEBOOK_PAGE_ID }|${SECRETS_FACEBOOK_PAGE_ID}|g" \
             -e "s|\${ secrets.GH_BOT_EMAIL }|${SECRETS_GH_BOT_EMAIL}|g" \
-            -e "s|\${ secrets.GH_BOT_NAME }|${SECRETS_GH_BOT_NAME}|g" \
             -e "s|\${ secrets.GH_BOT_TOKEN }|${SECRETS_GH_BOT_TOKEN}|g" \
             -e "s|\${ secrets.GITHUB_TOKEN }|${SECRETS_GITHUB_TOKEN}|g" \
             -e "s|\${ secrets.VIRUSTOTAL_API_KEY }|${SECRETS_VIRUSTOTAL_API_KEY}|g" \

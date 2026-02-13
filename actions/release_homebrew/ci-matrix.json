@@ -2,10 +2,11 @@
   {
     "runs-on": "macos-latest",
     "with": {
+      "actionlint_config": "---\n# empty config",
       "contribute_to_homebrew_core": true,
       "formula_file": "${ github.workspace }/tests/release_homebrew/Formula/hello_world.rb",
       "git_email": "${ secrets.GH_BOT_EMAIL }",
-      "git_username": "${ secrets.GH_BOT_NAME }",
+      "git_username": "${ vars.GH_BOT_NAME }",
       "org_homebrew_repo": "LizardByte/homebrew-homebrew",
       "org_homebrew_repo_base_branch": "master",
       "publish": false,
@@ -16,10 +17,11 @@
   {
     "runs-on": "ubuntu-latest",
     "with": {
+      "actionlint_config": "---\n# empty config",
       "contribute_to_homebrew_core": true,
       "formula_file": "${ github.workspace }/tests/release_homebrew/Formula/hello_world.rb",
       "git_email": "${ secrets.GH_BOT_EMAIL }",
-      "git_username": "${ secrets.GH_BOT_NAME }",
+      "git_username": "${ vars.GH_BOT_NAME }",
       "org_homebrew_repo": "LizardByte/homebrew-homebrew",
       "org_homebrew_repo_base_branch": "master",
       "publish": false,
@@ -30,10 +32,11 @@
   {
     "runs-on": "ubuntu-latest",
     "with": {
+      "actionlint_config": "---\n# empty config",
       "contribute_to_homebrew_core": false,
       "formula_file": "${ github.workspace }/tests/release_homebrew/Formula/hello_world.rb",
       "git_email": "${ secrets.GH_BOT_EMAIL }",
-      "git_username": "${ secrets.GH_BOT_NAME }",
+      "git_username": "${ vars.GH_BOT_NAME }",
       "publish": true,
       "remove_labels": "",
       "token": "${ secrets.GH_BOT_TOKEN }",
