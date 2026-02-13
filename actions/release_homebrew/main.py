@@ -693,6 +693,36 @@ def process_input_formula(formula_file: str) -> str:
     return formula
 
 
+def override_actionlint_config() -> None:
+    """
+    Override the default actionlint config file if INPUT_ACTIONLINT_CONFIG is provided.
+    """
+    actionlint_config_content = os.getenv('INPUT_ACTIONLINT_CONFIG', '').strip()
+
+    if not actionlint_config_content:
+        print('No custom actionlint config provided, using default')
+        return
+
+    start_group('Overriding actionlint config')
+
+    # Get the brew repository path
+    brew_repo = get_brew_repository()
+    actionlint_config_file = os.path.join(brew_repo, '.github', 'actionlint.yaml')
+
+    print(f'Overriding actionlint config at: {actionlint_config_file}')
+
+    # Create the .github directory if it doesn't exist
+    github_dir = os.path.dirname(actionlint_config_file)
+    os.makedirs(github_dir, exist_ok=True)
+
+    # Write the custom config
+    with open(actionlint_config_file, 'w') as f:
+        f.write(actionlint_config_content)
+
+    print('Successfully overrode actionlint config')
+    end_group()
+
+
 def is_brew_installed() -> bool:
     print('Checking if Homebrew is installed')
     return _run_subprocess(
@@ -969,6 +999,9 @@ def main():
     if not audit_formula(formula):
         print(f'::error:: Formula {formula} failed audit')
         FAILURES.append('audit')
+
+    # Override actionlint config if provided
+    override_actionlint_config()
 
     if not brew_test_bot_only_tap_syntax():
         print('::error:: brew test-bot --only-tap-syntax failed')
