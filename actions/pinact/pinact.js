@@ -123,7 +123,7 @@ function execCommand(command, options = {}) {
   try {
     return execSync(command, { encoding: 'utf-8', ...options });
   } catch (error) {
-    throw new Error(`Command failed: ${command}\n${error.message}`);
+    throw new Error(`Command failed: ${command}\n${error.message}`, { cause: error });
   }
 }
 
@@ -153,7 +153,7 @@ function findExecutable(executable) {
     executablePaths[executable] = execPath;
     return execPath;
   } catch (error) {
-    throw new Error(`Could not find ${executable} executable in PATH: ${error.message}`);
+    throw new Error(`Could not find ${executable} executable in PATH: ${error.message}`, { cause: error });
   }
 }
 
@@ -274,7 +274,7 @@ async function installPinact(pinactRepo, pinactVersion) {
     Logger.log('');
     return pinactPath;
   } catch (error) {
-    throw new Error('Failed to install pinact: ' + error.message);
+    throw new Error('Failed to install pinact: ' + error.message, { cause: error });
   }
 }
 
@@ -322,7 +322,7 @@ function runPinact(pinactPath, repoPath, pinactConfigPath = '') {
       return false;
     }
   } catch (error) {
-    throw new Error('Failed to run pinact: ' + error.message);
+    throw new Error('Failed to run pinact: ' + error.message, { cause: error });
   }
 }
 
@@ -464,7 +464,7 @@ Please review the changes before merging.`;
     Logger.log('');
     return pr;
   } catch (error) {
-    throw new Error('Failed to create pull request: ' + error.message);
+    throw new Error('Failed to create pull request: ' + error.message, { cause: error });
   }
 }
 
