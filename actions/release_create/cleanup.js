@@ -50,7 +50,7 @@ function matchesVersionPattern(tagName) {
  * @returns {Array} Releases to delete
  */
 function filterReleasesToDelete(allReleases, isDraft, currentTag, keepLatest) {
-  let releasesToDelete = [];
+  let releasesToDelete;
 
   if (isDraft) {
     // When creating a draft, delete all other draft releases

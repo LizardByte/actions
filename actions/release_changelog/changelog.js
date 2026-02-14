@@ -100,9 +100,9 @@ async function fetchAllReleases(github, context) {
   let releases = [];
   let page = 1;
   const perPage = 100;
-  let total = 0;
 
-  do {
+  let hasMorePages = true;
+  while (hasMorePages) {
     const response = await github.rest.repos.listReleases({
       owner: context.repo.owner,
       repo: context.repo.repo,
@@ -110,9 +110,9 @@ async function fetchAllReleases(github, context) {
       page: page
     });
     releases = releases.concat(response.data);
-    total = response.data.length;
+    hasMorePages = response.data.length === perPage;
     page++;
-  } while (total === perPage);
+  }
 
   // Sort releases by date created (oldest first)
   releases.sort((a, b) => {
@@ -195,7 +195,7 @@ async function updateChangelogFile(github, context, changelogContent, changelogB
     currentContent = Buffer.from(fileData.data.content, 'base64').toString('utf-8');
   } catch (getFileError) {
     if (getFileError.status !== 404) {
-      throw new Error(`Failed to fetch the file: ${getFileError.message}`);
+      throw new Error(`Failed to fetch the file: ${getFileError.message}`, { cause: getFileError });
     }
     // If 404, sha remains null and we'll create a new file
   }
@@ -258,7 +258,7 @@ async function generateReleaseChangelog({ github, context, core }) {
           console.log(`No changes detected, ${changelogFile} not updated`);
         }
       } else {
-        throw new Error(`Failed to create or update changelog: ${e.message}`);
+        throw new Error(`Failed to create or update changelog: ${e.message}`, { cause: e });
       }
     }
 
