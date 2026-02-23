@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lizardbyte-actions-release-setup"
+version = "0.0.0"
+description = "Release setup action for GitHub workflows."
+requires-python = ">=3.12"
+
+dependencies = [
+    "python-dotenv==1.2.1",
+    "requests==2.32.5",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = []

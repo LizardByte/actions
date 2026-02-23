@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lizardbyte-actions-setup-virtual-desktop"
+version = "0.0.0"
+description = "Setup virtual desktop action for GitHub workflows."
+requires-python = ">=3.12"
+
+dependencies = [
+    # PyGObject provides Python bindings for GObject-based libraries like GTK and AppIndicator
+    # Only install on Linux where AppIndicator/Ayatana is available
+    "pygobject==3.54.5;sys_platform=='linux'",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = []

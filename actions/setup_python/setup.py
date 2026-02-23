@@ -1,0 +1,13 @@
+from setuptools import setup
+
+setup(
+    extras_require={
+        "dev": [
+            "pytest==4.6.11;python_version<'3.5'",
+            "pytest==6.1.2;python_version>='3.5' and python_version<'3.6'",
+            "pytest==7.0.1;python_version>='3.6' and python_version<'3.7'",
+            "pytest==8.3.5;python_version>='3.7' and python_version<'3.9'",
+            "pytest==9.0.2;python_version>='3.9'",
+        ],
+    },
+)

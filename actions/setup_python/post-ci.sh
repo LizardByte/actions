@@ -26,13 +26,21 @@ if [[ -n "$WITH_PARAMS" ]]; then
 
   # setup python
   python -m pip install --upgrade pip setuptools wheel
-  python -m pip install --upgrade -r requirements-dev.txt
+
+  # Convert path for Windows (Git Bash/MSYS produces Unix-style paths that pip rejects)
+  if command -v cygpath > /dev/null 2>&1; then
+    INSTALL_PATH="$(cygpath -w "${SCRIPT_DIR}")"
+  else
+    INSTALL_PATH="${SCRIPT_DIR}"
+  fi
+  python -m pip install --upgrade "${INSTALL_PATH}[dev]"
 
   python -m pytest \
     -rxXs \
     --tb=native \
     --verbose \
     --color=yes \
+    -c "${SCRIPT_DIR}/setup.cfg" \
     tests/setup_python
 else
   echo "Error: WITH_PARAMS environment variable not set" >&2

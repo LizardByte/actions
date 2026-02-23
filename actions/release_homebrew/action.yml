@@ -138,7 +138,7 @@ runs:
       run: |
         echo "::group::Install Python Requirements"
         # install requirements required for this action to complete
-        "${{ steps.venv.outputs.python-path }}" -m pip install -r requirements.txt
+        "${{ steps.venv.outputs.python-path }}" -m pip install .
         echo "::endgroup::"
 
     - name: Checkout (org homebrew repo)

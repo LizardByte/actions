@@ -1,4 +1,0 @@
-# Python dependencies for test_appindicator.py
-# PyGObject provides Python bindings for GObject-based libraries like GTK and AppIndicator
-# Only install on Linux where AppIndicator/Ayatana is available
-pygobject==3.54.5; sys_platform == 'linux'
