@@ -1,13 +1,31 @@
+import os
+import re
 from setuptools import setup
+
+
+def get_dev_extras():
+    """Read the dev extras from pyproject.toml without any TOML library dependency."""
+    pyproject_path = os.path.join(os.path.dirname(__file__), "pyproject.toml")
+
+    with open(pyproject_path, "r") as f:
+        content = f.read()
+
+    # Extract the [project.optional-dependencies] dev block
+    match = re.search(
+        r'\[project\.optional-dependencies]\s*dev\s*=\s*\[(.*?)]',
+        content,
+        re.DOTALL,
+    )
+    if not match:
+        return []
+
+    block = match.group(1)
+    # Extract each quoted string
+    return re.findall(r'"([^"]+)"', block)
+
 
 setup(
     extras_require={
-        "dev": [
-            "pytest==4.6.11;python_version<'3.5'",
-            "pytest==6.1.2;python_version>='3.5' and python_version<'3.6'",
-            "pytest==7.0.1;python_version>='3.6' and python_version<'3.7'",
-            "pytest==8.3.5;python_version>='3.7' and python_version<'3.9'",
-            "pytest==9.0.2;python_version>='3.9'",
-        ],
+        "dev": get_dev_extras(),
     },
 )

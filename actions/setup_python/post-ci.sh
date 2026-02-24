@@ -35,13 +35,7 @@ if [[ -n "$WITH_PARAMS" ]]; then
   fi
   python -m pip install --upgrade "${INSTALL_PATH}[dev]"
 
-  python -m pytest \
-    -rxXs \
-    --tb=native \
-    --verbose \
-    --color=yes \
-    -c "${SCRIPT_DIR}/setup.cfg" \
-    tests/setup_python
+  python -m pytest -c "${SCRIPT_DIR}/setup.cfg" tests/setup_python
 else
   echo "Error: WITH_PARAMS environment variable not set" >&2
   exit 1
