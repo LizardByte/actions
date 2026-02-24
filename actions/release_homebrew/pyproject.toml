@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lizardbyte-actions-release-homebrew"
+version = "0.0.0"
+description = "Release Homebrew action for GitHub workflows."
+requires-python = ">=3.11"
+
+dependencies = [
+    "python-dotenv==1.2.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = []

@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lizardbyte-actions"
+version = "0.0.0"
+description = "Reusable actions for GitHub workflows."
+readme = "README.md"
+license = "MIT"
+authors = [
+    {name = "LizardByte", email = "lizardbyte@users.noreply.github.com"}
+]
+
+dependencies = [
+    "lizardbyte-actions-facebook-post @ file:./actions/facebook_post",
+    "lizardbyte-actions-release-homebrew @ file:./actions/release_homebrew",
+    "lizardbyte-actions-release-setup @ file:./actions/release_setup",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.0.2",
+    "pytest-cov==7.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/LizardByte/actions#readme"
+Repository = "https://github.com/LizardByte/actions"
+Issues = "https://github.com/LizardByte/actions/issues"
+
+[tool.setuptools.packages.find]
+include = ["actions*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-rxXs",
+    "--tb=native",
+    "--verbose",
+    "--color=yes",
+    "--cov=actions",
+    "--cov-report=term",
+    "--cov-report=xml:coverage/python-coverage.xml",
+    "--cov-report=json:coverage/python-coverage.json",
+    "--junitxml=junit-python.xml",
+    "-o", "junit_family=legacy",
+]
+
+[tool.coverage.run]
+source = ["actions"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
