@@ -62,5 +62,5 @@ runs:
       with:
         github-token: ${{ inputs.token }}
         script: |
-          const script = require('${{ github.action_path }}/check_trailing_spaces.js');
+          const script = require('${{ github.action_path }}/trailing_spaces.js');
           await script({ github, context, core });

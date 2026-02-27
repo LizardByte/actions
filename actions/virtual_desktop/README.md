@@ -1,4 +1,4 @@
-# setup_virtual_desktop
+# virtual_desktop
 
 A reusable action to set up a virtual desktop environment on Linux GitHub Actions runners for GUI applications,
 system tray icons, and notifications.
@@ -17,7 +17,7 @@ See [action.yml](action.yml)
 ```yaml
 steps:
   - name: Setup virtual desktop
-    uses: LizardByte/actions/actions/setup_virtual_desktop@master
+    uses: LizardByte/actions/actions/virtual_desktop@master
     with:
       appindicator-version: ayatana
       display-size: 1280x720
@@ -141,7 +141,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup virtual desktop
-        uses: LizardByte/actions/actions/setup_virtual_desktop@master
+        uses: LizardByte/actions/actions/virtual_desktop@master
         with:
           environment: xfce
 
@@ -167,7 +167,7 @@ jobs:
 
       - name: Setup virtual desktop
         id: desktop
-        uses: LizardByte/actions/actions/setup_virtual_desktop@master
+        uses: LizardByte/actions/actions/virtual_desktop@master
         with:
           appindicator-version: ayatana
           display-size: 1920x1080
@@ -202,7 +202,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup virtual desktop
-        uses: LizardByte/actions/actions/setup_virtual_desktop@master
+        uses: LizardByte/actions/actions/virtual_desktop@master
         with:
           environment: xfce
 
@@ -233,7 +233,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup virtual desktop
-        uses: LizardByte/actions/actions/setup_virtual_desktop@master
+        uses: LizardByte/actions/actions/virtual_desktop@master
         with:
           environment: openbox
           display-size: 1024x768
@@ -266,7 +266,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup 4K virtual desktop
-        uses: LizardByte/actions/actions/setup_virtual_desktop@master
+        uses: LizardByte/actions/actions/virtual_desktop@master
         with:
           environment: lxde
           display-size: 3840x2160
@@ -289,7 +289,7 @@ jobs:
         desktop: [xfce, lxde, openbox, fluxbox]
     steps:
       - name: Setup ${{ matrix.desktop }}
-        uses: LizardByte/actions/actions/setup_virtual_desktop@master
+        uses: LizardByte/actions/actions/virtual_desktop@master
         with:
           environment: ${{ matrix.desktop }}
 

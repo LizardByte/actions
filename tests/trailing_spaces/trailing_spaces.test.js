@@ -13,7 +13,7 @@ const fs = require('node:fs');
 
 const { createMockContext, createMockGithub, createMockCore, setupConsoleMocks } = require('../testUtils.js');
 
-const checkTrailingSpacesAction = require('../../actions/check_trailing_spaces/check_trailing_spaces.js');
+const checkTrailingSpacesAction = require('../../actions/trailing_spaces/trailing_spaces.js');
 const {
   isTextFile,
   shouldIgnoreFile,

@@ -8,9 +8,9 @@ echo "Pre-CI: Setting up display for screenshot tests..."
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
   echo "Detected Linux - setting up virtual desktop..."
 
-  # Call the setup_virtual_desktop action's setup script
-  chmod +x ./actions/setup_virtual_desktop/setup_desktop.sh
-  ./actions/setup_virtual_desktop/setup_desktop.sh \
+  # Call the virtual_desktop action's setup script
+  chmod +x ./actions/virtual_desktop/setup_desktop.sh
+  ./actions/virtual_desktop/setup_desktop.sh \
     --environment=xfce \
     --display-size=1280x720
 

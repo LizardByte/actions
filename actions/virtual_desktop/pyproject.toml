@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lizardbyte-actions-setup-virtual-desktop"
+name = "lizardbyte-actions-virtual-desktop"
 version = "0.0.0"
 description = "Setup virtual desktop action for GitHub workflows."
 requires-python = ">=3.12"
