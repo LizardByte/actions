@@ -31,7 +31,8 @@ async function getChangedFilesAction({ github, context, core }) {
   const prNumber = process.env.INPUT_PR_NUMBER || context.payload?.pull_request?.number;
 
   if (!prNumber) {
-    core.setFailed('No pull request number provided. Set the pr_number input or run this action in a pull_request event.');
+    console.log('Not a pull request event. Returning empty list of changed files.');
+    core.setOutput('CHANGED_FILES', '');
     return;
   }
 

@@ -160,7 +160,7 @@ describe('getChangedFilesAction', () => {
     expect(mockCore.setOutput).toHaveBeenCalledWith('CHANGED_FILES', 'changed.js');
   });
 
-  test('should fail when no PR number is available', async () => {
+  test('should return empty list when no PR number is available (non-PR event)', async () => {
     const mockGithub = createMockGithub();
     const mockContext = {
       ...createMockContext(),
@@ -170,9 +170,9 @@ describe('getChangedFilesAction', () => {
 
     await getChangedFilesAction({ github: mockGithub, context: mockContext, core: mockCore });
 
-    expect(mockCore.setFailed).toHaveBeenCalledWith(
-      expect.stringContaining('No pull request number provided')
-    );
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.setOutput).toHaveBeenCalledWith('CHANGED_FILES', '');
+    expect(consoleOutput.some(line => line.includes('Not a pull request event'))).toBe(true);
   });
 
   test('should fail when API throws an error', async () => {

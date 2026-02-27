@@ -39,4 +39,5 @@ steps:
 - The action uses pagination to retrieve all changed files, so it works correctly for PRs with many files.
 - Changed files are returned as a newline-separated string in the `changed_files` output, which safely handles
   filenames containing spaces.
-- If no `pr_number` is provided and the action is not running in a `pull_request` event context, the action will fail.
+- If no `pr_number` is provided and the action is not running in a `pull_request` event context,
+  an empty string will be returned.
