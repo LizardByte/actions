@@ -160,4 +160,4 @@ package-lock.json
 
 # Jest
 coverage/
-junit.xml
+junit*.xml

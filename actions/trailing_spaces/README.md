@@ -1,4 +1,4 @@
-# check_trailing_spaces
+# trailing_spaces
 
 Check files for trailing spaces, empty lines at EOF, and missing newline at EOF.
 
@@ -17,7 +17,7 @@ steps:
     uses: actions/checkout@v4
 
   - name: Check trailing spaces
-    uses: LizardByte/actions/actions/check_trailing_spaces@master
+    uses: LizardByte/actions/actions/trailing_spaces@master
 ```
 
 ## 📥 Inputs
@@ -73,7 +73,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check trailing spaces
-        uses: LizardByte/actions/actions/check_trailing_spaces@master
+        uses: LizardByte/actions/actions/trailing_spaces@master
 ```
 
 ### Check all files in the repository
@@ -84,7 +84,7 @@ steps:
     uses: actions/checkout@v4
 
   - name: Check all files for trailing spaces
-    uses: LizardByte/actions/actions/check_trailing_spaces@master
+    uses: LizardByte/actions/actions/trailing_spaces@master
     with:
       check_all_files: 'true'
       source_directory: '.'
@@ -98,7 +98,7 @@ steps:
     uses: actions/checkout@v4
 
   - name: Check trailing spaces (skip binary/generated files)
-    uses: LizardByte/actions/actions/check_trailing_spaces@master
+    uses: LizardByte/actions/actions/trailing_spaces@master
     with:
       check_all_files: 'true'
       ignore_patterns: |
@@ -120,7 +120,7 @@ steps:
     uses: LizardByte/actions/actions/get_changed_files@master
 
   - name: Check trailing spaces
-    uses: LizardByte/actions/actions/check_trailing_spaces@master
+    uses: LizardByte/actions/actions/trailing_spaces@master
     with:
       changed_files: ${{ steps.changed_files.outputs.changed_files }}
 ```
@@ -133,7 +133,7 @@ steps:
     uses: actions/checkout@v4
 
   - name: Check only trailing spaces (skip EOF checks)
-    uses: LizardByte/actions/actions/check_trailing_spaces@master
+    uses: LizardByte/actions/actions/trailing_spaces@master
     with:
       check_empty_line_at_eof: 'false'
       check_missing_newline_at_eof: 'false'

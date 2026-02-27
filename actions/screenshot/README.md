@@ -16,7 +16,7 @@ Linux requires a display server (X11 or Wayland) to be running. Use the virtual 
 
 ```yaml
 - name: Setup virtual display
-  uses: LizardByte/actions/actions/setup_virtual_desktop@master
+  uses: LizardByte/actions/actions/virtual_desktop@master
   with:
     environment: xfce
 ```
@@ -192,7 +192,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup virtual desktop
-        uses: LizardByte/actions/actions/setup_virtual_desktop@master
+        uses: LizardByte/actions/actions/virtual_desktop@master
         with:
           environment: xfce
 
