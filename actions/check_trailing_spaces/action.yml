@@ -1,0 +1,66 @@
+---
+name: "Check Trailing Spaces"
+description: "Check files for trailing spaces, empty lines at EOF, and missing newline at EOF."
+author: "LizardByte"
+
+branding:
+  icon: file-text
+  color: green
+
+inputs:
+  token:
+    description: 'GitHub Token used to authenticate API requests. Defaults to the built-in GITHUB_TOKEN.'
+    required: false
+    default: ${{ github.token }}
+  pr_number:
+    description: 'The pull request number to check. Defaults to the current PR number.'
+    required: false
+    default: ${{ github.event.pull_request.number }}
+  changed_files:
+    description: >
+      Newline-separated list of files to check. When provided, skips the GitHub API call entirely.
+      Useful for private repositories or when you already have the list of changed files.
+      Supports filenames with spaces. Compatible with the output of the get_changed_files action.
+    required: false
+    default: ''
+  check_all_files:
+    description: 'Set to "true" to check all files in the repository, not only those changed by the PR.'
+    required: false
+    default: 'false'
+  check_empty_line_at_eof:
+    description: 'Check that the last line in a file is not empty.'
+    required: false
+    default: 'true'
+  check_missing_newline_at_eof:
+    description: 'Check that the last line in the file ends in a newline character.'
+    required: false
+    default: 'true'
+  source_directory:
+    description: 'Directory to check when check_all_files is true. Defaults to current directory.'
+    required: false
+    default: '.'
+  ignore_patterns:
+    description: >
+      Newline-separated list of glob patterns for files to ignore.
+      Example: "*.md\n*.json" to ignore Markdown and JSON files.
+    required: false
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check trailing spaces
+      env:
+        INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+        INPUT_CHANGED_FILES: ${{ inputs.changed_files }}
+        INPUT_CHECK_ALL_FILES: ${{ inputs.check_all_files }}
+        INPUT_CHECK_EMPTY_LINE_AT_EOF: ${{ inputs.check_empty_line_at_eof }}
+        INPUT_CHECK_MISSING_NEWLINE_AT_EOF: ${{ inputs.check_missing_newline_at_eof }}
+        INPUT_SOURCE_DIRECTORY: ${{ inputs.source_directory }}
+        INPUT_IGNORE_PATTERNS: ${{ inputs.ignore_patterns }}
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8.0.0
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const script = require('${{ github.action_path }}/check_trailing_spaces.js');
+          await script({ github, context, core });
