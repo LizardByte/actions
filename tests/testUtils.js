@@ -53,6 +53,7 @@ function createMockGithub() {
  */
 function createMockCore() {
   return {
+    error: jest.fn(),
     setFailed: jest.fn(),
     setOutput: jest.fn(),
   };

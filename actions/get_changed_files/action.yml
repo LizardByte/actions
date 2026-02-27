@@ -1,0 +1,37 @@
+---
+name: "Get Changed Files"
+description: "Get the list of changed files in a pull request."
+author: "LizardByte"
+
+branding:
+  icon: file-text
+  color: green
+
+inputs:
+  token:
+    description: 'GitHub Token used to authenticate API requests. Defaults to the built-in GITHUB_TOKEN.'
+    required: false
+    default: ${{ github.token }}
+  pr_number:
+    description: 'The pull request number to get changed files for. Defaults to the current PR number.'
+    required: false
+    default: ${{ github.event.pull_request.number }}
+
+outputs:
+  changed_files:
+    description: 'Space-separated list of changed files in the pull request.'
+    value: ${{ steps.get_changed_files.outputs.CHANGED_FILES }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get changed files
+      id: get_changed_files
+      env:
+        INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8.0.0
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const script = require('${{ github.action_path }}/get_changed_files.js');
+          await script({ github, context, core });

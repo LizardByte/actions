@@ -1,0 +1,9 @@
+[
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "check_all_files": "true",
+      "source_directory": "."
+    }
+  }
+]
