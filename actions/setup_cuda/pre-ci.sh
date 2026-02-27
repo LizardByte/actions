@@ -5,6 +5,26 @@ set -euo pipefail
 echo "Pre-CI: Freeing up disk space for CUDA installation..."
 echo ""
 
+# Detect OS
+OS_TYPE=$(uname -s)
+
+# Skip on macOS
+if [[ "$OS_TYPE" == "Darwin" ]]; then
+    echo "macOS detected - skipping cleanup (CUDA not supported on macOS)"
+    echo "Pre-CI setup complete!"
+    exit 0
+fi
+
+# Skip on Windows
+if [[ "$OS_TYPE" == MINGW* ]] || [[ "$OS_TYPE" == MSYS* ]] || [[ "$OS_TYPE" == CYGWIN* ]]; then
+    echo "Windows detected - skipping cleanup (Windows runners have sufficient space)"
+    echo "Pre-CI setup complete!"
+    exit 0
+fi
+
+echo "Linux detected - running cleanup script..."
+echo ""
+
 # Determine which branch/ref to use for downloading the cleanup script
 # If we're running in the LizardByte/actions repository itself, use the current commit SHA
 # Otherwise, use master branch
