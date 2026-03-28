@@ -750,41 +750,6 @@ def audit_formula(formula: str) -> bool:
     return result
 
 
-def brew_upgrade() -> bool:
-    start_group('Updating and Upgrading Homebrew')
-
-    print('Updating Homebrew')
-    env = {
-        'HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK': '1',
-    }
-
-    # combine with os environment
-    env.update(os.environ)
-
-    result = _run_subprocess(
-        args_list=[
-            'brew',
-            'update'
-        ],
-        env=env,
-    )
-    if not result:
-        end_group()
-        return False
-
-    print('Upgrading Homebrew')
-    result = _run_subprocess(
-        args_list=[
-            'brew',
-            'upgrade'
-        ],
-        env=env,
-    )
-
-    end_group()
-    return result
-
-
 def brew_test_bot_only_cleanup_before() -> bool:
     start_group('Running brew test-bot --only-cleanup-before')
     result = _run_subprocess(
@@ -982,11 +947,6 @@ def main():
     if os.environ['INPUT_VALIDATE'].lower() != 'true':
         print('Skipping audit, install, and test')
         return
-
-    upgrade_status = brew_upgrade()
-    if not upgrade_status:
-        print('::error:: Homebrew update or upgrade failed')
-        raise SystemExit(1)
 
     if not brew_test_bot_only_cleanup_before():
         print('::error:: brew test-bot --only-cleanup-before failed')
