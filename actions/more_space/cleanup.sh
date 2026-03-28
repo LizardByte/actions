@@ -234,6 +234,11 @@ remove_docker_images() {
   echo -e "${BOLD}${YELLOW}==> Removing Docker images${RESET}"
 
   if command -v docker &> /dev/null; then
+    # On Windows, the Docker daemon may not be running; skip gracefully instead of failing
+    if [[ "$IS_WINDOWS" == true ]] && ! docker info &> /dev/null; then
+      echo -e "${YELLOW}Docker daemon is not running, skipping Docker cleanup${RESET}"
+      return 0
+    fi
     with_space_saved "Remove docker images" bash -c "${SUDO_CMD} docker image prune --all --force"
     with_space_saved "Docker system prune" bash -c "${SUDO_CMD} docker system prune -af --volumes"
 
