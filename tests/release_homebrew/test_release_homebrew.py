@@ -524,10 +524,6 @@ def test_is_brew_installed(operating_system):
     assert main.is_brew_installed()
 
 
-def test_brew_upgrade(operating_system):
-    assert main.brew_upgrade()
-
-
 @pytest.mark.parametrize('setup_scenario', [
     # Scenario 1: Formula temp dir exists in first location (HOMEBREW_TEMP)
     {'env': {'HOMEBREW_TEMP': '/tmp/custom'}, 'dirs': ['/tmp/custom'], 'files': ['formula-123']},
@@ -750,46 +746,33 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             [('is_brew_installed', False)],
             [],
     ),
-    # Scenario 2: Brew upgrade fails
-    (
-            'brew_upgrade_fails',
-            [
-                ('is_brew_installed', True),
-                ('process_input_formula', 'hello_world'),
-                ('brew_upgrade', False),
-            ],
-            [],
-    ),
-    # Scenario 3: brew test-bot --only-cleanup-before fails
+    # Scenario 2: brew test-bot --only-cleanup-before fails
     (
             'brew_test_bot_only_cleanup_before_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
-                ('brew_upgrade', True),
                 ('brew_test_bot_only_cleanup_before', False),
             ],
             [],
     ),
-    # Scenario 4: brew test-bot --only-setup fails
+    # Scenario 3: brew test-bot --only-setup fails
     (
             'brew_test_bot_only_setup_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
-                ('brew_upgrade', True),
                 ('brew_test_bot_only_cleanup_before', True),
                 ('brew_test_bot_only_setup', False),
             ],
             [],
     ),
-    # Scenario 5: Audit fails
+    # Scenario 4: Audit fails
     (
             'audit_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
-                ('brew_upgrade', True),
                 ('brew_test_bot_only_cleanup_before', True),
                 ('brew_test_bot_only_setup', True),
                 ('audit_formula', False),
@@ -800,13 +783,12 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['audit'],
     ),
-    # Scenario 6: brew test-bot --only-tap-syntax fails
+    # Scenario 5: brew test-bot --only-tap-syntax fails
     (
             'brew_test_bot_only_tap_syntax_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
-                ('brew_upgrade', True),
                 ('brew_test_bot_only_cleanup_before', True),
                 ('brew_test_bot_only_setup', True),
                 ('audit_formula', True),
@@ -817,13 +799,12 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['tap-syntax'],
     ),
-    # Scenario 7: Install fails
+    # Scenario 6: Install fails
     (
             'install_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
-                ('brew_upgrade', True),
                 ('brew_test_bot_only_cleanup_before', True),
                 ('brew_test_bot_only_setup', True),
                 ('audit_formula', True),
@@ -834,13 +815,12 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['install'],
     ),
-    # Scenario 8: Test fails
+    # Scenario 7: Test fails
     (
             'test_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
-                ('brew_upgrade', True),
                 ('brew_test_bot_only_cleanup_before', True),
                 ('brew_test_bot_only_setup', True),
                 ('audit_formula', True),
@@ -851,13 +831,12 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['test'],
     ),
-    # Scenario 9: brew test-bot --only-formulae fails
+    # Scenario 8: brew test-bot --only-formulae fails
     (
             'brew_test_bot_only_formulae_fails',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
-                ('brew_upgrade', True),
                 ('brew_test_bot_only_cleanup_before', True),
                 ('brew_test_bot_only_setup', True),
                 ('audit_formula', True),
@@ -868,13 +847,12 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['formulae'],
     ),
-    # Scenario 10: Multiple failures
+    # Scenario 9: Multiple failures
     (
             'multiple_failures',
             [
                 ('is_brew_installed', True),
                 ('process_input_formula', 'hello_world'),
-                ('brew_upgrade', True),
                 ('brew_test_bot_only_cleanup_before', True),
                 ('brew_test_bot_only_setup', True),
                 ('audit_formula', False),
@@ -1007,34 +985,6 @@ def test_process_input_formula_copy_failure(
     # Test that the function raises FileNotFoundError when copy verification fails
     with pytest.raises(FileNotFoundError, match="was not copied"):
         main.process_input_formula(formula_file=str(test_formula_file))
-
-
-@patch('actions.release_homebrew.main._run_subprocess')
-def test_brew_upgrade_update_failure(mock_run):
-    # Set up the mock to fail on brew update
-    def side_effect(args_list, *args, **kwargs):
-        # Check if 'update' is in the args_list (which is a list)
-        if args_list and 'update' in args_list:
-            main.ERROR = True
-            return False
-        # Should not reach here for upgrade since update failed
-        return True
-
-    mock_run.side_effect = side_effect
-
-    # Call the function and check result
-    result = main.brew_upgrade()
-
-    # Assert that brew_upgrade returns False when update fails
-    assert not result
-
-    # Verify that only one call was made (the update call)
-    assert mock_run.call_count == 1
-
-    # Verify that the call was for brew update
-    call_args = mock_run.call_args_list[0][1]['args_list']
-    assert 'update' in call_args
-    assert 'upgrade' not in call_args
 
 
 @patch('actions.release_homebrew.main._run_subprocess')
