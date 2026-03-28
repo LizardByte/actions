@@ -15,7 +15,10 @@ updates:
     open-pull-requests-limit: 10
 
   - package-ecosystem: "docker"
-    directory: "/"
+    directories:
+      - "/"
+      - "/**"
+      - "/**/**"
     rebase-strategy: disabled
     schedule:
       interval: "cron"
@@ -84,6 +87,7 @@ updates:
     directories:
       - "/"
       - "/**"
+      - "/**/**"  # https://github.com/dependabot/dependabot-core/issues/14569
     rebase-strategy: disabled
     schedule:
       interval: "cron"
