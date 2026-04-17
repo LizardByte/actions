@@ -1,6 +1,7 @@
 # standard imports
 import os
 from typing import Dict, Tuple, Union
+from unittest.mock import Mock, patch
 
 # lib imports
 import pytest
@@ -154,10 +155,10 @@ def test_get_push_event_details(github_event_path, input_dotnet, latest_commit):
 
 
 def test_get_push_event_details_no_squash(
-    dummy_github_push_event_path,
-    mock_get_squash_and_merge_return_value,
-    github_step_summary_file,
-    input_dotnet,
+        dummy_github_push_event_path,
+        mock_get_squash_and_merge_return_value,
+        github_step_summary_file,
+        input_dotnet,
 ):
     # Should no longer raise SystemExit, just warn and continue
     result = main.get_push_event_details()
@@ -171,10 +172,10 @@ def test_get_push_event_details_no_squash(
 
 
 def test_get_push_event_details_invalid_commits(
-    dummy_github_push_event_path_invalid_commits,
-    github_step_summary_file,
-    input_dotnet,
-    mock_get_squash_and_merge_return_value,
+        dummy_github_push_event_path_invalid_commits,
+        github_step_summary_file,
+        input_dotnet,
+        mock_get_squash_and_merge_return_value,
 ):
     # Should no longer raise SystemExit, just warn and continue
     result = main.get_push_event_details()
@@ -190,6 +191,26 @@ def test_get_push_event_details_invalid_commits(
 def test_process_release_body(release_notes_sample):
     result = main.process_release_body(release_body=release_notes_sample[0])
     assert result == release_notes_sample[1]
+
+
+@pytest.mark.parametrize('mock_response,expected', [
+    (
+            {
+                'status_code': 200,
+                'json': {'id': 1234}
+            },
+            f'https://avatars.githubusercontent.com/in/1234?size={main.AVATAR_SIZE}'
+    ),
+    ({'status_code': 200, 'json': {}}, ''),
+    ({'status_code': 404, 'json': {}}, ''),
+])
+def test_get_bot_avatar_url(mock_response, expected):
+    mock = Mock()
+    mock.status_code = mock_response['status_code']
+    mock.json.return_value = mock_response['json']
+    with patch('actions.release_setup.main.requests.get', return_value=mock):
+        result = main._get_bot_avatar_url('testapp')
+    assert result == expected
 
 
 def test_generate_release_body_success(mock_generate_release_body_success):

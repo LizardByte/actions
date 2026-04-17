@@ -241,7 +241,12 @@ def mock_check_release_exists():
     requests.get = original_get
 
 
-@pytest.fixture(scope='module', params=[0, 1])
+BOT_AVATAR_MOCKS = {
+    'renovate': 'https://avatars.githubusercontent.com/in/2740?size=40',
+}
+
+
+@pytest.fixture(scope='function', params=[0, 1, 2])
 def release_notes_sample(request):
     sample_set = ()
     with open(os.path.join(DATA_DIRECTORY, f'provided_release_notes_sample_{request.param}.md'), 'r') as f:
@@ -249,4 +254,11 @@ def release_notes_sample(request):
     with open(os.path.join(DATA_DIRECTORY, f'expected_release_notes_sample_{request.param}.md'), 'r') as f:
         sample_set += (f.read(),)
 
-    return sample_set
+    if request.param == 2:
+        with patch(
+                'actions.release_setup.main._get_bot_avatar_url',
+                side_effect=lambda app_name: BOT_AVATAR_MOCKS.get(app_name, '')
+        ):
+            yield sample_set
+    else:
+        yield sample_set

@@ -315,7 +315,7 @@ def _process_line_for_contributors(line: str, contributors: dict) -> str:
     str
         Processed line.
     """
-    re_username = re.compile(r'@([a-zA-Z\d\-]{0,38})')
+    re_username = re.compile(r'@([a-zA-Z\d\-]{0,38}(?:\[bot])?)')
 
     split_line = line.rsplit(' by ', 1)
     username_search = re_username.search(split_line[1] if len(split_line) > 1 else line)
@@ -329,6 +329,31 @@ def _process_line_for_contributors(line: str, contributors: dict) -> str:
     return _replace_mentions_and_pr_urls(line, username)
 
 
+def _get_bot_avatar_url(app_name: str) -> str:
+    """
+    Get the avatar URL for a GitHub App bot account.
+
+    Calls the GitHub Apps API to retrieve the app's ID, then constructs
+    the avatar URL using ``avatars.githubusercontent.com/in/{id}``.
+
+    Parameters
+    ----------
+    app_name : str
+        The GitHub App slug (e.g. ``renovate`` from ``renovate[bot]``).
+
+    Returns
+    -------
+    str
+        Avatar URL for the app, or an empty string if the API call fails.
+    """
+    response = requests.get(f'https://api.github.com/apps/{app_name}', headers=GITHUB_HEADERS)
+    if response.status_code == 200:
+        app_id = response.json().get('id')
+        if app_id:
+            return f'https://avatars.githubusercontent.com/in/{app_id}?size={AVATAR_SIZE}'
+    return ''
+
+
 def _track_contributor(username: str, contributors: dict):
     """
     Track contributor and increment their contribution count.
@@ -336,16 +361,24 @@ def _track_contributor(username: str, contributors: dict):
     Parameters
     ----------
     username : str
-        GitHub username.
+        GitHub username (may include ``[bot]`` suffix for bot accounts).
     contributors : dict
         Dictionary to track contributor information.
     """
     if username in contributors:
         contributors[username]['contributions'] += 1
     else:
+        if username.endswith('[bot]'):
+            app_name = username[:-5]
+            url = f'https://github.com/apps/{app_name}'
+            avatar_url = _get_bot_avatar_url(app_name)
+        else:
+            url = f'https://github.com/{username}'
+            avatar_url = f'{url}.png?size={AVATAR_SIZE}'
         contributors[username] = {
             'contributions': 1,
-            'url': f'https://github.com/{username}',
+            'url': url,
+            'avatar_url': avatar_url,
         }
 
 
@@ -365,7 +398,11 @@ def _replace_mentions_and_pr_urls(line: str, username: str) -> str:
     str
         Processed line with replacements.
     """
-    username_url = f'https://github.com/{username}'
+    if username.endswith('[bot]'):
+        app_name = username[:-5]
+        username_url = f'https://github.com/apps/{app_name}'
+    else:
+        username_url = f'https://github.com/{username}'
     username_url_md = f'[@{username}]({username_url})'
 
     update_pr_url = False
@@ -451,13 +488,15 @@ def _generate_contributor_avatar(contributor: str, details: dict) -> str:
     """
     merge_text = "merges" if details["contributions"] > 1 else "merge"
 
+    avatar_url = details["avatar_url"]
+
     return (
         f'<a href="{details["url"]}" '
         'target="_blank" '
         'rel="external noopener noreferrer" '
         f'aria-label="GitHub profile of contributor, {contributor}" '
         '>'
-        f'<img src="{details["url"]}.png?size={AVATAR_SIZE}" '
+        f'<img src="{avatar_url}" '
         f'width="{AVATAR_SIZE}" '
         f'height="{AVATAR_SIZE}" '
         f'alt="{contributor}" '
