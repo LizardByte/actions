@@ -318,6 +318,11 @@ function handleGitCommand(args, options) {
     return '';
   }
 
+  // Handle git add
+  if (args[0] === 'add') {
+    return '';
+  }
+
   return '';
 }
 
@@ -1052,11 +1057,14 @@ describe('Pinact Action', () => {
   });
 
     describe('Git Operations', () => {
+      beforeEach(() => {
+        setupSingleRepoWithChanges();
+      });
+
       test('should configure git with custom author', async () => {
         process.env.INPUT_GIT_AUTHOR_NAME = 'Custom Bot';
         process.env.INPUT_GIT_AUTHOR_EMAIL = 'bot@example.com';
 
-        setupSingleRepoWithChanges();
 
         await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
@@ -1075,7 +1083,6 @@ describe('Pinact Action', () => {
       test('should create branch with custom name', async () => {
         process.env.INPUT_PR_BRANCH_NAME = 'custom-branch';
 
-        setupSingleRepoWithChanges();
 
         await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
@@ -1087,13 +1094,23 @@ describe('Pinact Action', () => {
       });
 
       test('should commit with appropriate message', async () => {
-        setupSingleRepoWithChanges();
 
         await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
         expect(execFileSync).toHaveBeenCalledWith(
           expect.stringMatching(/git/),  // Match any path containing 'git'
           ['commit', '-m', 'chore: update GitHub Actions to use commit hashes'],
+          expect.any(Object)
+        );
+      });
+
+      test('should stage all changed files regardless of directory', async () => {
+
+        await runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+        expect(execFileSync).toHaveBeenCalledWith(
+          expect.stringMatching(/git/),
+          ['add', '.'],
           expect.any(Object)
         );
       });

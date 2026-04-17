@@ -307,7 +307,7 @@ function runPinact(pinactPath, repoPath, pinactConfigPath = '') {
       Logger.header('=== Changes made by pinact ===');
       Logger.log('');
       try {
-        const diff = execFileSync(executablePaths.git, ['diff', '--color=always', '.github/workflows'], { cwd: repoPath, encoding: 'utf-8' });
+        const diff = execFileSync(executablePaths.git, ['diff', '--color=always'], { cwd: repoPath, encoding: 'utf-8' });
         Logger.log(diff);
       } catch (diffError) {
         Logger.warning('⚠️  Could not display diff: ' + diffError.message);
@@ -360,7 +360,7 @@ function commitAndPush(repoPath, options) {
   execFileSync(executablePaths.git, ['checkout', '-b', branchName], { cwd: repoPath });
 
   // Add all changes
-  execFileSync(executablePaths.git, ['add', '.github/workflows'], { cwd: repoPath });
+  execFileSync(executablePaths.git, ['add', '.'], { cwd: repoPath });
 
   // Commit changes
   const commitMessage = 'chore: update GitHub Actions to use commit hashes';
