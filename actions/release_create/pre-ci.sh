@@ -9,6 +9,7 @@ mkdir -p dist
 cat > dist/dummy-binary << 'EOF'
 #!/bin/bash
 echo "This is a dummy binary for VirusTotal testing"
+echo "${GITHUB_JOB}-${GITHUB_RUN_ID}
 exit 0
 EOF
 
