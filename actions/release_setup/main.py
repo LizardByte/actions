@@ -286,9 +286,12 @@ def process_release_body(release_body: str) -> str:
     """
     processed_body = ''
     contributors = {}
+    in_new_contributors = False
 
     for line in io.StringIO(release_body).readlines():
-        processed_line = _process_line_for_contributors(line, contributors)
+        if line.strip() == '## New Contributors':
+            in_new_contributors = True
+        processed_line = _process_line_for_contributors(line, contributors, track=not in_new_contributors)
         processed_body += processed_line
 
     # add contributors to the release notes
@@ -299,7 +302,7 @@ def process_release_body(release_body: str) -> str:
     return processed_body
 
 
-def _process_line_for_contributors(line: str, contributors: dict) -> str:
+def _process_line_for_contributors(line: str, contributors: dict, track: bool = True) -> str:
     """
     Process a single line to replace mentions and track contributors.
 
@@ -309,6 +312,8 @@ def _process_line_for_contributors(line: str, contributors: dict) -> str:
         The line to process.
     contributors : dict
         Dictionary to track contributor information.
+    track : bool
+        Whether to count this line toward the contributor's contribution count.
 
     Returns
     -------
@@ -324,7 +329,8 @@ def _process_line_for_contributors(line: str, contributors: dict) -> str:
         return line
 
     username = username_search.group(1)
-    _track_contributor(username, contributors)
+    if track:
+        _track_contributor(username, contributors)
 
     return _replace_mentions_and_pr_urls(line, username)
 
