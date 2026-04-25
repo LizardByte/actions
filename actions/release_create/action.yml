@@ -71,7 +71,7 @@ runs:
     - name: VirusTotal
       if: inputs.virustotal_api_key != ''
       id: vt
-      uses: cssnr/virustotal-action@e2d194486614b28c3cf884f4bf13e39cac959b8d  # v1.7.0
+      uses: cssnr/virustotal-action@5edfa4c982eb0caec6d568ea27cf715269f5c23b  # v2
       with:
         file_globs: ${{ inputs.artifacts }}
         sha256: true
