@@ -24,7 +24,7 @@
     "eslint": "10.3.0",
     "eslint-plugin-jest": "29.15.2",
     "globals": "^17.0.0",
-    "jest": "30.4.1",
+    "jest": "30.4.2",
     "jest-junit": "17.0.0",
     "npm-run-all2": "8.0.4"
   },
