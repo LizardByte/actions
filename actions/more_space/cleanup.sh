@@ -400,7 +400,7 @@ IS_WINDOWS=false
 IS_MACOS=false
 IS_LINUX=false
 
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
   IS_WINDOWS=true
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   IS_MACOS=true
