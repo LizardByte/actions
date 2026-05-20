@@ -16,7 +16,7 @@ STORAGE_PATH=""
 
 # Function to get available disk space in GB
 get_disk_space_gb() {
-  if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+  if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
     # Windows - get total free space across all drives
     echo "Monitoring all Windows drives" >&2
     powershell -Command "

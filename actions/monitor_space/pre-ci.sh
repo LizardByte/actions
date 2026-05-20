@@ -21,7 +21,7 @@ for i in {1..5}; do
     size=$((10 + i * 8))
     echo "Creating temp file ${i} of ${size}MB..."
 
-    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+    if [[ "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
         # Windows - use fsutil or PowerShell as fallback
         if command -v fsutil &>/dev/null; then
             fsutil file createnew "temp_test_files/test_file_${i}.tmp" $((size * 1024 * 1024))
