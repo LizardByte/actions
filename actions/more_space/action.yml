@@ -99,7 +99,12 @@ runs:
 
     - name: Make cleanup script executable
       shell: bash
-      run: chmod +x "${{ github.action_path }}/cleanup.sh"
+      run: |
+        action_path="${GITHUB_ACTION_PATH:-${{ github.action_path }}}"
+        if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* || "$OSTYPE" == "win32"* ]]; then
+          action_path=$(cygpath -u "${action_path}")
+        fi
+        chmod +x "${action_path}/cleanup.sh"
 
     - name: Free up disk space
       env:
@@ -123,7 +128,12 @@ runs:
       id: cleanup
       shell: bash
       run: |
-        "${{ github.action_path }}/cleanup.sh" \
+        action_path="${GITHUB_ACTION_PATH:-${{ github.action_path }}}"
+        if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* || "$OSTYPE" == "win32"* ]]; then
+          action_path=$(cygpath -u "${action_path}")
+        fi
+
+        "${action_path}/cleanup.sh" \
           --analyze-space-savings="${INPUT_ANALYZE_SPACE_SAVINGS}" \
           --clean-all="${INPUT_CLEAN_ALL}" \
           --remove-android="${INPUT_REMOVE_ANDROID}" \

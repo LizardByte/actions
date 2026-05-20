@@ -45,7 +45,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Take screenshot based on OS
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* || "$OSTYPE" == "win32"* ]]; then
   # Windows - call PowerShell script with DPI awareness
   powershell -File "$SCRIPT_DIR/screenshot.ps1" -OutputPath "$OUTPUT_PATH" -Delay "$DELAY"
 

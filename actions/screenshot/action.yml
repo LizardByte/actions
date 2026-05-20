@@ -21,7 +21,7 @@ runs:
       run: |
         # Convert Windows path to Unix path for bash compatibility
         ACTION_PATH="${GITHUB_ACTION_PATH}"
-        if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+        if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* || "$OSTYPE" == "win32"* ]]; then
           ACTION_PATH=$(cygpath -u "${GITHUB_ACTION_PATH}")
         fi
 

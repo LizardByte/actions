@@ -6,8 +6,23 @@ param(
     [int]$Delay = 0
 )
 
+$InformationPreference = 'Continue'
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
+
+function Write-ColoredInformation {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Message,
+
+        [Parameter(Mandatory=$true)]
+        [string]$ColorCode
+    )
+
+    $escape = [char]27
+    Write-Information "${escape}[${ColorCode}m${Message}${escape}[0m"
+}
 
 # Set DPI awareness
 Add-Type @'
@@ -22,14 +37,14 @@ Add-Type @'
 
 # Apply delay if specified
 if ($Delay -gt 0) {
-    Write-Information "Waiting $Delay ms before taking screenshot..." -ForegroundColor Yellow
+    Write-ColoredInformation -Message "Waiting $Delay ms before taking screenshot..." -ColorCode '33'
     Start-Sleep -Milliseconds $Delay
 }
 
 # Get the bounds of all screens combined
 $bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
 
-Write-Information "Screenshot dimensions: $($bounds.Width)x$($bounds.Height)" -ForegroundColor Cyan
+Write-ColoredInformation -Message "Screenshot dimensions: $($bounds.Width)x$($bounds.Height)" -ColorCode '36'
 
 # Create output directory if needed
 $outputDir = Split-Path -Parent $OutputPath
@@ -51,4 +66,4 @@ $bitmap.Save($OutputPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $graphics.Dispose()
 $bitmap.Dispose()
 
-Write-Information "Screenshot saved to: $OutputPath" -ForegroundColor Green
+Write-ColoredInformation -Message "Screenshot saved to: $OutputPath" -ColorCode '32'

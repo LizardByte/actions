@@ -6,8 +6,8 @@ set -euo pipefail
 get_disk_space_gb() {
   if [[ "$IS_WINDOWS" == true ]]; then
     # Windows - get free space in GB
-    powershell -Command \
-      "(Get-WmiObject -Class Win32_LogicalDisk | Where-Object {\$_.DeviceID -eq 'C:'}).FreeSpace / 1GB" | tr -d '\r'
+    powershell -NoProfile -NonInteractive -Command \
+      "([System.IO.DriveInfo]::GetDrives() | Where-Object { \$_.Name -eq 'C:\' }).AvailableFreeSpace / 1GB" | tr -d '\r'
   elif [[ "$IS_MACOS" == true ]]; then
     # macOS - get available space in GB (df reports in 512-byte blocks by default)
     df / | tail -1 | awk '{printf "%.2f", $4/2048/1024}'
@@ -22,7 +22,8 @@ get_disk_space_gb() {
 get_disk_space() {
   if [[ "$IS_WINDOWS" == true ]]; then
     # Windows
-    powershell -Command "Get-WmiObject -Class Win32_LogicalDisk | Select-Object Size,FreeSpace"
+    powershell -NoProfile -NonInteractive -Command \
+      "[System.IO.DriveInfo]::GetDrives() | Where-Object { \$_.Name -eq 'C:\' } | Select-Object Name,TotalSize,AvailableFreeSpace"
   else
     # Linux/macOS
     df -h /
@@ -400,7 +401,7 @@ IS_WINDOWS=false
 IS_MACOS=false
 IS_LINUX=false
 
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
+if [[ "$OSTYPE" == "msys"* || "$OSTYPE" == "cygwin"* || "$OSTYPE" == "win32"* ]]; then
   IS_WINDOWS=true
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   IS_MACOS=true
