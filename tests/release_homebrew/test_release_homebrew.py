@@ -667,9 +667,11 @@ def test_brew_test_bot_only_formulae_fork_pr(
     # Get the args_list that was passed to _run_subprocess
     call_args = mock_run_subprocess.call_args
     args_list = call_args[1]['args_list']
+    env = call_args[1]['env']
 
     # Verify --skip-livecheck is in the args
     assert '--skip-livecheck' in args_list
+    assert env['HOMEBREW_NO_ASK'] == '1'
 
     # Verify the message was printed
     captured = capsys.readouterr()
