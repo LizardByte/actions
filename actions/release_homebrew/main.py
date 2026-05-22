@@ -822,9 +822,9 @@ def brew_test_bot_only_formulae(formula: str) -> bool:
         args_list.append('--skip-livecheck')
         print('Skipping livecheck (running from fork PR)')
 
-    # setting this will allow us to skip advanced tests when building bottles
     env = {
-        'HOMEBREW_BOTTLE_BUILD': 'true',
+        'HOMEBREW_BOTTLE_BUILD': 'true',  # setting this will allow us to skip advanced tests when building bottles
+        'HOMEBREW_NO_ASK': '1',  # do not prompt for confirmation
     }
 
     # combine with os environment
