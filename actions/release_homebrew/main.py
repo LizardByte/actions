@@ -764,6 +764,52 @@ def brew_test_bot_only_cleanup_before() -> bool:
     return result
 
 
+def setup_linux_sandbox() -> bool:
+    if sys.platform != 'linux':
+        return True
+
+    start_group('Setting up Homebrew Linux sandbox')
+    print('Homebrew Linux sandbox requires bwrap on PATH before brew test-bot runs brew doctor.')
+    print('Installing after cleanup-before because that step prunes formulae from the prefix.')
+    print('Configuring rootless user namespaces so bwrap can create a sandbox.')
+
+    if not _run_subprocess(
+        args_list=[
+            'brew',
+            'install',
+            'bubblewrap',
+        ],
+    ):
+        end_group()
+        return False
+
+    for sysctl_setting in [
+        'kernel.unprivileged_userns_clone=1',
+        'user.max_user_namespaces=28633',
+    ]:
+        if not _run_subprocess(
+            args_list=[
+                'sudo',
+                'sysctl',
+                '-w',
+                sysctl_setting,
+            ],
+        ):
+            end_group()
+            return False
+
+    _run_subprocess(
+        args_list=[
+            'sh',
+            '-c',
+            'sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true',
+        ],
+    )
+
+    end_group()
+    return True
+
+
 def brew_test_bot_only_setup() -> bool:
     start_group('Running brew test-bot --only-setup')
     result = _run_subprocess(
@@ -950,6 +996,10 @@ def main():
 
     if not brew_test_bot_only_cleanup_before():
         print('::error:: brew test-bot --only-cleanup-before failed')
+        raise SystemExit(1)
+
+    if not setup_linux_sandbox():
+        print('::error:: Failed to set up Homebrew Linux sandbox')
         raise SystemExit(1)
 
     if not brew_test_bot_only_setup():
