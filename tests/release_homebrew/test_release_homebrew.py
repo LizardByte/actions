@@ -524,6 +524,59 @@ def test_is_brew_installed(operating_system):
     assert main.is_brew_installed()
 
 
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_setup_linux_sandbox_linux(mock_run_subprocess, monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    mock_run_subprocess.return_value = True
+
+    assert main.setup_linux_sandbox()
+
+    assert [call.kwargs['args_list'] for call in mock_run_subprocess.call_args_list] == [
+        ['brew', 'install', 'bubblewrap'],
+        ['sudo', 'sysctl', '-w', 'kernel.unprivileged_userns_clone=1'],
+        ['sudo', 'sysctl', '-w', 'user.max_user_namespaces=28633'],
+        ['sh', '-c', 'sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true'],
+    ]
+
+    captured = capsys.readouterr()
+    assert 'requires bwrap on PATH' in captured.out
+    assert 'cleanup-before' in captured.out
+    assert 'rootless user namespaces' in captured.out
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_setup_linux_sandbox_bubblewrap_install_fails(mock_run_subprocess, monkeypatch):
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    mock_run_subprocess.return_value = False
+
+    assert not main.setup_linux_sandbox()
+
+    assert [call.kwargs['args_list'] for call in mock_run_subprocess.call_args_list] == [
+        ['brew', 'install', 'bubblewrap'],
+    ]
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_setup_linux_sandbox_required_sysctl_fails(mock_run_subprocess, monkeypatch):
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    mock_run_subprocess.side_effect = [True, False]
+
+    assert not main.setup_linux_sandbox()
+
+    assert [call.kwargs['args_list'] for call in mock_run_subprocess.call_args_list] == [
+        ['brew', 'install', 'bubblewrap'],
+        ['sudo', 'sysctl', '-w', 'kernel.unprivileged_userns_clone=1'],
+    ]
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_setup_linux_sandbox_non_linux(mock_run_subprocess, monkeypatch):
+    monkeypatch.setattr(sys, 'platform', 'darwin')
+
+    assert main.setup_linux_sandbox()
+    mock_run_subprocess.assert_not_called()
+
+
 @pytest.mark.parametrize('setup_scenario', [
     # Scenario 1: Formula temp dir exists in first location (HOMEBREW_TEMP)
     {'env': {'HOMEBREW_TEMP': '/tmp/custom'}, 'dirs': ['/tmp/custom'], 'files': ['formula-123']},
@@ -760,6 +813,17 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
     ),
     # Scenario 3: brew test-bot --only-setup fails
     (
+            'setup_linux_sandbox_fails',
+            [
+                ('is_brew_installed', True),
+                ('process_input_formula', 'hello_world'),
+                ('brew_test_bot_only_cleanup_before', True),
+                ('setup_linux_sandbox', False),
+            ],
+            [],
+    ),
+    # Scenario 4: brew test-bot --only-setup fails
+    (
             'brew_test_bot_only_setup_fails',
             [
                 ('is_brew_installed', True),
@@ -769,7 +833,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             [],
     ),
-    # Scenario 4: Audit fails
+    # Scenario 5: Audit fails
     (
             'audit_fails',
             [
@@ -785,7 +849,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['audit'],
     ),
-    # Scenario 5: brew test-bot --only-tap-syntax fails
+    # Scenario 6: brew test-bot --only-tap-syntax fails
     (
             'brew_test_bot_only_tap_syntax_fails',
             [
@@ -801,7 +865,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['tap-syntax'],
     ),
-    # Scenario 6: Install fails
+    # Scenario 7: Install fails
     (
             'install_fails',
             [
@@ -817,7 +881,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['install'],
     ),
-    # Scenario 7: Test fails
+    # Scenario 8: Test fails
     (
             'test_fails',
             [
@@ -833,7 +897,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['test'],
     ),
-    # Scenario 8: brew test-bot --only-formulae fails
+    # Scenario 9: brew test-bot --only-formulae fails
     (
             'brew_test_bot_only_formulae_fails',
             [
@@ -849,7 +913,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['formulae'],
     ),
-    # Scenario 9: Multiple failures
+    # Scenario 10: Multiple failures
     (
             'multiple_failures',
             [
@@ -884,7 +948,8 @@ def test_main_error_cases(
     main.args = main._parse_args([])
 
     # Apply all the mocks
-    mock_dict = {name: (lambda val: lambda *args, **kwargs: val)(retval) for name, retval in mocks}
+    mock_dict = {'setup_linux_sandbox': lambda *args, **kwargs: True}
+    mock_dict.update({name: (lambda val: lambda *args, **kwargs: val)(retval) for name, retval in mocks})
 
     # set main.ERROR to true when there are expected failures
     # not the best approach, but this causes the code to raise SystemExit
