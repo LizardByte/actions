@@ -1,4 +1,6 @@
 class HelloWorld < Formula
+  HELLO_WORLD_EXECUTABLE = "hello-world".freeze
+
   desc "Simple program that outputs 'Hello, World!'"
   homepage "https://app.lizardbyte.dev"
   url "https://github.com/LizardByte/actions.git"
@@ -15,19 +17,20 @@ class HelloWorld < Formula
 
   def install
     # create hello world sh file with echo command
-    (buildpath/"hello-world").write <<~EOS
+    (buildpath/HELLO_WORLD_EXECUTABLE).write <<~EOS
       #!/bin/sh
       echo "Hello, World!"
     EOS
+    chmod "+x", buildpath/HELLO_WORLD_EXECUTABLE
 
     # install the hello-world file to the bin directory
-    bin.install "hello-world"
+    bin.install HELLO_WORLD_EXECUTABLE
 
     puts "buildpath: #{buildpath}"
   end
 
   test do
-    system "#{bin}/hello-world"
+    assert_equal "Hello, World!", shell_output("#{bin}/#{HELLO_WORLD_EXECUTABLE}").strip
 
     puts "testpath: #{testpath}"
 
