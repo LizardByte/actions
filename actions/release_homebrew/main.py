@@ -733,6 +733,57 @@ def is_brew_installed() -> bool:
     )
 
 
+def get_test_bot_env(extra_env: Optional[Mapping] = None) -> dict:
+    """
+    Get the environment shared by brew test-bot subprocesses.
+
+    Parameters
+    ----------
+    extra_env : Optional[Mapping], optional
+        Additional environment variables to merge into the returned environment.
+
+    Returns
+    -------
+    dict
+        Environment variables for subprocesses that must share test-bot state.
+    """
+    test_bot_home = os.path.join(os.getcwd(), 'home')
+    env = dict(os.environ)
+    env.update({
+        'HOME': test_bot_home,
+        'HOMEBREW_HOME': test_bot_home,
+        'HOMEBREW_USER_CONFIG_HOME': os.path.join(test_bot_home, '.homebrew'),
+    })
+
+    if extra_env:
+        env.update(extra_env)
+
+    return env
+
+
+def trust_tap() -> bool:
+    """
+    Trust the configured Homebrew tap.
+
+    Returns
+    -------
+    bool
+        True when Homebrew trusts the tap successfully; otherwise False.
+    """
+    start_group(f'Trusting tap {tap_repo_name}')
+    result = _run_subprocess(
+        args_list=[
+            'brew',
+            'trust',
+            '--tap',
+            tap_repo_name,
+        ],
+        env=get_test_bot_env(),
+    )
+    end_group()
+    return result
+
+
 def audit_formula(formula: str) -> bool:
     start_group(f'Auditing formula {formula}')
     result = _run_subprocess(
@@ -759,6 +810,7 @@ def brew_test_bot_only_cleanup_before() -> bool:
             f'--tap={tap_repo_name}',
             '--only-cleanup-before',
         ],
+        env=get_test_bot_env(),
     )
     end_group()
     return result
@@ -819,6 +871,7 @@ def brew_test_bot_only_setup() -> bool:
             f'--tap={tap_repo_name}',
             '--only-setup',
         ],
+        env=get_test_bot_env(),
     )
     end_group()
     return result
@@ -833,6 +886,7 @@ def brew_test_bot_only_tap_syntax() -> bool:
             f'--tap={tap_repo_name}',
             '--only-tap-syntax',
         ],
+        env=get_test_bot_env(),
     )
     end_group()
     return result
@@ -868,13 +922,10 @@ def brew_test_bot_only_formulae(formula: str) -> bool:
         args_list.append('--skip-livecheck')
         print('Skipping livecheck (running from fork PR)')
 
-    env = {
+    env = get_test_bot_env({
         'HOMEBREW_BOTTLE_BUILD': 'true',  # setting this will allow us to skip advanced tests when building bottles
         'HOMEBREW_NO_ASK': '1',  # do not prompt for confirmation
-    }
-
-    # combine with os environment
-    env.update(os.environ)
+    })
 
     result = _run_subprocess(
         args_list=args_list,
@@ -1000,6 +1051,11 @@ def main():
 
     if not setup_linux_sandbox():
         print('::error:: Failed to set up Homebrew Linux sandbox')
+        raise SystemExit(1)
+
+    # Trust after cleanup-before, which can reset Homebrew state before doctor runs.
+    if not trust_tap():
+        print(f'::error:: Failed to trust tap {tap_repo_name}')
         raise SystemExit(1)
 
     if not brew_test_bot_only_setup():
