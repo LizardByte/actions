@@ -51,6 +51,12 @@ jobs:
         shell: bash
         run: npm install --ignore-scripts
 
+      - name: Set up Homebrew
+        if: runner.os != 'Windows'
+        uses: Homebrew/actions/setup-homebrew@main  # NOSONAR(githubactions:S7637) homebrew release cadence is too fast
+        with:
+          stable: true
+
       - name: Backup CA
         if: runner.os == 'macOS'
         shell: bash
