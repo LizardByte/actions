@@ -78,6 +78,7 @@ jobs:
       - name: Test with pytest
         id: pytest
         env:
+          ACTION_PYTHON_PATH: ${{ steps.setup-python.outputs.python-path }}
           INPUT_GITHUB_TOKEN: ${{ github.actor == 'dependabot[bot]' && secrets.GH_BOT_TOKEN || secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
