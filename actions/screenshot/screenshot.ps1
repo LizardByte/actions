@@ -33,7 +33,7 @@ Write-Information "Screenshot dimensions: $($bounds.Width)x$($bounds.Height)" -F
 
 # Create output directory if needed
 $outputDir = Split-Path -Parent $OutputPath
-if ($outputDir -and !(Test-Path $outputDir)) {
+if ($outputDir -and -not (Test-Path $outputDir)) {
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 }
 
