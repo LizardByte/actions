@@ -19,7 +19,7 @@ jobs:
       contents: write  # write is required for release_setup
     runs-on: ${{ matrix.runner }}
     env:
-      DEFAULT_PYTHON_VERSION: '3.12'
+      DEFAULT_PYTHON_VERSION: '3.14'
     strategy:
       fail-fast: false
       matrix:
@@ -31,12 +31,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
-      - name: Set up Python
+      - name: Setup Python
+        id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: ${{ env.DEFAULT_PYTHON_VERSION }}
 
-      - name: Set up Node
+      - name: Setup uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Setup Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
           node-version: latest
@@ -44,14 +50,17 @@ jobs:
       - name: Install Python Dependencies
         shell: bash
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install --upgrade -e ".[dev]"
+          uv sync \
+            --frozen \
+            --extra dev \
+            --no-python-downloads \
+            --python "${{ steps.setup-python.outputs.python-path }}"
 
       - name: Install Node Dependencies
         shell: bash
         run: npm install --ignore-scripts
 
-      - name: Set up Homebrew
+      - name: Setup Homebrew
         if: runner.os != 'Windows'
         uses: Homebrew/actions/setup-homebrew@main  # NOSONAR(githubactions:S7637) homebrew release cadence is too fast
         with:
@@ -62,9 +71,8 @@ jobs:
         shell: bash
         run: |
           # `brew test-bot --only-cleanup-before` removes the CA bundle, so make a backup
-          cp \
-            "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/certifi/cacert.pem" \
-            "cacert.pem"
+          uv run --frozen --extra dev python -c \
+            'import certifi, shutil; shutil.copyfile(certifi.where(), "cacert.pem")'
           echo "REQUESTS_CA_BUNDLE=cacert.pem" >> "${GITHUB_ENV}"
 
       - name: Test with pytest
@@ -82,7 +90,7 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Run Python Tests"
-          python -m pytest
+          uv run --frozen --extra dev python -m pytest
           echo "::endgroup::"
 
       - name: Test with Jest

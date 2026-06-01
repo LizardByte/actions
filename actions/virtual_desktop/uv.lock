@@ -1,0 +1,29 @@
+version = 1
+revision = 3
+requires-python = ">=3.14"
+
+[[package]]
+name = "lizardbyte-actions-virtual-desktop"
+version = "0.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "pygobject", marker = "sys_platform == 'linux'" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pygobject", marker = "sys_platform == 'linux'", specifier = "==3.56.3" }]
+
+[[package]]
+name = "pycairo"
+version = "1.29.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/22/d9/1728840a22a4ef8a8f479b9156aa2943cd98c3907accd3849fb0d5f82bfd/pycairo-1.29.0.tar.gz", hash = "sha256:f3f7fde97325cae80224c09f12564ef58d0d0f655da0e3b040f5807bd5bd3142", size = 665871, upload-time = "2025-11-11T19:13:01.584Z" }
+
+[[package]]
+name = "pygobject"
+version = "3.56.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pycairo" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/da/61/978c5fbca34f10a90df362502fbb5a005637909e7b5a0e9212349ea9d010/pygobject-3.56.3.tar.gz", hash = "sha256:12760e4a0e3d04b6eb95e06f7a27e362c826d567ea613373a92c003b6c70d2d6", size = 1411853, upload-time = "2026-05-08T20:46:39.904Z" }

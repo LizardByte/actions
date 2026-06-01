@@ -10,3 +10,8 @@ import pytest
 def default_python_version():
     # split by `-` to remove architecture suffix from pyenv versions
     return os.environ.get('DEFAULT_PYTHON_VERSION').split('-')[0]
+
+
+@pytest.fixture(scope='session')
+def action_python_path():
+    return os.environ.get('ACTION_PYTHON_PATH')

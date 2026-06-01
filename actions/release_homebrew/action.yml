@@ -111,34 +111,34 @@ runs:
         python-version: "3.14"
         update-environment: false
 
-    - name: Create venv
+    - name: Setup uv
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+      with:
+        enable-cache: true
+        working-directory: ${{ github.action_path }}
+
+    - name: Sync Python Environment
       id: venv
       shell: bash
       working-directory: ${{ github.action_path }}
+      env:
+        UV_PROJECT_ENVIRONMENT: venv
       run: |
-        echo "::group::Create venv"
-        if [[ "${{ runner.os }}" == "Windows" ]]; then
-          # use cygpath to convert windows path to unix path while creating venv
-          $(cygpath.exe -u "${{ steps.setup-python.outputs.python-path }}") -m venv venv
+        echo "::group::Sync Python Environment"
+        uv sync \
+          --frozen \
+          --no-dev \
+          --no-install-project \
+          --no-python-downloads \
+          --python "${{ steps.setup-python.outputs.python-path }}"
 
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
           # set python executable as step output
           echo "python-path=$(cygpath.exe -u $(pwd)\\venv\\Scripts\\python.exe)" >> $GITHUB_OUTPUT
         else
-          ${{ steps.setup-python.outputs.python-path }} -m venv venv
-
           # set python executable as step output
           echo "python-path=$(pwd)/venv/bin/python" >> $GITHUB_OUTPUT
         fi
-        echo "::endgroup::"
-
-    - name: Install Python Requirements
-      id: install-requirements
-      shell: bash
-      working-directory: ${{ github.action_path }}
-      run: |
-        echo "::group::Install Python Requirements"
-        # install requirements required for this action to complete
-        "${{ steps.venv.outputs.python-path }}" -m pip install .
         echo "::endgroup::"
 
     - name: Checkout (org homebrew repo)
@@ -160,7 +160,7 @@ runs:
         persist-credentials: false  # otherwise, the token used is the GITHUB_TOKEN, instead of the personal token
         fetch-depth: 1
 
-    - name: Set up Homebrew
+    - name: Setup Homebrew
       id: set-up-homebrew
       uses: Homebrew/actions/setup-homebrew@main
       with:
