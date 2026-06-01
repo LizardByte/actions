@@ -14,4 +14,4 @@ def default_python_version():
 
 @pytest.fixture(scope='session')
 def action_python_path():
-    return os.environ['ACTION_PYTHON_PATH']
+    return os.environ.get('ACTION_PYTHON_PATH')

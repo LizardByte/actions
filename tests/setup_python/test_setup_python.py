@@ -1,14 +1,27 @@
 # -*- coding: utf-8 -*-
 # standard imports
 import os
+import platform
 import subprocess
+import sys
 
 # lib imports
 import pytest
 
 
+PLATFORM_VERSION_SCRIPT = 'import platform; print(platform.python_version())'
+SYSTEM_VERSION_SCRIPT = 'import sys; print(sys.version)'
+
+
 def get_action_python_output(action_python_path, script):
     """Run a short Python script with the action-provided interpreter."""
+    if not action_python_path:
+        if script == PLATFORM_VERSION_SCRIPT:
+            return platform.python_version()
+        if script == SYSTEM_VERSION_SCRIPT:
+            return sys.version
+        raise ValueError("Unsupported in-process Python script: {}".format(script))
+
     output = subprocess.check_output([action_python_path, '-c', script])
     if isinstance(output, bytes):
         output = output.decode('utf-8')
@@ -19,7 +32,7 @@ def test_python_platform_version(default_python_version, action_python_path):
     """Test that the installed Python version matches the expected version."""
     actual_version = get_action_python_output(
         action_python_path,
-        'import platform; print(platform.python_version())',
+        PLATFORM_VERSION_SCRIPT,
     )
     # Split by '-' to handle architecture suffixes like 3.12.10-win32
     expected_version = default_python_version.split('-')[0]
@@ -33,7 +46,7 @@ def test_python_system_version(default_python_version, action_python_path):
     """Test that sys.version matches the expected version."""
     actual_version = get_action_python_output(
         action_python_path,
-        'import sys; print(sys.version)',
+        SYSTEM_VERSION_SCRIPT,
     )
     # Split by '-' to handle architecture suffixes like 3.12.10-win32
     expected_version = default_python_version.split('-')[0]
@@ -87,7 +100,7 @@ def test_default_python_version(default_python_version, action_python_path):
     # Get current Python version
     actual_version = get_action_python_output(
         action_python_path,
-        'import platform; print(platform.python_version())',
+        PLATFORM_VERSION_SCRIPT,
     )
 
     assert actual_version.startswith(expected_base), \
