@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "lizardbyte-actions-virtual-desktop"
 version = "0.0.0"
 description = "Setup virtual desktop action for GitHub workflows."
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 
 dependencies = [
     # PyGObject provides Python bindings for GObject-based libraries like GTK and AppIndicator

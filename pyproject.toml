@@ -8,14 +8,15 @@ version = "0.0.0"
 description = "Reusable actions for GitHub workflows."
 readme = "README.md"
 license = "MIT"
+requires-python = ">=3.14"
 authors = [
     {name = "LizardByte", email = "lizardbyte@users.noreply.github.com"}
 ]
 
 dependencies = [
-    "lizardbyte-actions-facebook-post @ file:./actions/facebook_post",
-    "lizardbyte-actions-release-homebrew @ file:./actions/release_homebrew",
-    "lizardbyte-actions-release-setup @ file:./actions/release_setup",
+    "lizardbyte-actions-facebook-post",
+    "lizardbyte-actions-release-homebrew",
+    "lizardbyte-actions-release-setup",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +29,14 @@ dev = [
 Homepage = "https://github.com/LizardByte/actions#readme"
 Repository = "https://github.com/LizardByte/actions"
 Issues = "https://github.com/LizardByte/actions/issues"
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+lizardbyte-actions-facebook-post = { path = "actions/facebook_post" }
+lizardbyte-actions-release-homebrew = { path = "actions/release_homebrew" }
+lizardbyte-actions-release-setup = { path = "actions/release_setup" }
 
 [tool.setuptools.packages.find]
 include = ["actions*"]
