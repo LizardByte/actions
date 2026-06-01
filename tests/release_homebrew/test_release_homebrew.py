@@ -524,6 +524,96 @@ def test_is_brew_installed(operating_system):
     assert main.is_brew_installed()
 
 
+def test_get_test_bot_env(monkeypatch):
+    """
+    Test that get_test_bot_env returns test-bot's isolated Homebrew config paths.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch environment variables.
+    """
+    monkeypatch.setenv('EXISTING_ENV', '1')
+
+    env = main.get_test_bot_env({'EXTRA_ENV': '2'})
+
+    test_bot_home = os.path.join(os.getcwd(), 'home')
+    assert env['EXISTING_ENV'] == '1'
+    assert env['EXTRA_ENV'] == '2'
+    assert env['HOME'] == test_bot_home
+    assert env['HOMEBREW_HOME'] == test_bot_home
+    assert env['HOMEBREW_USER_CONFIG_HOME'] == os.path.join(test_bot_home, '.homebrew')
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+@patch('actions.release_homebrew.main.get_test_bot_env')
+def test_trust_tap(mock_get_test_bot_env, mock_run_subprocess, capsys):
+    """
+    Test that trust_tap trusts the configured Homebrew tap.
+
+    Parameters
+    ----------
+    mock_get_test_bot_env : unittest.mock.Mock
+        Mocked test-bot environment builder.
+    mock_run_subprocess : unittest.mock.Mock
+        Mocked subprocess runner.
+    capsys : pytest.CaptureFixture
+        Fixture used to inspect the log output.
+    """
+    main.tap_repo_name = 'lizardbyte/homebrew'
+    mock_get_test_bot_env.return_value = {
+        'HOMEBREW_USER_CONFIG_HOME': os.path.join(os.getcwd(), 'home', '.homebrew'),
+    }
+    mock_run_subprocess.return_value = True
+
+    assert main.trust_tap()
+
+    mock_run_subprocess.assert_called_once_with(
+        args_list=[
+            'brew',
+            'trust',
+            '--tap',
+            'lizardbyte/homebrew',
+        ],
+        env=mock_get_test_bot_env.return_value,
+    )
+
+    captured = capsys.readouterr()
+    assert 'Trusting tap lizardbyte/homebrew' in captured.out
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+@patch('actions.release_homebrew.main.get_test_bot_env')
+def test_brew_test_bot_only_setup_uses_test_bot_env(mock_get_test_bot_env, mock_run_subprocess):
+    """
+    Test that brew_test_bot_only_setup uses the shared test-bot environment.
+
+    Parameters
+    ----------
+    mock_get_test_bot_env : unittest.mock.Mock
+        Mocked test-bot environment builder.
+    mock_run_subprocess : unittest.mock.Mock
+        Mocked subprocess runner.
+    """
+    main.tap_repo_name = 'lizardbyte/homebrew'
+    mock_get_test_bot_env.return_value = {
+        'HOMEBREW_USER_CONFIG_HOME': os.path.join(os.getcwd(), 'home', '.homebrew'),
+    }
+    mock_run_subprocess.return_value = True
+
+    assert main.brew_test_bot_only_setup()
+
+    mock_run_subprocess.assert_called_once_with(
+        args_list=[
+            'brew',
+            'test-bot',
+            '--tap=lizardbyte/homebrew',
+            '--only-setup',
+        ],
+        env=mock_get_test_bot_env.return_value,
+    )
+
+
 @patch('actions.release_homebrew.main._run_subprocess')
 def test_setup_linux_sandbox_linux(mock_run_subprocess, monkeypatch, capsys):
     monkeypatch.setattr(sys, 'platform', 'linux')
@@ -794,6 +884,52 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
     assert not main.FAILURES
 
 
+def test_main_trusts_tap_after_cleanup(monkeypatch):
+    """
+    Test that main trusts the tap after Homebrew cleanup and before setup.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch environment variables and action steps.
+    """
+    monkeypatch.setenv('INPUT_VALIDATE', 'true')
+    main.ERROR = False
+    main.FAILURES = []
+    main.args = main._parse_args([])
+    calls = []
+
+    def record_call(name, return_value=True):
+        def _record(*args, **kwargs):
+            calls.append(name)
+            return return_value
+
+        return _record
+
+    monkeypatch.setattr(main, 'is_brew_installed', record_call('is_brew_installed'))
+    monkeypatch.setattr(main, 'process_input_formula', record_call('process_input_formula', 'hello_world'))
+    monkeypatch.setattr(
+        main,
+        'brew_test_bot_only_cleanup_before',
+        record_call('brew_test_bot_only_cleanup_before'),
+    )
+    monkeypatch.setattr(main, 'setup_linux_sandbox', record_call('setup_linux_sandbox'))
+    monkeypatch.setattr(main, 'trust_tap', record_call('trust_tap'))
+    monkeypatch.setattr(main, 'brew_test_bot_only_setup', record_call('brew_test_bot_only_setup'))
+    monkeypatch.setattr(main, 'audit_formula', record_call('audit_formula'))
+    monkeypatch.setattr(main, 'override_actionlint_config', record_call('override_actionlint_config'))
+    monkeypatch.setattr(main, 'brew_test_bot_only_tap_syntax', record_call('brew_test_bot_only_tap_syntax'))
+    monkeypatch.setattr(main, 'install_formula', record_call('install_formula'))
+    monkeypatch.setattr(main, 'test_formula', record_call('test_formula'))
+    monkeypatch.setattr(main, 'brew_test_bot_only_formulae', record_call('brew_test_bot_only_formulae'))
+
+    main.main()
+
+    assert calls.index('brew_test_bot_only_cleanup_before') < calls.index('trust_tap')
+    assert calls.index('setup_linux_sandbox') < calls.index('trust_tap')
+    assert calls.index('trust_tap') < calls.index('brew_test_bot_only_setup')
+
+
 @pytest.mark.parametrize('scenario, mocks, expected_failures', [
     # Scenario 1: Homebrew not installed
     (
@@ -811,7 +947,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             [],
     ),
-    # Scenario 3: brew test-bot --only-setup fails
+    # Scenario 3: Homebrew Linux sandbox setup fails
     (
             'setup_linux_sandbox_fails',
             [
@@ -822,7 +958,19 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             [],
     ),
-    # Scenario 4: brew test-bot --only-setup fails
+    # Scenario 4: brew trust --tap fails
+    (
+            'trust_tap_fails',
+            [
+                ('is_brew_installed', True),
+                ('process_input_formula', 'hello_world'),
+                ('brew_test_bot_only_cleanup_before', True),
+                ('setup_linux_sandbox', True),
+                ('trust_tap', False),
+            ],
+            [],
+    ),
+    # Scenario 5: brew test-bot --only-setup fails
     (
             'brew_test_bot_only_setup_fails',
             [
@@ -833,7 +981,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             [],
     ),
-    # Scenario 5: Audit fails
+    # Scenario 6: Audit fails
     (
             'audit_fails',
             [
@@ -849,7 +997,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['audit'],
     ),
-    # Scenario 6: brew test-bot --only-tap-syntax fails
+    # Scenario 7: brew test-bot --only-tap-syntax fails
     (
             'brew_test_bot_only_tap_syntax_fails',
             [
@@ -865,7 +1013,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['tap-syntax'],
     ),
-    # Scenario 7: Install fails
+    # Scenario 8: Install fails
     (
             'install_fails',
             [
@@ -881,7 +1029,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['install'],
     ),
-    # Scenario 8: Test fails
+    # Scenario 9: Test fails
     (
             'test_fails',
             [
@@ -897,7 +1045,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['test'],
     ),
-    # Scenario 9: brew test-bot --only-formulae fails
+    # Scenario 10: brew test-bot --only-formulae fails
     (
             'brew_test_bot_only_formulae_fails',
             [
@@ -913,7 +1061,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
             ],
             ['formulae'],
     ),
-    # Scenario 10: Multiple failures
+    # Scenario 11: Multiple failures
     (
             'multiple_failures',
             [
@@ -948,7 +1096,10 @@ def test_main_error_cases(
     main.args = main._parse_args([])
 
     # Apply all the mocks
-    mock_dict = {'setup_linux_sandbox': lambda *args, **kwargs: True}
+    mock_dict = {
+        'setup_linux_sandbox': lambda *args, **kwargs: True,
+        'trust_tap': lambda *args, **kwargs: True,
+    }
     mock_dict.update({name: (lambda val: lambda *args, **kwargs: val)(retval) for name, retval in mocks})
 
     # set main.ERROR to true when there are expected failures
