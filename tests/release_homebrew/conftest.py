@@ -1,6 +1,7 @@
 # standard imports
 import os
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -195,7 +196,30 @@ def org_homebrew_repo():
     yield repo_directory
 
 
-@pytest.fixture(scope='function')  # todo: fix repo deletion
+def _make_writable_and_retry(function, path, _exc_info):
+    os.chmod(path, os.stat(path).st_mode | stat.S_IWRITE)
+    function(path)
+
+
+def _remove_test_repo(repo_directory):
+    if os.path.isdir(repo_directory):
+        os.chdir(og_dir)
+        shutil.rmtree(repo_directory, onexc=_make_writable_and_retry)
+
+
+@pytest.fixture(scope='session', autouse=True)
+def cleanup_homebrew_core_fork_repo():
+    yield
+
+    repo_directory = os.path.join(
+        os.environ['GITHUB_WORKSPACE'],
+        'release_homebrew_action',
+        'homebrew_core_fork_repo',
+    )
+    _remove_test_repo(repo_directory)
+
+
+@pytest.fixture(scope='function')
 def homebrew_core_fork_repo():
     directory = os.path.join(os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action')
     os.makedirs(directory, exist_ok=True)
@@ -233,9 +257,6 @@ def homebrew_core_fork_repo():
     )
 
     yield repo_directory
-
-    # remove the homebrew-core fork (this fails)
-    # shutil.rmtree(repo_directory)
 
 
 def _cleanup_bottle_files():
