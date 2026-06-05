@@ -735,7 +735,11 @@ def is_brew_installed() -> bool:
 
 def get_test_bot_env(extra_env: Optional[Mapping] = None) -> dict:
     """
-    Get the environment shared by brew test-bot subprocesses.
+    Get environment variables for brew test-bot subprocesses.
+
+    Homebrew test-bot manages its own local HOME and HOMEBREW_USER_CONFIG_HOME
+    under the working directory. Pre-setting those variables can make
+    test-bot copy Homebrew's trust file onto itself during setup.
 
     Parameters
     ----------
@@ -745,15 +749,11 @@ def get_test_bot_env(extra_env: Optional[Mapping] = None) -> dict:
     Returns
     -------
     dict
-        Environment variables for subprocesses that must share test-bot state.
+        Environment variables for subprocesses.
     """
-    test_bot_home = os.path.join(os.getcwd(), 'home')
     env = dict(os.environ)
-    env.update({
-        'HOME': test_bot_home,
-        'HOMEBREW_HOME': test_bot_home,
-        'HOMEBREW_USER_CONFIG_HOME': os.path.join(test_bot_home, '.homebrew'),
-    })
+    for homebrew_env_var in ('HOMEBREW_HOME', 'HOMEBREW_USER_CONFIG_HOME'):
+        env.pop(homebrew_env_var, None)
 
     if extra_env:
         env.update(extra_env)

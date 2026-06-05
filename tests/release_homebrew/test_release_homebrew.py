@@ -526,7 +526,7 @@ def test_is_brew_installed(operating_system):
 
 def test_get_test_bot_env(monkeypatch):
     """
-    Test that get_test_bot_env returns test-bot's isolated Homebrew config paths.
+    Test that get_test_bot_env lets Homebrew test-bot manage its own config paths.
 
     Parameters
     ----------
@@ -534,15 +534,17 @@ def test_get_test_bot_env(monkeypatch):
         Fixture used to patch environment variables.
     """
     monkeypatch.setenv('EXISTING_ENV', '1')
+    monkeypatch.setenv('HOME', os.path.join(os.getcwd(), 'runner-home'))
+    monkeypatch.setenv('HOMEBREW_HOME', os.path.join(os.getcwd(), 'home'))
+    monkeypatch.setenv('HOMEBREW_USER_CONFIG_HOME', os.path.join(os.getcwd(), 'home', '.homebrew'))
 
     env = main.get_test_bot_env({'EXTRA_ENV': '2'})
 
-    test_bot_home = os.path.join(os.getcwd(), 'home')
     assert env['EXISTING_ENV'] == '1'
     assert env['EXTRA_ENV'] == '2'
-    assert env['HOME'] == test_bot_home
-    assert env['HOMEBREW_HOME'] == test_bot_home
-    assert env['HOMEBREW_USER_CONFIG_HOME'] == os.path.join(test_bot_home, '.homebrew')
+    assert env['HOME'] == os.path.join(os.getcwd(), 'runner-home')
+    assert 'HOMEBREW_HOME' not in env
+    assert 'HOMEBREW_USER_CONFIG_HOME' not in env
 
 
 @patch('actions.release_homebrew.main._run_subprocess')
@@ -562,7 +564,7 @@ def test_trust_tap(mock_get_test_bot_env, mock_run_subprocess, capsys):
     """
     main.tap_repo_name = 'lizardbyte/homebrew'
     mock_get_test_bot_env.return_value = {
-        'HOMEBREW_USER_CONFIG_HOME': os.path.join(os.getcwd(), 'home', '.homebrew'),
+        'HOME': os.path.join(os.getcwd(), 'runner-home'),
     }
     mock_run_subprocess.return_value = True
 
@@ -597,7 +599,7 @@ def test_brew_test_bot_only_setup_uses_test_bot_env(mock_get_test_bot_env, mock_
     """
     main.tap_repo_name = 'lizardbyte/homebrew'
     mock_get_test_bot_env.return_value = {
-        'HOMEBREW_USER_CONFIG_HOME': os.path.join(os.getcwd(), 'home', '.homebrew'),
+        'HOME': os.path.join(os.getcwd(), 'runner-home'),
     }
     mock_run_subprocess.return_value = True
 
