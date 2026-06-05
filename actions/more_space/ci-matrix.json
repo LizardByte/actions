@@ -22,14 +22,6 @@
     }
   },
   {
-    "runs-on": "windows-2022",
-    "with": {
-      "analyze-space-savings": true,
-      "clean-all": true,
-      "safe-packages": "jq"
-    }
-  },
-  {
     "runs-on": "windows-2025",
     "with": {
       "analyze-space-savings": true,
