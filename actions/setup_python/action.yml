@@ -22,6 +22,10 @@ inputs:
     description: Whether to update the environment variables.
     default: "true"
     required: false
+  update-pyenv:
+    description: Whether to update available Python versions (set to false to avoid flakey errors caused by third party rate limits).
+    default: "true"
+    required: false
 
 outputs:
   python-version:
@@ -67,6 +71,7 @@ runs:
         done
 
     - name: Update pyenv
+      if: ${{ inputs.update-pyenv == 'true' }}
       shell: bash
       run: pyenv update
 
