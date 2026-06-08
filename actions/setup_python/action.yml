@@ -23,7 +23,9 @@ inputs:
     default: "true"
     required: false
   update-pyenv:
-    description: Whether to update available Python versions (set to false to avoid errors from third party rate limits).
+    description: >
+      Whether to update available Python versions.
+      Set to false to avoid errors from third party rate limits.
     default: "true"
     required: false
 
