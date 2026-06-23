@@ -360,6 +360,7 @@ describe('Release Changelog Generator', () => {
         blobSha,
         treeSha,
       });
+      expect(mockGithub.rest.git.createCommit).toHaveBeenCalledWith(expect.objectContaining({ parents: [] }));
     });
   });
 
