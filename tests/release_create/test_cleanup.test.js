@@ -276,11 +276,18 @@ describe('Release Cleanup', () => {
   describe('sleep', () => {
     test('should sleep for specified duration', async () => {
       jest.useFakeTimers();
-      const sleepPromise = sleep(5);
-      jest.advanceTimersByTime(5000);
-      await sleepPromise;
-      jest.useRealTimers();
-      expect(true).toBe(true); // If we get here, sleep worked
+      try {
+        const sleepPromise = sleep(5);
+        expect(jest.getTimerCount()).toBe(1);
+
+        jest.advanceTimersByTime(4999);
+        expect(jest.getTimerCount()).toBe(1);
+
+        jest.advanceTimersByTime(1);
+        await expect(sleepPromise).resolves.toBeUndefined();
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 
@@ -312,6 +319,12 @@ describe('Release Cleanup', () => {
       // keepLatest=2 means keep 2 total including currentTag (v2024.1.5)
       // So keep 1 existing (v2024.1.4) + new v2024.1.5, delete 3 (v2024.1.1, v2024.1.2, v2024.1.3)
       verifyDeleteCalls(mockGithub, { deleteReleaseCalls: 3, deleteTagCalls: 3 });
+      expect(mockGithub.rest.repos.deleteRelease.mock.calls.map(([call]) => call.release_id)).toEqual([1, 2, 3]);
+      expect(mockGithub.rest.git.deleteRef.mock.calls.map(([call]) => call.ref)).toEqual([
+        'tags/v2024.1.1',
+        'tags/v2024.1.2',
+        'tags/v2024.1.3',
+      ]);
     });
 
     test('should delete drafts when IS_DRAFT is true', async () => {
@@ -350,6 +363,8 @@ describe('Release Cleanup', () => {
       await deletePromise;
 
       verifyDeleteCalls(mockGithub, { deleteReleaseCalls: 2, deleteTagCalls: 0 });
+      expect(mockGithub.rest.repos.deleteRelease.mock.calls.map(([call]) => call.release_id)).toEqual([1, 2]);
+      expect(mockGithub.rest.git.deleteRef).not.toHaveBeenCalled();
     });
 
     test('should handle no releases to delete', async () => {
@@ -366,6 +381,8 @@ describe('Release Cleanup', () => {
       await deletePromise;
 
       verifyDeleteCalls(mockGithub, { deleteReleaseCalls: 0, deleteTagCalls: 0 });
+      expect(mockGithub.rest.repos.deleteRelease).not.toHaveBeenCalled();
+      expect(mockGithub.rest.git.deleteRef).not.toHaveBeenCalled();
     });
 
     test('should respect SLEEP_DURATION', async () => {
@@ -378,7 +395,12 @@ describe('Release Cleanup', () => {
       setupCleanupEnv({ currentTag: 'v2024.1.2', keepLatest: '0', deleteTags: 'true', sleepDuration: '10', isDraft: 'false' });
 
       const deletePromise = deleteOldPreReleases({ github: mockGithub, context: mockContext });
-      await jest.runAllTimersAsync();
+      await jest.advanceTimersByTimeAsync(9999);
+
+      expect(mockGithub.rest.repos.deleteRelease).toHaveBeenCalledTimes(1);
+      expect(mockGithub.rest.git.deleteRef).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(1);
       await deletePromise;
 
       verifyDeleteCalls(mockGithub, { deleteReleaseCalls: 1, deleteTagCalls: 1 });
