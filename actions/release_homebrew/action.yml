@@ -80,11 +80,8 @@ inputs:
     required: false
 
 outputs:
-  buildpath:
-    description: "Deprecated. The action no longer exposes Homebrew's temporary build directory."
-    value: ${{ steps.homebrew-tests.outputs.buildpath }}
   testpath:
-    description: "The action-owned directory where formulae can write test artifacts during the bottle build."
+    description: "The action-owned directory where test artifacts from the bottle build are copied."
     value: ${{ steps.homebrew-tests.outputs.testpath }}
   commit_message:
     description: "The commit message used for the formula update."

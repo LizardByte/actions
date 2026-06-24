@@ -681,12 +681,30 @@ def test_get_test_artifacts_dir():
     assert main.get_test_artifacts_dir() == expected
 
 
+def test_get_homebrew_test_artifacts_dir():
+    expected = os.path.abspath(
+        os.path.join(
+            os.getcwd(),
+            'logs',
+            'release_homebrew',
+            'test',
+        )
+    )
+
+    assert main.get_homebrew_test_artifacts_dir() == expected
+
+
 def test_prepare_test_artifacts_dir(github_output_file):
     test_artifacts_dir = main.get_test_artifacts_dir()
     os.makedirs(test_artifacts_dir, exist_ok=True)
+    homebrew_test_artifacts_dir = main.get_homebrew_test_artifacts_dir()
+    os.makedirs(homebrew_test_artifacts_dir, exist_ok=True)
 
     stale_file = os.path.join(test_artifacts_dir, 'stale.txt')
     with open(stale_file, 'w') as f:
+        f.write('stale')
+    stale_homebrew_file = os.path.join(homebrew_test_artifacts_dir, 'stale.txt')
+    with open(stale_homebrew_file, 'w') as f:
         f.write('stale')
 
     result = main.prepare_test_artifacts_dir()
@@ -694,11 +712,11 @@ def test_prepare_test_artifacts_dir(github_output_file):
     assert result == test_artifacts_dir
     assert os.path.isdir(test_artifacts_dir)
     assert not os.path.exists(stale_file)
+    assert not os.path.exists(stale_homebrew_file)
 
     with open(github_output_file, 'r') as f:
         output = f.read()
 
-    assert 'buildpath<<EOF\n\nEOF\n' in output
     assert f'testpath<<EOF\n{test_artifacts_dir}\nEOF\n' in output
 
 
@@ -746,16 +764,15 @@ def test_brew_test_bot_only_formulae_fork_pr(
 @patch('actions.release_homebrew.main._run_subprocess')
 def test_brew_test_bot_only_formulae_includes_test_artifacts_dir(
         mock_run_subprocess,
-        org_homebrew_repo,
-        operating_system,
+        monkeypatch,
+        tmp_path,
 ):
-    """Test that brew_test_bot_only_formulae exposes the action artifact directory to formulae."""
+    """Test that brew_test_bot_only_formulae exposes the Homebrew artifact directory to formulae."""
     mock_run_subprocess.return_value = True
-    test_artifacts_dir = os.path.join(os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action', 'test')
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(main, 'tap_repo_name', 'lizardbyte/homebrew')
 
-    # Call process_input_formula first to set up the tap
-    main.process_input_formula(
-        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+    test_artifacts_dir = os.path.join(os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action', 'test')
 
     result = main.brew_test_bot_only_formulae(
         formula='hello_world',
@@ -769,7 +786,37 @@ def test_brew_test_bot_only_formulae_includes_test_artifacts_dir(
 
     assert env['HOMEBREW_BOTTLE_BUILD'] == 'true'
     assert env['HOMEBREW_NO_ASK'] == '1'
-    assert env[main.TEST_ARTIFACTS_ENV_VAR] == test_artifacts_dir
+    assert env[main.TEST_ARTIFACTS_ENV_VAR] == main.get_homebrew_test_artifacts_dir()
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_brew_test_bot_only_formulae_copies_test_artifacts(
+        mock_run_subprocess,
+        monkeypatch,
+        tmp_path,
+):
+    """Test that brew_test_bot_only_formulae copies Homebrew log artifacts back to testpath."""
+    mock_run_subprocess.return_value = True
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(main, 'tap_repo_name', 'lizardbyte/homebrew')
+
+    source_dir = main.get_homebrew_test_artifacts_dir()
+    os.makedirs(os.path.join(source_dir, 'tests'), exist_ok=True)
+    with open(os.path.join(source_dir, 'coverage.xml'), 'w') as f:
+        f.write('<coverage />')
+    with open(os.path.join(source_dir, 'tests', 'test_results.xml'), 'w') as f:
+        f.write('<testsuites />')
+
+    destination_dir = os.path.join(str(tmp_path), 'output')
+
+    result = main.brew_test_bot_only_formulae(
+        formula='hello_world',
+        test_artifacts_dir=destination_dir,
+    )
+
+    assert result is True
+    assert os.path.isfile(os.path.join(destination_dir, 'coverage.xml'))
+    assert os.path.isfile(os.path.join(destination_dir, 'tests', 'test_results.xml'))
 
 
 @patch.dict(os.environ, {'INPUT_IS_FORK_PR': 'false'})

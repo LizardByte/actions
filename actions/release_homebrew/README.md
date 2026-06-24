@@ -60,12 +60,11 @@ steps:
 
 | Name      | Description                                       |
 |-----------|---------------------------------------------------|
-| buildpath | Deprecated. The action no longer exposes Homebrew's temporary build directory. |
-| testpath  | The action-owned directory where formulae can write test artifacts during the bottle build. |
+| testpath  | The action-owned directory where test artifacts from the bottle build are copied. |
 
-During validation, the action sets `RELEASE_HOMEBREW_TESTPATH` for `brew test-bot --only-formulae`.
+During validation, the action sets `HOMEBREW_TEST_ARTIFACTS_DIR` for `brew test-bot --only-formulae`.
 Formulae that need artifacts such as gtest XML or coverage reports can write them to that directory while the
-bottle build still has access to its build tree.
+bottle build still has access to its build tree. After `test-bot` finishes, the action copies those files to `testpath`.
 
 ## 🧰 Advanced Usage
 

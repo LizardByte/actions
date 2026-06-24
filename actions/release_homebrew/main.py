@@ -21,7 +21,7 @@ args = None
 # result placeholder
 ERROR = False
 FAILURES = []
-TEST_ARTIFACTS_ENV_VAR = "RELEASE_HOMEBREW_TESTPATH"
+TEST_ARTIFACTS_ENV_VAR = "HOMEBREW_TEST_ARTIFACTS_DIR"
 
 tap_repo_name = ""  # will be set based on INPUT_ORG_HOMEBREW_REPO
 
@@ -909,6 +909,25 @@ def get_test_artifacts_dir() -> str:
     )
 
 
+def get_homebrew_test_artifacts_dir() -> str:
+    """
+    Get the Homebrew logs directory where formulae can write during bottle builds.
+
+    Returns
+    -------
+    str
+        Absolute path to the Homebrew-side test artifacts directory.
+    """
+    return os.path.abspath(
+        os.path.join(
+            os.getcwd(),
+            'logs',
+            'release_homebrew',
+            'test',
+        )
+    )
+
+
 def prepare_test_artifacts_dir() -> str:
     """
     Prepare an action-owned directory for test artifacts from the bottle build.
@@ -934,18 +953,51 @@ def prepare_test_artifacts_dir() -> str:
     elif os.path.exists(test_artifacts_dir):
         os.remove(test_artifacts_dir)
 
+    homebrew_test_artifacts_dir = get_homebrew_test_artifacts_dir()
+    homebrew_artifacts_root = os.path.abspath(
+        os.path.join(
+            os.getcwd(),
+            'logs',
+            'release_homebrew',
+        )
+    )
+
+    if os.path.commonpath([homebrew_artifacts_root, homebrew_test_artifacts_dir]) != homebrew_artifacts_root:
+        raise ValueError(f'::error:: Refusing to clean unexpected path {homebrew_test_artifacts_dir}')
+
+    if os.path.isdir(homebrew_test_artifacts_dir):
+        shutil.rmtree(homebrew_test_artifacts_dir)
+    elif os.path.exists(homebrew_test_artifacts_dir):
+        os.remove(homebrew_test_artifacts_dir)
+
     os.makedirs(test_artifacts_dir, exist_ok=True)
 
-    set_github_action_output(
-        output_name='buildpath',
-        output_value='',
-    )
     set_github_action_output(
         output_name='testpath',
         output_value=test_artifacts_dir,
     )
 
     return test_artifacts_dir
+
+
+def copy_test_artifacts(source_dir: str, destination_dir: str) -> None:
+    """
+    Copy test artifacts from Homebrew logs to the action output directory.
+
+    Parameters
+    ----------
+    source_dir : str
+        Directory where the formula wrote artifacts during the Homebrew build.
+    destination_dir : str
+        Directory exposed as the action's testpath output.
+    """
+    if not os.path.isdir(source_dir):
+        print(f'No Homebrew test artifacts found at {source_dir}')
+        return
+
+    print(f'Copying Homebrew test artifacts from {source_dir} to {destination_dir}')
+    os.makedirs(destination_dir, exist_ok=True)
+    shutil.copytree(source_dir, destination_dir, dirs_exist_ok=True)
 
 
 def brew_test_bot_only_formulae(formula: str, test_artifacts_dir: Optional[str] = None) -> bool:
@@ -978,13 +1030,12 @@ def brew_test_bot_only_formulae(formula: str, test_artifacts_dir: Optional[str] 
         args_list.append('--skip-livecheck')
         print('Skipping livecheck (running from fork PR)')
 
+    homebrew_test_artifacts_dir = get_homebrew_test_artifacts_dir()
     extra_env = {
         'HOMEBREW_BOTTLE_BUILD': 'true',  # setting this will allow us to skip advanced tests when building bottles
         'HOMEBREW_NO_ASK': '1',  # do not prompt for confirmation
+        TEST_ARTIFACTS_ENV_VAR: homebrew_test_artifacts_dir,
     }
-
-    if test_artifacts_dir:
-        extra_env[TEST_ARTIFACTS_ENV_VAR] = test_artifacts_dir
 
     env = get_test_bot_env(extra_env)
 
@@ -992,6 +1043,9 @@ def brew_test_bot_only_formulae(formula: str, test_artifacts_dir: Optional[str] 
         args_list=args_list,
         env=env,
     )
+
+    if test_artifacts_dir:
+        copy_test_artifacts(homebrew_test_artifacts_dir, test_artifacts_dir)
 
     end_group()
     return result
