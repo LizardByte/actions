@@ -221,6 +221,54 @@ def mock_generate_release_body_success():
     requests.get = Mock(return_value=mock_get_response)
     requests.post = Mock(return_value=mock_post_response)
 
+    yield requests.post
+
+    requests.get = original_get
+    requests.post = original_post
+
+
+@pytest.fixture(scope='function')
+def mock_generate_release_body_first_release_success():
+    original_get = requests.get
+    original_post = requests.post
+
+    # Mock the GET request for latest release. GitHub returns 404 when no releases exist.
+    mock_get_response = Mock()
+    mock_get_response.status_code = 404
+
+    # Mock the POST request for generating release notes
+    mock_post_response = Mock()
+    mock_post_response.status_code = 200
+    mock_post_response.json.return_value = {
+        'body': '## What\'s Changed\n* Initial release by @testuser in https://github.com/test/repo/pull/1',
+    }
+
+    requests.get = Mock(return_value=mock_get_response)
+    requests.post = Mock(return_value=mock_post_response)
+
+    yield requests.post
+
+    requests.get = original_get
+    requests.post = original_post
+
+
+@pytest.fixture(scope='function')
+def mock_generate_release_body_post_error():
+    original_get = requests.get
+    original_post = requests.post
+
+    # Mock the GET request for latest release
+    mock_get_response = Mock()
+    mock_get_response.status_code = 200
+    mock_get_response.json.return_value = {'tag_name': 'v1.0.0'}
+
+    # Mock the POST request for generating release notes
+    mock_post_response = Mock()
+    mock_post_response.status_code = 500
+
+    requests.get = Mock(return_value=mock_get_response)
+    requests.post = Mock(return_value=mock_post_response)
+
     yield
 
     requests.get = original_get

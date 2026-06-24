@@ -1,5 +1,4 @@
 # standard imports
-import os
 from typing import Dict, Tuple, Union
 from unittest.mock import Mock, patch
 
@@ -219,12 +218,36 @@ def test_generate_release_body_success(mock_generate_release_body_success):
     assert '@testuser' in result
     assert 'Contributors' in result
 
+    request_body = mock_generate_release_body_success.call_args.kwargs['json']
+    assert request_body == {
+        'tag_name': 'v2.0.0',
+        'target_commitish': 'abc123',
+        'previous_tag_name': 'v1.0.0',
+    }
 
-def test_generate_release_body(github_token):
-    assert main.generate_release_body(tag_name='test', target_commitish=os.environ['GITHUB_SHA'])
+
+def test_generate_release_body_first_release_success(mock_generate_release_body_first_release_success):
+    result = main.generate_release_body(tag_name='v1.0.0', target_commitish='abc123')
+    assert result
+    assert '@testuser' in result
+    assert 'Contributors' in result
+
+    request_body = mock_generate_release_body_first_release_success.call_args.kwargs['json']
+    assert request_body == {
+        'tag_name': 'v1.0.0',
+        'target_commitish': 'abc123',
+    }
+
+
+def test_generate_release_body(github_token, latest_commit):
+    assert main.generate_release_body(tag_name='test', target_commitish=latest_commit)
 
 
 def test_generate_release_body_non_200_status_code(github_token, requests_get_error):
+    assert main.generate_release_body(tag_name='test', target_commitish='abc') == ''
+
+
+def test_generate_release_body_post_non_200_status_code(mock_generate_release_body_post_error):
     assert main.generate_release_body(tag_name='test', target_commitish='abc') == ''
 
 

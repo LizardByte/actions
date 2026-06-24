@@ -32,7 +32,7 @@ outputs:
   release_commit:
     description: "The commit hash for the release."
   release_generate_release_notes:
-    description: "Whether to generate release notes for the release. (Always `true`)"
+    description: "Whether to generate release notes for the release. True if `release_body` is blank."
   release_tag:
     description: "The tag for the release (i.e. `release_version` with prefix)"
   release_version:

@@ -531,20 +531,24 @@ def generate_release_body(tag_name: str, target_commitish: str) -> str:
     github_api_url = f'https://api.github.com/repos/{REPOSITORY_NAME}/releases/latest'
     response = requests.get(github_api_url, headers=GITHUB_HEADERS)
 
-    # Check if the release exists
-    if response.status_code != 200:
+    # A 404 means this is the first release. GitHub can still generate notes
+    # without a previous tag, so only fail closed for other errors.
+    if response.status_code not in (200, 404):
         return ''
-
-    latest_release = response.json()
 
     # generate release notes
     github_api_url = f'https://api.github.com/repos/{REPOSITORY_NAME}/releases/generate-notes'
     data = {
         'tag_name': tag_name,
         'target_commitish': target_commitish,
-        'previous_tag_name': latest_release['tag_name'],
     }
+    if response.status_code == 200:
+        latest_release = response.json()
+        data['previous_tag_name'] = latest_release['tag_name']
+
     response = requests.post(github_api_url, headers=GITHUB_HEADERS, json=data)
+    if response.status_code != 200:
+        return ''
 
     release_notes = response.json()
     return process_release_body(release_body=release_notes['body'])
