@@ -669,100 +669,37 @@ def test_setup_linux_sandbox_non_linux(mock_run_subprocess, monkeypatch):
     mock_run_subprocess.assert_not_called()
 
 
-@pytest.mark.parametrize('setup_scenario', [
-    # Scenario 1: Formula temp dir exists in first location (HOMEBREW_TEMP)
-    {'env': {'HOMEBREW_TEMP': '/tmp/custom'}, 'dirs': ['/tmp/custom'], 'files': ['formula-123']},
-    # Scenario 2: Formula temp dir exists in macOS default location
-    {'env': {}, 'dirs': ['/private/tmp'], 'files': ['formula-456']},
-    # Scenario 3: Formula temp dir exists in Linux default location
-    {'env': {}, 'dirs': ['/var/tmp'], 'files': ['formula-789']},
-])
-@patch('os.path.isdir')
-@patch('os.listdir')
-@patch('os.environ')
-def test_find_tmp_dir(mock_environ, mock_listdir, mock_isdir, setup_scenario):
-    # Setup environment variables
-    mock_environ.get.side_effect = lambda key, default: setup_scenario['env'].get(key, default)
+def test_get_test_artifacts_dir():
+    expected = os.path.abspath(
+        os.path.join(
+            os.environ['GITHUB_WORKSPACE'],
+            'release_homebrew_action',
+            'test',
+        )
+    )
 
-    # Configure which directories exist
-    mock_isdir.side_effect = lambda path: any(d in path for d in setup_scenario['dirs'])
-
-    # Configure directory listings
-    mock_listdir.return_value = setup_scenario['files']
-
-    # Reset global tracking of temp directories
-    main.TEMP_DIRECTORIES = []
-
-    # Run the function and check results
-    result = main.find_tmp_dir('formula')
-
-    # Verify the result contains the formula temp directory path
-    assert any(f in result for f in setup_scenario['files'])
-
-    # Verify the temp directory was added to tracking
-    assert len(main.TEMP_DIRECTORIES) == 1
+    assert main.get_test_artifacts_dir() == expected
 
 
-@patch('os.path.isdir')
-def test_find_tmp_dir_no_root_tmp(mock_isdir):
-    # Make all temp directories non-existent
-    mock_isdir.return_value = False
+def test_prepare_test_artifacts_dir(github_output_file):
+    test_artifacts_dir = main.get_test_artifacts_dir()
+    os.makedirs(test_artifacts_dir, exist_ok=True)
 
-    # Run the function and expect error
-    with pytest.raises(FileNotFoundError, match="Could not find root temp directory"):
-        main.find_tmp_dir('formula')
+    stale_file = os.path.join(test_artifacts_dir, 'stale.txt')
+    with open(stale_file, 'w') as f:
+        f.write('stale')
 
+    result = main.prepare_test_artifacts_dir()
 
-@patch('os.path.isdir')
-@patch('os.listdir')
-def test_find_tmp_dir_no_formula_tmp(mock_listdir, mock_isdir):
-    # Make root temp directories exist
-    mock_isdir.side_effect = lambda path: any(tmp_dir in path for tmp_dir in ['/private/tmp', '/var/tmp'])
+    assert result == test_artifacts_dir
+    assert os.path.isdir(test_artifacts_dir)
+    assert not os.path.exists(stale_file)
 
-    # But no formula temp directories
-    mock_listdir.return_value = ['other-dir', 'not-matching']
+    with open(github_output_file, 'r') as f:
+        output = f.read()
 
-    # Reset global tracking of temp directories
-    main.TEMP_DIRECTORIES = []
-
-    # Run the function and expect error
-    with pytest.raises(FileNotFoundError, match="Could not find temp directory"):
-        main.find_tmp_dir('formula')
-
-
-@pytest.mark.parametrize('existing_dirs', [
-    ['formula-123'],
-    ['formula-123', 'formula-456'],
-    ['formula-123', 'formula-456', 'formula-789'],
-])
-@patch('os.path.isdir')
-@patch('os.listdir')
-def test_find_tmp_dir_tracking(mock_listdir, mock_isdir, existing_dirs):
-    # Configure mock_isdir to return True for root temp directories
-    # but also retain the ability to check other paths
-    def mock_isdir_side_effect(path):
-        # Return True for any of the root temp directories
-        if any(tmp_dir in path for tmp_dir in ['/private/tmp', '/var/tmp']):
-            return True
-        return False
-
-    mock_isdir.side_effect = mock_isdir_side_effect
-
-    # Set up multiple formula directories
-    mock_listdir.return_value = existing_dirs
-
-    # Reset global tracking of temp directories
-    main.TEMP_DIRECTORIES = []
-
-    # Each call should find the next directory (not already in TEMP_DIRECTORIES)
-    for i, expected_dir in enumerate(existing_dirs):
-        result = main.find_tmp_dir('formula')
-        assert expected_dir in result
-        assert len(main.TEMP_DIRECTORIES) == i + 1
-
-    # If called again with no new directories, it should raise an error
-    with pytest.raises(FileNotFoundError, match="Could not find temp directory"):
-        main.find_tmp_dir('formula')
+    assert 'buildpath<<EOF\n\nEOF\n' in output
+    assert f'testpath<<EOF\n{test_artifacts_dir}\nEOF\n' in output
 
 
 def test_audit_formula(operating_system, org_homebrew_repo):
@@ -770,23 +707,6 @@ def test_audit_formula(operating_system, org_homebrew_repo):
     main.process_input_formula(
         formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
     assert main.audit_formula(formula='hello_world')
-
-
-def test_brew_install_formula(operating_system, org_homebrew_repo):
-    # Call process_input_formula first to set up the tap
-    main.process_input_formula(
-        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
-    assert main.install_formula(formula='hello_world')
-
-
-def test_test_formula(brew_untap, operating_system, org_homebrew_repo):
-    # Call process_input_formula first to set up the tap
-    main.process_input_formula(
-        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
-    # Install the formula first to set HOMEBREW_BUILDPATH (required by test_formula)
-    assert main.install_formula(formula='hello_world')
-    # Now test the formula
-    assert main.test_formula(formula='hello_world')
 
 
 @patch.dict(os.environ, {'INPUT_IS_FORK_PR': 'true'})
@@ -821,6 +741,35 @@ def test_brew_test_bot_only_formulae_fork_pr(
     # Verify the message was printed
     captured = capsys.readouterr()
     assert 'Skipping livecheck (running from fork PR)' in captured.out
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_brew_test_bot_only_formulae_includes_test_artifacts_dir(
+        mock_run_subprocess,
+        org_homebrew_repo,
+        operating_system,
+):
+    """Test that brew_test_bot_only_formulae exposes the action artifact directory to formulae."""
+    mock_run_subprocess.return_value = True
+    test_artifacts_dir = os.path.join(os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action', 'test')
+
+    # Call process_input_formula first to set up the tap
+    main.process_input_formula(
+        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+
+    result = main.brew_test_bot_only_formulae(
+        formula='hello_world',
+        test_artifacts_dir=test_artifacts_dir,
+    )
+
+    assert result is True
+
+    call_args = mock_run_subprocess.call_args
+    env = call_args[1]['env']
+
+    assert env['HOMEBREW_BOTTLE_BUILD'] == 'true'
+    assert env['HOMEBREW_NO_ASK'] == '1'
+    assert env[main.TEST_ARTIFACTS_ENV_VAR] == test_artifacts_dir
 
 
 @patch.dict(os.environ, {'INPUT_IS_FORK_PR': 'false'})
@@ -921,12 +870,12 @@ def test_main_trusts_tap_after_cleanup(monkeypatch):
     monkeypatch.setattr(main, 'audit_formula', record_call('audit_formula'))
     monkeypatch.setattr(main, 'override_actionlint_config', record_call('override_actionlint_config'))
     monkeypatch.setattr(main, 'brew_test_bot_only_tap_syntax', record_call('brew_test_bot_only_tap_syntax'))
-    monkeypatch.setattr(main, 'install_formula', record_call('install_formula'))
-    monkeypatch.setattr(main, 'test_formula', record_call('test_formula'))
+    monkeypatch.setattr(main, 'prepare_test_artifacts_dir', record_call('prepare_test_artifacts_dir', 'test-path'))
     monkeypatch.setattr(main, 'brew_test_bot_only_formulae', record_call('brew_test_bot_only_formulae'))
 
     main.main()
 
+    assert calls.index('prepare_test_artifacts_dir') < calls.index('brew_test_bot_only_cleanup_before')
     assert calls.index('brew_test_bot_only_cleanup_before') < calls.index('trust_tap')
     assert calls.index('setup_linux_sandbox') < calls.index('trust_tap')
     assert calls.index('trust_tap') < calls.index('brew_test_bot_only_setup')
@@ -993,8 +942,6 @@ def test_main_trusts_tap_after_cleanup(monkeypatch):
                 ('brew_test_bot_only_setup', True),
                 ('audit_formula', False),
                 ('brew_test_bot_only_tap_syntax', True),
-                ('install_formula', True),
-                ('test_formula', True),
                 ('brew_test_bot_only_formulae', True),
             ],
             ['audit'],
@@ -1009,45 +956,11 @@ def test_main_trusts_tap_after_cleanup(monkeypatch):
                 ('brew_test_bot_only_setup', True),
                 ('audit_formula', True),
                 ('brew_test_bot_only_tap_syntax', False),
-                ('install_formula', True),
-                ('test_formula', True),
                 ('brew_test_bot_only_formulae', True),
             ],
             ['tap-syntax'],
     ),
-    # Scenario 8: Install fails
-    (
-            'install_fails',
-            [
-                ('is_brew_installed', True),
-                ('process_input_formula', 'hello_world'),
-                ('brew_test_bot_only_cleanup_before', True),
-                ('brew_test_bot_only_setup', True),
-                ('audit_formula', True),
-                ('brew_test_bot_only_tap_syntax', True),
-                ('install_formula', False),
-                ('test_formula', True),
-                ('brew_test_bot_only_formulae', True),
-            ],
-            ['install'],
-    ),
-    # Scenario 9: Test fails
-    (
-            'test_fails',
-            [
-                ('is_brew_installed', True),
-                ('process_input_formula', 'hello_world'),
-                ('brew_test_bot_only_cleanup_before', True),
-                ('brew_test_bot_only_setup', True),
-                ('audit_formula', True),
-                ('brew_test_bot_only_tap_syntax', True),
-                ('install_formula', True),
-                ('test_formula', False),
-                ('brew_test_bot_only_formulae', True),
-            ],
-            ['test'],
-    ),
-    # Scenario 10: brew test-bot --only-formulae fails
+    # Scenario 8: brew test-bot --only-formulae fails
     (
             'brew_test_bot_only_formulae_fails',
             [
@@ -1057,13 +970,11 @@ def test_main_trusts_tap_after_cleanup(monkeypatch):
                 ('brew_test_bot_only_setup', True),
                 ('audit_formula', True),
                 ('brew_test_bot_only_tap_syntax', True),
-                ('install_formula', True),
-                ('test_formula', True),
                 ('brew_test_bot_only_formulae', False),
             ],
             ['formulae'],
     ),
-    # Scenario 11: Multiple failures
+    # Scenario 9: Multiple failures
     (
             'multiple_failures',
             [
@@ -1073,11 +984,9 @@ def test_main_trusts_tap_after_cleanup(monkeypatch):
                 ('brew_test_bot_only_setup', True),
                 ('audit_formula', False),
                 ('brew_test_bot_only_tap_syntax', False),
-                ('install_formula', False),
-                ('test_formula', False),
                 ('brew_test_bot_only_formulae', False),
             ],
-            ['audit', 'tap-syntax', 'install', 'test', 'formulae'],
+            ['audit', 'tap-syntax', 'formulae'],
     ),
 ])
 def test_main_error_cases(
@@ -1099,6 +1008,7 @@ def test_main_error_cases(
 
     # Apply all the mocks
     mock_dict = {
+        'prepare_test_artifacts_dir': lambda *args, **kwargs: 'test-path',
         'setup_linux_sandbox': lambda *args, **kwargs: True,
         'trust_tap': lambda *args, **kwargs: True,
     }

@@ -1,11 +1,11 @@
 # release_homebrew
 
-A reusable action to audit, install, test, and publish homebrew formulas to a tap.
+A reusable action to audit, bottle build, test, and publish homebrew formulas to a tap.
 
 This action is designed to work with formulas supplied by the upstream repository, instead of the tap repository.
 This works better for projects where the build process often changes, and formulas are more challenging to update.
 
-As part of an automated release workflow, this action can be used to audit, install, test, and publish the supplied
+As part of an automated release workflow, this action can be used to audit, bottle build, test, and publish the supplied
 formulas to the tap repository.
 
 Additionally, this action can be used to contribute the formula to an upstream homebrew-core repository by
@@ -60,8 +60,12 @@ steps:
 
 | Name      | Description                                       |
 |-----------|---------------------------------------------------|
-| buildpath | The path to Homebrew's temporary build directory. |
-| testpath  | The path to Homebrew's temporary test directory.  |
+| buildpath | Deprecated. The action no longer exposes Homebrew's temporary build directory. |
+| testpath  | The action-owned directory where formulae can write test artifacts during the bottle build. |
+
+During validation, the action sets `RELEASE_HOMEBREW_TESTPATH` for `brew test-bot --only-formulae`.
+Formulae that need artifacts such as gtest XML or coverage reports can write them to that directory while the
+bottle build still has access to its build tree.
 
 ## 🧰 Advanced Usage
 
@@ -85,7 +89,7 @@ steps:
       publish: true  # you probably want to use some conditional logic here
       token: ${{ secrets.PAT }}  # required to publish
       upstream_homebrew_core_repo: Homebrew/homebrew-core
-      validate: false  # skip the audit and install steps
+      validate: false  # skip audit and bottle validation
 ```
 
 ## 📝 Notes
