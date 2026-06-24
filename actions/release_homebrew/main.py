@@ -21,6 +21,7 @@ args = None
 # result placeholder
 ERROR = False
 FAILURES = []
+HOMEBREW_LOGS_ENV_VAR = "HOMEBREW_LOGS"
 TEST_ARTIFACTS_ENV_VAR = "HOMEBREW_TEST_ARTIFACTS_DIR"
 
 tap_repo_name = ""  # will be set based on INPUT_ORG_HOMEBREW_REPO
@@ -909,9 +910,27 @@ def get_test_artifacts_dir() -> str:
     )
 
 
-def get_homebrew_test_artifacts_dir() -> str:
+def get_homebrew_logs_dir() -> str:
     """
-    Get the Homebrew logs directory where formulae can write during bottle builds.
+    Get the Homebrew logs root used by test-bot.
+
+    Returns
+    -------
+    str
+        Absolute path to the Homebrew logs root.
+    """
+    return os.path.abspath(
+        os.path.join(
+            os.environ['GITHUB_WORKSPACE'],
+            'release_homebrew_action',
+            'homebrew_logs',
+        )
+    )
+
+
+def get_homebrew_test_artifacts_dir(formula: str) -> str:
+    """
+    Get the formula log directory where formulae can write during bottle builds.
 
     Returns
     -------
@@ -920,17 +939,22 @@ def get_homebrew_test_artifacts_dir() -> str:
     """
     return os.path.abspath(
         os.path.join(
-            os.getcwd(),
-            'logs',
+            get_homebrew_logs_dir(),
+            formula,
             'release_homebrew',
             'test',
         )
     )
 
 
-def prepare_test_artifacts_dir() -> str:
+def prepare_test_artifacts_dir(formula: str) -> str:
     """
     Prepare an action-owned directory for test artifacts from the bottle build.
+
+    Parameters
+    ----------
+    formula : str
+        Name of the Homebrew formula being validated.
 
     Returns
     -------
@@ -953,11 +977,11 @@ def prepare_test_artifacts_dir() -> str:
     elif os.path.exists(test_artifacts_dir):
         os.remove(test_artifacts_dir)
 
-    homebrew_test_artifacts_dir = get_homebrew_test_artifacts_dir()
+    homebrew_test_artifacts_dir = get_homebrew_test_artifacts_dir(formula)
     homebrew_artifacts_root = os.path.abspath(
         os.path.join(
-            os.getcwd(),
-            'logs',
+            get_homebrew_logs_dir(),
+            formula,
             'release_homebrew',
         )
     )
@@ -971,6 +995,7 @@ def prepare_test_artifacts_dir() -> str:
         os.remove(homebrew_test_artifacts_dir)
 
     os.makedirs(test_artifacts_dir, exist_ok=True)
+    os.makedirs(homebrew_test_artifacts_dir, exist_ok=True)
 
     set_github_action_output(
         output_name='testpath',
@@ -1030,9 +1055,11 @@ def brew_test_bot_only_formulae(formula: str, test_artifacts_dir: Optional[str] 
         args_list.append('--skip-livecheck')
         print('Skipping livecheck (running from fork PR)')
 
-    homebrew_test_artifacts_dir = get_homebrew_test_artifacts_dir()
+    homebrew_logs_dir = get_homebrew_logs_dir()
+    homebrew_test_artifacts_dir = get_homebrew_test_artifacts_dir(formula)
     extra_env = {
         'HOMEBREW_BOTTLE_BUILD': 'true',  # setting this will allow us to skip advanced tests when building bottles
+        HOMEBREW_LOGS_ENV_VAR: homebrew_logs_dir,
         'HOMEBREW_NO_ASK': '1',  # do not prompt for confirmation
         TEST_ARTIFACTS_ENV_VAR: homebrew_test_artifacts_dir,
     }
@@ -1062,7 +1089,7 @@ def main():
         print('Skipping audit and bottle validation')
         return
 
-    test_artifacts_dir = prepare_test_artifacts_dir()
+    test_artifacts_dir = prepare_test_artifacts_dir(formula)
 
     if not brew_test_bot_only_cleanup_before():
         print('::error:: brew test-bot --only-cleanup-before failed')

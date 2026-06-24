@@ -62,9 +62,10 @@ steps:
 |-----------|---------------------------------------------------|
 | testpath  | The action-owned directory where test artifacts from the bottle build are copied. |
 
-During validation, the action sets `HOMEBREW_TEST_ARTIFACTS_DIR` for `brew test-bot --only-formulae`.
-Formulae that need artifacts such as gtest XML or coverage reports can write them to that directory while the
-bottle build still has access to its build tree. After `test-bot` finishes, the action copies those files to `testpath`.
+During validation, the action sets `HOMEBREW_LOGS` and `HOMEBREW_TEST_ARTIFACTS_DIR` for
+`brew test-bot --only-formulae`. Formulae that need artifacts such as gtest XML or coverage reports can write them to
+`HOMEBREW_TEST_ARTIFACTS_DIR`, which is under that formula's Homebrew log directory so macOS bottle builds can write to
+it from the sandbox. After `test-bot` finishes, the action copies those files to `testpath`.
 
 ## 🧰 Advanced Usage
 

@@ -681,23 +681,37 @@ def test_get_test_artifacts_dir():
     assert main.get_test_artifacts_dir() == expected
 
 
+def test_get_homebrew_logs_dir():
+    expected = os.path.abspath(
+        os.path.join(
+            os.environ['GITHUB_WORKSPACE'],
+            'release_homebrew_action',
+            'homebrew_logs',
+        )
+    )
+
+    assert main.get_homebrew_logs_dir() == expected
+
+
 def test_get_homebrew_test_artifacts_dir():
     expected = os.path.abspath(
         os.path.join(
-            os.getcwd(),
-            'logs',
+            os.environ['GITHUB_WORKSPACE'],
+            'release_homebrew_action',
+            'homebrew_logs',
+            'hello_world',
             'release_homebrew',
             'test',
         )
     )
 
-    assert main.get_homebrew_test_artifacts_dir() == expected
+    assert main.get_homebrew_test_artifacts_dir('hello_world') == expected
 
 
 def test_prepare_test_artifacts_dir(github_output_file):
     test_artifacts_dir = main.get_test_artifacts_dir()
     os.makedirs(test_artifacts_dir, exist_ok=True)
-    homebrew_test_artifacts_dir = main.get_homebrew_test_artifacts_dir()
+    homebrew_test_artifacts_dir = main.get_homebrew_test_artifacts_dir('hello_world')
     os.makedirs(homebrew_test_artifacts_dir, exist_ok=True)
 
     stale_file = os.path.join(test_artifacts_dir, 'stale.txt')
@@ -707,7 +721,7 @@ def test_prepare_test_artifacts_dir(github_output_file):
     with open(stale_homebrew_file, 'w') as f:
         f.write('stale')
 
-    result = main.prepare_test_artifacts_dir()
+    result = main.prepare_test_artifacts_dir('hello_world')
 
     assert result == test_artifacts_dir
     assert os.path.isdir(test_artifacts_dir)
@@ -785,8 +799,9 @@ def test_brew_test_bot_only_formulae_includes_test_artifacts_dir(
     env = call_args[1]['env']
 
     assert env['HOMEBREW_BOTTLE_BUILD'] == 'true'
+    assert env[main.HOMEBREW_LOGS_ENV_VAR] == main.get_homebrew_logs_dir()
     assert env['HOMEBREW_NO_ASK'] == '1'
-    assert env[main.TEST_ARTIFACTS_ENV_VAR] == main.get_homebrew_test_artifacts_dir()
+    assert env[main.TEST_ARTIFACTS_ENV_VAR] == main.get_homebrew_test_artifacts_dir('hello_world')
 
 
 @patch('actions.release_homebrew.main._run_subprocess')
@@ -800,7 +815,7 @@ def test_brew_test_bot_only_formulae_copies_test_artifacts(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(main, 'tap_repo_name', 'lizardbyte/homebrew')
 
-    source_dir = main.get_homebrew_test_artifacts_dir()
+    source_dir = main.get_homebrew_test_artifacts_dir('hello_world')
     os.makedirs(os.path.join(source_dir, 'tests'), exist_ok=True)
     with open(os.path.join(source_dir, 'coverage.xml'), 'w') as f:
         f.write('<coverage />')
