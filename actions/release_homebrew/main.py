@@ -6,6 +6,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from typing import AnyStr, IO, Optional, Mapping
 
 # lib imports
@@ -21,7 +22,7 @@ args = None
 # result placeholder
 ERROR = False
 FAILURES = []
-HOMEBREW_LOGS_ENV_VAR = "HOMEBREW_LOGS"
+HOMEBREW_TEMP_ENV_VAR = "HOMEBREW_TEMP"
 TEST_ARTIFACTS_ENV_VAR = "HOMEBREW_TEST_ARTIFACTS_DIR"
 
 tap_repo_name = ""  # will be set based on INPUT_ORG_HOMEBREW_REPO
@@ -910,27 +911,26 @@ def get_test_artifacts_dir() -> str:
     )
 
 
-def get_homebrew_logs_dir() -> str:
+def get_homebrew_temp_dir() -> str:
     """
-    Get the Homebrew logs root used by test-bot.
+    Get the Homebrew temp root used by test-bot.
 
     Returns
     -------
     str
-        Absolute path to the Homebrew logs root.
+        Absolute path to the Homebrew temp root.
     """
     return os.path.abspath(
         os.path.join(
-            os.environ['GITHUB_WORKSPACE'],
+            tempfile.gettempdir(),
             'release_homebrew_action',
-            'homebrew_logs',
         )
     )
 
 
 def get_homebrew_test_artifacts_dir(formula: str) -> str:
     """
-    Get the formula log directory where formulae can write during bottle builds.
+    Get the formula temp directory where formulae can write during bottle builds.
 
     Returns
     -------
@@ -939,9 +939,8 @@ def get_homebrew_test_artifacts_dir(formula: str) -> str:
     """
     return os.path.abspath(
         os.path.join(
-            get_homebrew_logs_dir(),
+            get_homebrew_temp_dir(),
             formula,
-            'release_homebrew',
             'test',
         )
     )
@@ -980,9 +979,8 @@ def prepare_test_artifacts_dir(formula: str) -> str:
     homebrew_test_artifacts_dir = get_homebrew_test_artifacts_dir(formula)
     homebrew_artifacts_root = os.path.abspath(
         os.path.join(
-            get_homebrew_logs_dir(),
+            get_homebrew_temp_dir(),
             formula,
-            'release_homebrew',
         )
     )
 
@@ -1055,11 +1053,11 @@ def brew_test_bot_only_formulae(formula: str, test_artifacts_dir: Optional[str] 
         args_list.append('--skip-livecheck')
         print('Skipping livecheck (running from fork PR)')
 
-    homebrew_logs_dir = get_homebrew_logs_dir()
+    homebrew_temp_dir = get_homebrew_temp_dir()
     homebrew_test_artifacts_dir = get_homebrew_test_artifacts_dir(formula)
     extra_env = {
         'HOMEBREW_BOTTLE_BUILD': 'true',  # setting this will allow us to skip advanced tests when building bottles
-        HOMEBREW_LOGS_ENV_VAR: homebrew_logs_dir,
+        HOMEBREW_TEMP_ENV_VAR: homebrew_temp_dir,
         'HOMEBREW_NO_ASK': '1',  # do not prompt for confirmation
         TEST_ARTIFACTS_ENV_VAR: homebrew_test_artifacts_dir,
     }

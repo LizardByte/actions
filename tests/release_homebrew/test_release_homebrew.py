@@ -2,6 +2,7 @@
 import os
 import subprocess
 import sys
+import tempfile
 from typing import Optional
 from unittest.mock import patch
 
@@ -681,26 +682,23 @@ def test_get_test_artifacts_dir():
     assert main.get_test_artifacts_dir() == expected
 
 
-def test_get_homebrew_logs_dir():
+def test_get_homebrew_temp_dir():
     expected = os.path.abspath(
         os.path.join(
-            os.environ['GITHUB_WORKSPACE'],
+            tempfile.gettempdir(),
             'release_homebrew_action',
-            'homebrew_logs',
         )
     )
 
-    assert main.get_homebrew_logs_dir() == expected
+    assert main.get_homebrew_temp_dir() == expected
 
 
 def test_get_homebrew_test_artifacts_dir():
     expected = os.path.abspath(
         os.path.join(
-            os.environ['GITHUB_WORKSPACE'],
+            tempfile.gettempdir(),
             'release_homebrew_action',
-            'homebrew_logs',
             'hello_world',
-            'release_homebrew',
             'test',
         )
     )
@@ -799,7 +797,7 @@ def test_brew_test_bot_only_formulae_includes_test_artifacts_dir(
     env = call_args[1]['env']
 
     assert env['HOMEBREW_BOTTLE_BUILD'] == 'true'
-    assert env[main.HOMEBREW_LOGS_ENV_VAR] == main.get_homebrew_logs_dir()
+    assert env[main.HOMEBREW_TEMP_ENV_VAR] == main.get_homebrew_temp_dir()
     assert env['HOMEBREW_NO_ASK'] == '1'
     assert env[main.TEST_ARTIFACTS_ENV_VAR] == main.get_homebrew_test_artifacts_dir('hello_world')
 
