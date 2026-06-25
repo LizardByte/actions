@@ -732,6 +732,65 @@ def test_prepare_test_artifacts_dir(github_output_file):
     assert f'testpath<<EOF\n{test_artifacts_dir}\nEOF\n' in output
 
 
+def test_prepare_test_artifacts_dir_rejects_unexpected_testpath(monkeypatch, tmp_path):
+    monkeypatch.setenv('GITHUB_WORKSPACE', str(tmp_path / 'workspace'))
+    monkeypatch.setattr(main, 'get_test_artifacts_dir', lambda: str(tmp_path / 'outside' / 'test'))
+
+    with pytest.raises(ValueError, match='Refusing to clean unexpected path'):
+        main.prepare_test_artifacts_dir('hello_world')
+
+
+def test_prepare_test_artifacts_dir_replaces_testpath_file(github_output_file, monkeypatch, tmp_path):
+    workspace = tmp_path / 'workspace'
+    monkeypatch.setenv('GITHUB_WORKSPACE', str(workspace))
+    monkeypatch.setattr(main, 'get_homebrew_temp_dir', lambda: str(tmp_path / 'homebrew-temp'))
+
+    test_artifacts_dir = workspace / 'release_homebrew_action' / 'test'
+    test_artifacts_dir.parent.mkdir(parents=True)
+    test_artifacts_dir.write_text('stale')
+
+    result = main.prepare_test_artifacts_dir('hello_world')
+
+    assert result == str(test_artifacts_dir)
+    assert test_artifacts_dir.is_dir()
+
+
+def test_prepare_test_artifacts_dir_rejects_unexpected_homebrew_artifacts(monkeypatch, tmp_path):
+    workspace = tmp_path / 'workspace'
+    monkeypatch.setenv('GITHUB_WORKSPACE', str(workspace))
+    monkeypatch.setattr(main, 'get_homebrew_temp_dir', lambda: str(tmp_path / 'homebrew-temp'))
+    monkeypatch.setattr(main, 'get_homebrew_test_artifacts_dir', lambda _formula: str(tmp_path / 'outside' / 'test'))
+
+    with pytest.raises(ValueError, match='Refusing to clean unexpected path'):
+        main.prepare_test_artifacts_dir('hello_world')
+
+
+def test_prepare_test_artifacts_dir_replaces_homebrew_artifacts_file(github_output_file, monkeypatch, tmp_path):
+    workspace = tmp_path / 'workspace'
+    homebrew_temp_dir = tmp_path / 'homebrew-temp'
+    monkeypatch.setenv('GITHUB_WORKSPACE', str(workspace))
+    monkeypatch.setattr(main, 'get_homebrew_temp_dir', lambda: str(homebrew_temp_dir))
+
+    homebrew_test_artifacts_dir = homebrew_temp_dir / 'hello_world' / 'test'
+    homebrew_test_artifacts_dir.parent.mkdir(parents=True)
+    homebrew_test_artifacts_dir.write_text('stale')
+
+    main.prepare_test_artifacts_dir('hello_world')
+
+    assert homebrew_test_artifacts_dir.is_dir()
+
+
+def test_copy_test_artifacts_missing_source(capsys, tmp_path):
+    source_dir = tmp_path / 'missing'
+    destination_dir = tmp_path / 'destination'
+
+    main.copy_test_artifacts(str(source_dir), str(destination_dir))
+
+    captured = capsys.readouterr()
+    assert f'No Homebrew test artifacts found at {source_dir}' in captured.out
+    assert not destination_dir.exists()
+
+
 def test_audit_formula(operating_system, org_homebrew_repo):
     #  Call process_input_formula first to set up the tap
     main.process_input_formula(
