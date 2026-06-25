@@ -6,6 +6,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from typing import AnyStr, IO, Optional, Mapping
 
 # lib imports
@@ -21,8 +22,8 @@ args = None
 # result placeholder
 ERROR = False
 FAILURES = []
-TEMP_DIRECTORIES = []
-HOMEBREW_BUILDPATH = ""
+HOMEBREW_TEMP_ENV_VAR = "HOMEBREW_TEMP"
+TEST_ARTIFACTS_ENV_VAR = "HOMEBREW_TEST_ARTIFACTS_DIR"
 
 tap_repo_name = ""  # will be set based on INPUT_ORG_HOMEBREW_REPO
 
@@ -30,11 +31,11 @@ og_dir = os.getcwd()
 
 
 def _parse_args(args_list: list) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Homebrew formula audit, install, and test')
+    parser = argparse.ArgumentParser(description='Homebrew formula audit, bottle build, and test')
     parser.add_argument(
         '--formula_file',
         default=os.environ['INPUT_FORMULA_FILE'],
-        help='Homebrew formula file to audit, install, and test',
+        help='Homebrew formula file to audit, bottle build, and test',
         type=str,
     )
     return parser.parse_args(args_list)
@@ -892,7 +893,137 @@ def brew_test_bot_only_tap_syntax() -> bool:
     return result
 
 
-def brew_test_bot_only_formulae(formula: str) -> bool:
+def get_test_artifacts_dir() -> str:
+    """
+    Get the action-owned directory where formulae can write test artifacts.
+
+    Returns
+    -------
+    str
+        Absolute path to the test artifacts directory.
+    """
+    return os.path.abspath(
+        os.path.join(
+            os.environ['GITHUB_WORKSPACE'],
+            'release_homebrew_action',
+            'test',
+        )
+    )
+
+
+def get_homebrew_temp_dir() -> str:
+    """
+    Get the Homebrew temp root used by test-bot.
+
+    Returns
+    -------
+    str
+        Absolute path to the Homebrew temp root.
+    """
+    return os.path.abspath(
+        os.path.join(
+            tempfile.gettempdir(),
+            'release_homebrew_action',
+        )
+    )
+
+
+def get_homebrew_test_artifacts_dir(formula: str) -> str:
+    """
+    Get the formula temp directory where formulae can write during bottle builds.
+
+    Returns
+    -------
+    str
+        Absolute path to the Homebrew-side test artifacts directory.
+    """
+    return os.path.abspath(
+        os.path.join(
+            get_homebrew_temp_dir(),
+            formula,
+            'test',
+        )
+    )
+
+
+def prepare_test_artifacts_dir(formula: str) -> str:
+    """
+    Prepare an action-owned directory for test artifacts from the bottle build.
+
+    Parameters
+    ----------
+    formula : str
+        Name of the Homebrew formula being validated.
+
+    Returns
+    -------
+    str
+        Absolute path to the prepared test artifacts directory.
+    """
+    test_artifacts_dir = get_test_artifacts_dir()
+    action_work_dir = os.path.abspath(
+        os.path.join(
+            os.environ['GITHUB_WORKSPACE'],
+            'release_homebrew_action',
+        )
+    )
+
+    if os.path.commonpath([action_work_dir, test_artifacts_dir]) != action_work_dir:
+        raise ValueError(f'::error:: Refusing to clean unexpected path {test_artifacts_dir}')
+
+    if os.path.isdir(test_artifacts_dir):
+        shutil.rmtree(test_artifacts_dir)
+    elif os.path.exists(test_artifacts_dir):
+        os.remove(test_artifacts_dir)
+
+    homebrew_test_artifacts_dir = get_homebrew_test_artifacts_dir(formula)
+    homebrew_artifacts_root = os.path.abspath(
+        os.path.join(
+            get_homebrew_temp_dir(),
+            formula,
+        )
+    )
+
+    if os.path.commonpath([homebrew_artifacts_root, homebrew_test_artifacts_dir]) != homebrew_artifacts_root:
+        raise ValueError(f'::error:: Refusing to clean unexpected path {homebrew_test_artifacts_dir}')
+
+    if os.path.isdir(homebrew_test_artifacts_dir):
+        shutil.rmtree(homebrew_test_artifacts_dir)
+    elif os.path.exists(homebrew_test_artifacts_dir):
+        os.remove(homebrew_test_artifacts_dir)
+
+    os.makedirs(test_artifacts_dir, exist_ok=True)
+    os.makedirs(homebrew_test_artifacts_dir, exist_ok=True)
+
+    set_github_action_output(
+        output_name='testpath',
+        output_value=test_artifacts_dir,
+    )
+
+    return test_artifacts_dir
+
+
+def copy_test_artifacts(source_dir: str, destination_dir: str) -> None:
+    """
+    Copy test artifacts from Homebrew logs to the action output directory.
+
+    Parameters
+    ----------
+    source_dir : str
+        Directory where the formula wrote artifacts during the Homebrew build.
+    destination_dir : str
+        Directory exposed as the action's testpath output.
+    """
+    if not os.path.isdir(source_dir):
+        print(f'No Homebrew test artifacts found at {source_dir}')
+        return
+
+    print(f'Copying Homebrew test artifacts from {source_dir} to {destination_dir}')
+    os.makedirs(destination_dir, exist_ok=True)
+    shutil.copytree(source_dir, destination_dir, dirs_exist_ok=True)
+
+
+def brew_test_bot_only_formulae(formula: str, test_artifacts_dir: Optional[str] = None) -> bool:
     start_group(f'Running brew test-bot --only-formulae for {formula}')
 
     org_repo = os.environ['INPUT_ORG_HOMEBREW_REPO']
@@ -922,113 +1053,24 @@ def brew_test_bot_only_formulae(formula: str) -> bool:
         args_list.append('--skip-livecheck')
         print('Skipping livecheck (running from fork PR)')
 
-    env = get_test_bot_env({
+    homebrew_temp_dir = get_homebrew_temp_dir()
+    homebrew_test_artifacts_dir = get_homebrew_test_artifacts_dir(formula)
+    extra_env = {
         'HOMEBREW_BOTTLE_BUILD': 'true',  # setting this will allow us to skip advanced tests when building bottles
+        HOMEBREW_TEMP_ENV_VAR: homebrew_temp_dir,
         'HOMEBREW_NO_ASK': '1',  # do not prompt for confirmation
-    })
+        TEST_ARTIFACTS_ENV_VAR: homebrew_test_artifacts_dir,
+    }
+
+    env = get_test_bot_env(extra_env)
 
     result = _run_subprocess(
         args_list=args_list,
         env=env,
     )
 
-    end_group()
-    return result
-
-
-def find_tmp_dir(formula: str) -> str:
-    print('Trying to find temp directory')
-    root_tmp_dirs = [
-        os.getenv('HOMEBREW_TEMP', ""),  # if manually set
-        '/private/tmp',  # macOS default
-        '/var/tmp',  # Linux default
-    ]
-
-    # first tmp dir that exists
-    root_tmp_dir = next((d for d in root_tmp_dirs if os.path.isdir(d)), None)
-
-    if not root_tmp_dir:
-        raise FileNotFoundError('::error:: Could not find root temp directory')
-
-    print(f'Using temp directory {root_tmp_dir}')
-
-    # find formula temp directories not already in the list
-    for d in os.listdir(root_tmp_dir):
-        print(f'Checking temp directory {d}')
-        tmp_dir = os.path.join(root_tmp_dir, d)
-        if d.startswith(f'{formula}-') and tmp_dir not in TEMP_DIRECTORIES:
-            print(f'Found temp directory {tmp_dir}')
-            TEMP_DIRECTORIES.append(tmp_dir)
-            break
-    else:
-        tmp_dir = ""
-
-    if not tmp_dir:
-        raise FileNotFoundError(f'::error:: Could not find temp directory {tmp_dir}')
-
-    return tmp_dir
-
-
-def install_formula(formula: str) -> bool:
-    start_group(f'Installing formula {formula}')
-
-    env = {
-        'HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK': '1',
-    }
-
-    # combine with os environment
-    env.update(os.environ)
-
-    result = _run_subprocess(
-        args_list=[
-            'brew',
-            'install',
-            '--build-from-source',
-            '--include-test',
-            '--keep-tmp',
-            '--verbose',
-            f'{tap_repo_name}/{formula}',
-        ],
-        env=env,
-    )
-
-    global HOMEBREW_BUILDPATH
-    HOMEBREW_BUILDPATH = find_tmp_dir(formula)
-
-    set_github_action_output(
-        output_name='buildpath',
-        output_value=HOMEBREW_BUILDPATH
-    )
-
-    end_group()
-    return result
-
-
-def test_formula(formula: str) -> bool:
-    start_group(f'Testing formula {formula}')
-
-    env = {
-        'HOMEBREW_BUILDPATH': HOMEBREW_BUILDPATH,
-    }
-
-    # combine with os environment
-    env.update(os.environ)
-
-    result = _run_subprocess(
-        args_list=[
-            'brew',
-            'test',
-            '--keep-tmp',
-            '--verbose',
-            f'{tap_repo_name}/{formula}',
-        ],
-        env=env,
-    )
-
-    set_github_action_output(
-        output_name='testpath',
-        output_value=find_tmp_dir(formula)
-    )
+    if test_artifacts_dir:
+        copy_test_artifacts(homebrew_test_artifacts_dir, test_artifacts_dir)
 
     end_group()
     return result
@@ -1042,8 +1084,10 @@ def main():
     formula = process_input_formula(args.formula_file)
 
     if os.environ['INPUT_VALIDATE'].lower() != 'true':
-        print('Skipping audit, install, and test')
+        print('Skipping audit and bottle validation')
         return
+
+    test_artifacts_dir = prepare_test_artifacts_dir(formula)
 
     if not brew_test_bot_only_cleanup_before():
         print('::error:: brew test-bot --only-cleanup-before failed')
@@ -1073,15 +1117,7 @@ def main():
         print('::error:: brew test-bot --only-tap-syntax failed')
         FAILURES.append('tap-syntax')
 
-    if not install_formula(formula):
-        print(f'::error:: Formula {formula} failed install')
-        FAILURES.append('install')
-
-    if not test_formula(formula):
-        print(f'::error:: Formula {formula} failed test')
-        FAILURES.append('test')
-
-    if not brew_test_bot_only_formulae(formula):
+    if not brew_test_bot_only_formulae(formula, test_artifacts_dir):
         print('::error:: brew test-bot --only-formulae failed')
         FAILURES.append('formulae')
 

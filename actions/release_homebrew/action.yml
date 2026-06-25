@@ -1,6 +1,6 @@
 ---
 name: "Release Homebrew"
-description: "A reusable action to audit, install, test, and publish a Homebrew formula."
+description: "A reusable action to audit, bottle build, test, and publish a Homebrew formula."
 author: "LizardByte"
 
 branding:
@@ -80,11 +80,8 @@ inputs:
     required: false
 
 outputs:
-  buildpath:
-    description: "The path to Homebrew's temporary build directory."
-    value: ${{ steps.homebrew-tests.outputs.buildpath }}
   testpath:
-    description: "The path to Homebrew's temporary test directory."
+    description: "The action-owned directory where test artifacts from the bottle build are copied."
     value: ${{ steps.homebrew-tests.outputs.testpath }}
   commit_message:
     description: "The commit message used for the formula update."
