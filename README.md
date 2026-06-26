@@ -1,11 +1,19 @@
-# LizardByte re-usable actions
+<div align="center">
+  <img
+    src="https://raw.githubusercontent.com/LizardByte/.github/refs/heads/master/branding/logos/logo.svg"
+    alt="LizardByte icon"
+    width="256"
+  />
+  <h1 align="center">LizardByte actions</h1>
+  <h4 align="center">Reusable actions for GitHub workflows.</h4>
+</div>
 
-[![GitHub Workflow Status (CI)](https://img.shields.io/github/actions/workflow/status/lizardbyte/actions/ci.yml.svg?branch=master&label=CI%20build&logo=github&style=for-the-badge)](https://github.com/LizardByte/actions/actions/workflows/ci.yml?query=branch%3Amaster)
-[![GitHub Workflow Status (CI-Tests)](https://img.shields.io/github/actions/workflow/status/lizardbyte/actions/ci-tests.yml.svg?branch=master&label=CI%20tests&logo=github&style=for-the-badge)](https://github.com/LizardByte/actions/actions/workflows/ci-tests.yml?query=branch%3Amaster)
-[![Codecov](https://img.shields.io/codecov/c/gh/LizardByte/actions.svg?token=GQm8qlXRaw&style=for-the-badge&logo=codecov&label=codecov)](https://app.codecov.io/gh/LizardByte/actions)
-[![Sonar Quality Gate](https://img.shields.io/sonar/quality_gate/LizardByte_actions?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarqubecloud&label=sonarqube)](https://sonarcloud.io/project/overview?id=LizardByte_actions)
-
-This is a monorepo containing a collection of GitHub Actions maintained by LizardByte.
+<div align="center">
+  <a href="https://github.com/LizardByte/actions/actions/workflows/ci.yml?query=branch%3Amaster"><img src="https://img.shields.io/github/actions/workflow/status/lizardbyte/actions/ci.yml.svg?branch=master&label=CI%20build&logo=github&style=for-the-badge" alt="GitHub Workflow Status (CI)"></a>
+  <a href="https://github.com/LizardByte/actions/actions/workflows/ci-tests.yml?query=branch%3Amaster"><img src="https://img.shields.io/github/actions/workflow/status/lizardbyte/actions/ci-tests.yml.svg?branch=master&label=CI%20tests&logo=github&style=for-the-badge" alt="GitHub Workflow Status (CI-Tests)"></a>
+  <a href="https://codecov.io/gh/LizardByte/actions"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fapp.lizardbyte.dev%2Fdashboard%2Fshields%2Fcodecov%2Factions.json&style=for-the-badge&logo=codecov" alt="Codecov"></a>
+  <a href="https://sonarcloud.io/project/overview?id=LizardByte_actions"><img src="https://img.shields.io/sonar/quality_gate/LizardByte_actions?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarqubecloud&label=sonarcloud" alt="SonarCloud"></a>
+</div>
 
 ## actions
 
