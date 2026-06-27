@@ -126,7 +126,7 @@ def _run_subprocess(
     if exit_code == 0:
         return True
 
-    print(f'::error:: Process [{args_list}] failed with exit code', exit_code)
+    print('::error:: Process failed with exit code', exit_code)
     if not ignore_error:
         ERROR = True
         return False
@@ -762,27 +762,86 @@ def get_test_bot_env(extra_env: Optional[Mapping] = None) -> dict:
     return env
 
 
+def parse_additional_trusted_taps(value: str) -> list[str]:
+    """
+    Parse the additional trusted taps input.
+
+    Parameters
+    ----------
+    value : str
+        Comma or newline-separated tap names.
+
+    Returns
+    -------
+    list[str]
+        Parsed tap names.
+    """
+    taps = []
+    for tap in value.replace(',', '\n').splitlines():
+        tap = tap.strip()
+        if tap:
+            taps.append(tap)
+
+    return taps
+
+
+def get_trusted_taps() -> list[str]:
+    """
+    Get the ordered list of Homebrew taps to trust.
+
+    Returns
+    -------
+    list[str]
+        The current tap followed by any additional taps from the action input.
+    """
+    trusted_taps = [
+        tap_repo_name,
+        *parse_additional_trusted_taps(os.getenv('INPUT_ADDITIONAL_TRUSTED_TAPS', '')),
+    ]
+    unique_taps = []
+    seen_taps = set()
+
+    for trusted_tap in trusted_taps:
+        trusted_tap = trusted_tap.strip()
+        trusted_tap_key = trusted_tap.lower()
+        if not trusted_tap or trusted_tap_key in seen_taps:
+            continue
+
+        seen_taps.add(trusted_tap_key)
+        unique_taps.append(trusted_tap)
+
+    return unique_taps
+
+
 def trust_tap() -> bool:
     """
-    Trust the configured Homebrew tap.
+    Trust the configured Homebrew taps.
 
     Returns
     -------
     bool
-        True when Homebrew trusts the tap successfully; otherwise False.
+        True when Homebrew trusts all taps successfully; otherwise False.
     """
-    start_group(f'Trusting tap {tap_repo_name}')
-    result = _run_subprocess(
-        args_list=[
-            'brew',
-            'trust',
-            '--tap',
-            tap_repo_name,
-        ],
-        env=get_test_bot_env(),
-    )
+    trusted_taps = get_trusted_taps()
+    env = get_test_bot_env()
+
+    start_group('Trusting Homebrew taps')
+    for index, trusted_tap in enumerate(trusted_taps, start=1):
+        print(f'Trusting configured Homebrew tap {index} of {len(trusted_taps)}')
+        if not _run_subprocess(
+                args_list=[
+                    'brew',
+                    'trust',
+                    '--tap',
+                    trusted_tap,
+                ],
+                env=env,
+        ):
+            end_group()
+            return False
+
     end_group()
-    return result
+    return True
 
 
 def audit_formula(formula: str) -> bool:
@@ -1099,7 +1158,7 @@ def main():
 
     # Trust after cleanup-before, which can reset Homebrew state before doctor runs.
     if not trust_tap():
-        print(f'::error:: Failed to trust tap {tap_repo_name}')
+        print('::error:: Failed to trust Homebrew taps')
         raise SystemExit(1)
 
     if not brew_test_bot_only_setup():
@@ -1116,6 +1175,12 @@ def main():
     if not brew_test_bot_only_tap_syntax():
         print('::error:: brew test-bot --only-tap-syntax failed')
         FAILURES.append('tap-syntax')
+
+    # Refresh trust immediately before formulae validation. test-bot may reset
+    # or isolate Homebrew state between setup/tap-syntax and dependent checks.
+    if not trust_tap():
+        print('::error:: Failed to trust Homebrew taps before formulae validation')
+        raise SystemExit(1)
 
     if not brew_test_bot_only_formulae(formula, test_artifacts_dir):
         print('::error:: brew test-bot --only-formulae failed')
