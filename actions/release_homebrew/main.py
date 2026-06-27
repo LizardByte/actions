@@ -126,7 +126,7 @@ def _run_subprocess(
     if exit_code == 0:
         return True
 
-    print(f'::error:: Process [{args_list}] failed with exit code', exit_code)
+    print('::error:: Process failed with exit code', exit_code)
     if not ignore_error:
         ERROR = True
         return False

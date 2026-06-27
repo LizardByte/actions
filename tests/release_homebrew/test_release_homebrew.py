@@ -50,12 +50,18 @@ def test_run_subprocess(capsys, operating_system):
 
 
 def test_run_subprocess_fail(capsys, operating_system):
+    sensitive_arg = 'secret-value'
+
     result = main._run_subprocess(
-        args_list=[sys.executable, '-c', 'raise SystemExit(1)'],
+        args_list=[sys.executable, '-c', 'raise SystemExit(1)', sensitive_arg],
     )
 
     assert not result, "Process returned zero exit code"
     assert main.ERROR
+
+    captured = capsys.readouterr()
+    assert sensitive_arg not in captured.out
+    assert sensitive_arg not in captured.err
 
 
 @pytest.mark.parametrize('outputs', [
