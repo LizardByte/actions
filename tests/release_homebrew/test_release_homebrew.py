@@ -50,12 +50,18 @@ def test_run_subprocess(capsys, operating_system):
 
 
 def test_run_subprocess_fail(capsys, operating_system):
+    sensitive_arg = 'secret-value'
+
     result = main._run_subprocess(
-        args_list=[sys.executable, '-c', 'raise SystemExit(1)'],
+        args_list=[sys.executable, '-c', 'raise SystemExit(1)', sensitive_arg],
     )
 
     assert not result, "Process returned zero exit code"
     assert main.ERROR
+
+    captured = capsys.readouterr()
+    assert sensitive_arg not in captured.out
+    assert sensitive_arg not in captured.err
 
 
 @pytest.mark.parametrize('outputs', [
@@ -435,10 +441,17 @@ def test_process_input_formula(operating_system, org_homebrew_repo):
         assert os.path.isfile(os.path.join(d, 'Formula', 'h', 'hello_world.rb'))
 
 
-def test_process_input_formula_lizardbyte_actions_special_case(operating_system, org_homebrew_repo, monkeypatch):
+@patch('actions.release_homebrew.main.tap_homebrew_repo')
+def test_process_input_formula_lizardbyte_actions_special_case(
+        mock_tap_homebrew_repo,
+        operating_system,
+        org_homebrew_repo,
+        monkeypatch,
+):
     """Test that LizardByte/actions is allowed as a special case for CI testing."""
     # Set the INPUT_ORG_HOMEBREW_REPO to LizardByte/actions
     monkeypatch.setenv('INPUT_ORG_HOMEBREW_REPO', 'LizardByte/actions')
+    mock_tap_homebrew_repo.return_value = True
 
     formula = main.process_input_formula(
         formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
@@ -446,6 +459,24 @@ def test_process_input_formula_lizardbyte_actions_special_case(operating_system,
     assert formula == 'hello_world'
     # Verify that the tap_repo_name was set correctly
     assert main.tap_repo_name == 'lizardbyte/actions'
+    mock_tap_homebrew_repo.assert_called_once_with('lizardbyte/actions')
+
+
+@patch('actions.release_homebrew.main.tap_homebrew_repo')
+@patch('actions.release_homebrew.main._run_subprocess')
+def test_process_input_formula_fails_when_tap_homebrew_repo_fails(
+        mock_run_subprocess,
+        mock_tap_homebrew_repo,
+        test_formula_file,
+):
+    """Test that process_input_formula stops when canonical tap setup fails."""
+    mock_run_subprocess.return_value = True
+    mock_tap_homebrew_repo.return_value = False
+
+    with pytest.raises(SystemExit, match='Failed to tap Homebrew repository'):
+        main.process_input_formula(formula_file=test_formula_file)
+
+    mock_tap_homebrew_repo.assert_called_once_with('lizardbyte/homebrew')
 
 
 def test_get_tap_name_from_repo_invalid_direct(monkeypatch):
@@ -521,6 +552,104 @@ def test_get_tap_name_from_repo_special_case_message(capsys, monkeypatch):
     assert 'Using LizardByte/actions for CI testing (special case)' in captured.out
 
 
+@patch('subprocess.run')
+def test_is_homebrew_tap_installed(mock_run):
+    """Test that is_homebrew_tap_installed finds taps case-insensitively."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=['brew', 'tap'],
+        returncode=0,
+        stdout='homebrew/core\nLizardByte/Homebrew\n',
+    )
+
+    assert main.is_homebrew_tap_installed('lizardbyte/homebrew')
+
+
+@patch('subprocess.run')
+def test_is_homebrew_tap_installed_returns_false_when_brew_tap_fails(mock_run):
+    """Test that is_homebrew_tap_installed returns false when brew tap listing fails."""
+    mock_run.return_value = subprocess.CompletedProcess(
+        args=['brew', 'tap'],
+        returncode=1,
+        stdout='',
+    )
+
+    assert not main.is_homebrew_tap_installed('lizardbyte/homebrew')
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+@patch('actions.release_homebrew.main.is_homebrew_tap_installed')
+def test_tap_homebrew_repo_uses_canonical_tap_name(mock_is_tap_installed, mock_run_subprocess, capsys):
+    """Test that tap_homebrew_repo taps by name, not by checkout path."""
+    mock_is_tap_installed.return_value = False
+    mock_run_subprocess.return_value = True
+
+    assert main.tap_homebrew_repo('lizardbyte/homebrew')
+
+    mock_is_tap_installed.assert_called_once_with('lizardbyte/homebrew')
+    mock_run_subprocess.assert_called_once_with(
+        args_list=[
+            'brew',
+            'tap',
+            'lizardbyte/homebrew',
+        ],
+    )
+
+    captured = capsys.readouterr()
+    assert 'Running `brew tap` for configured Homebrew tap' in captured.out
+    assert 'org_homebrew_repo' not in captured.out
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+@patch('actions.release_homebrew.main.is_homebrew_tap_installed')
+def test_tap_homebrew_repo_replaces_existing_tap(mock_is_tap_installed, mock_run_subprocess):
+    """Test that tap_homebrew_repo untaps an existing tap before the canonical checkout."""
+    mock_is_tap_installed.return_value = True
+    mock_run_subprocess.return_value = True
+
+    assert main.tap_homebrew_repo('lizardbyte/homebrew')
+
+    assert [call.kwargs['args_list'] for call in mock_run_subprocess.call_args_list] == [
+        [
+            'brew',
+            'untap',
+            'lizardbyte/homebrew',
+        ],
+        [
+            'brew',
+            'tap',
+            'lizardbyte/homebrew',
+        ],
+    ]
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+@patch('actions.release_homebrew.main.is_homebrew_tap_installed')
+def test_tap_homebrew_repo_stops_when_untap_fails(mock_is_tap_installed, mock_run_subprocess):
+    """Test that tap_homebrew_repo stops before tap when untap fails."""
+    mock_is_tap_installed.return_value = True
+    mock_run_subprocess.return_value = False
+
+    assert not main.tap_homebrew_repo('lizardbyte/homebrew')
+
+    mock_run_subprocess.assert_called_once_with(
+        args_list=[
+            'brew',
+            'untap',
+            'lizardbyte/homebrew',
+        ],
+    )
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+@patch('actions.release_homebrew.main.is_homebrew_tap_installed')
+def test_tap_homebrew_repo_returns_false_when_tap_fails(mock_is_tap_installed, mock_run_subprocess):
+    """Test that tap_homebrew_repo returns false when brew tap fails."""
+    mock_is_tap_installed.return_value = False
+    mock_run_subprocess.return_value = False
+
+    assert not main.tap_homebrew_repo('lizardbyte/homebrew')
+
+
 def test_is_brew_installed(operating_system):
     assert main.is_brew_installed()
 
@@ -546,6 +675,34 @@ def test_get_test_bot_env(monkeypatch):
     assert env['HOME'] == os.path.join(os.getcwd(), 'runner-home')
     assert 'HOMEBREW_HOME' not in env
     assert 'HOMEBREW_USER_CONFIG_HOME' not in env
+
+
+def test_parse_additional_trusted_taps():
+    """Test that additional trusted taps can be comma or newline-separated."""
+    trusted_taps = main.parse_additional_trusted_taps(
+        'lizardbyte/homebrew-extra, homebrew/core\n\nexample/tap'
+    )
+
+    assert trusted_taps == [
+        'lizardbyte/homebrew-extra',
+        'homebrew/core',
+        'example/tap',
+    ]
+
+
+def test_get_trusted_taps_includes_current_tap_and_deduplicates(monkeypatch):
+    """Test that the working tap is always trusted before additional taps."""
+    main.tap_repo_name = 'lizardbyte/homebrew'
+    monkeypatch.setenv(
+        'INPUT_ADDITIONAL_TRUSTED_TAPS',
+        'homebrew/core,lizardbyte/homebrew\nExample/Tap\nexample/tap',
+    )
+
+    assert main.get_trusted_taps() == [
+        'lizardbyte/homebrew',
+        'homebrew/core',
+        'Example/Tap',
+    ]
 
 
 @patch('actions.release_homebrew.main._run_subprocess')
@@ -582,7 +739,111 @@ def test_trust_tap(mock_get_test_bot_env, mock_run_subprocess, capsys):
     )
 
     captured = capsys.readouterr()
-    assert 'Trusting tap lizardbyte/homebrew' in captured.out
+    assert 'Trusting configured Homebrew tap 1 of 1' in captured.out
+    assert 'lizardbyte/homebrew' not in captured.out
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+@patch('actions.release_homebrew.main.get_test_bot_env')
+def test_trust_tap_includes_additional_taps(mock_get_test_bot_env, mock_run_subprocess, monkeypatch):
+    """
+    Test that trust_tap trusts the current tap and additional trusted taps.
+
+    Parameters
+    ----------
+    mock_get_test_bot_env : unittest.mock.Mock
+        Mocked test-bot environment builder.
+    mock_run_subprocess : unittest.mock.Mock
+        Mocked subprocess runner.
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch environment variables.
+    """
+    main.tap_repo_name = 'lizardbyte/homebrew'
+    monkeypatch.setenv('INPUT_ADDITIONAL_TRUSTED_TAPS', 'homebrew/core\nexample/tap')
+    mock_get_test_bot_env.return_value = {
+        'HOME': os.path.join(os.getcwd(), 'runner-home'),
+    }
+    mock_run_subprocess.return_value = True
+
+    assert main.trust_tap()
+
+    assert [call.kwargs['args_list'] for call in mock_run_subprocess.call_args_list] == [
+        [
+            'brew',
+            'trust',
+            '--tap',
+            'lizardbyte/homebrew',
+        ],
+        [
+            'brew',
+            'trust',
+            '--tap',
+            'homebrew/core',
+        ],
+        [
+            'brew',
+            'trust',
+            '--tap',
+            'example/tap',
+        ],
+    ]
+    assert all(
+        call.kwargs['env'] == mock_get_test_bot_env.return_value
+        for call in mock_run_subprocess.call_args_list
+    )
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+@patch('actions.release_homebrew.main.get_test_bot_env')
+def test_trust_tap_stops_when_a_tap_fails_without_logging_tap_names(
+        mock_get_test_bot_env,
+        mock_run_subprocess,
+        monkeypatch,
+        capsys,
+):
+    """
+    Test that trust_tap stops on failure without logging tap names.
+
+    Parameters
+    ----------
+    mock_get_test_bot_env : unittest.mock.Mock
+        Mocked test-bot environment builder.
+    mock_run_subprocess : unittest.mock.Mock
+        Mocked subprocess runner.
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch environment variables.
+    capsys : pytest.CaptureFixture
+        Fixture used to inspect the log output.
+    """
+    main.tap_repo_name = 'lizardbyte/homebrew'
+    monkeypatch.setenv('INPUT_ADDITIONAL_TRUSTED_TAPS', 'homebrew/core')
+    mock_get_test_bot_env.return_value = {
+        'HOME': os.path.join(os.getcwd(), 'runner-home'),
+    }
+    mock_run_subprocess.side_effect = [True, False]
+
+    assert not main.trust_tap()
+
+    assert [call.kwargs['args_list'] for call in mock_run_subprocess.call_args_list] == [
+        [
+            'brew',
+            'trust',
+            '--tap',
+            'lizardbyte/homebrew',
+        ],
+        [
+            'brew',
+            'trust',
+            '--tap',
+            'homebrew/core',
+        ],
+    ]
+
+    captured = capsys.readouterr()
+    assert 'Trusting configured Homebrew tap 1 of 2' in captured.out
+    assert 'Trusting configured Homebrew tap 2 of 2' in captured.out
+    assert 'lizardbyte/homebrew' not in captured.out
+    assert 'homebrew/core' not in captured.out
 
 
 @patch('actions.release_homebrew.main._run_subprocess')
@@ -954,7 +1215,7 @@ def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_vali
     assert not main.FAILURES
 
 
-def test_main_trusts_tap_after_cleanup(monkeypatch):
+def test_main_trusts_tap_after_cleanup_before_setup(monkeypatch):
     """
     Test that main trusts the tap after Homebrew cleanup and before setup.
 
@@ -998,6 +1259,58 @@ def test_main_trusts_tap_after_cleanup(monkeypatch):
     assert calls.index('brew_test_bot_only_cleanup_before') < calls.index('trust_tap')
     assert calls.index('setup_linux_sandbox') < calls.index('trust_tap')
     assert calls.index('trust_tap') < calls.index('brew_test_bot_only_setup')
+    assert calls.index('brew_test_bot_only_tap_syntax') < calls.index('brew_test_bot_only_formulae')
+    assert calls.count('trust_tap') == 1
+
+
+def test_main_fails_when_initial_trust_fails(monkeypatch):
+    """
+    Test that main stops before setup when the initial trust step fails.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch environment variables and action steps.
+    """
+    monkeypatch.setenv('INPUT_VALIDATE', 'true')
+    main.ERROR = False
+    main.FAILURES = []
+    main.args = main._parse_args([])
+    calls = []
+
+    def record_call(name, return_value=True):
+        def _record(*args, **kwargs):
+            calls.append(name)
+            return return_value
+
+        return _record
+
+    def fail_trust(*args, **kwargs):
+        calls.append('trust_tap')
+        return False
+
+    monkeypatch.setattr(main, 'is_brew_installed', record_call('is_brew_installed'))
+    monkeypatch.setattr(main, 'process_input_formula', record_call('process_input_formula', 'hello_world'))
+    monkeypatch.setattr(
+        main,
+        'brew_test_bot_only_cleanup_before',
+        record_call('brew_test_bot_only_cleanup_before'),
+    )
+    monkeypatch.setattr(main, 'setup_linux_sandbox', record_call('setup_linux_sandbox'))
+    monkeypatch.setattr(main, 'trust_tap', fail_trust)
+    monkeypatch.setattr(main, 'brew_test_bot_only_setup', record_call('brew_test_bot_only_setup'))
+    monkeypatch.setattr(main, 'audit_formula', record_call('audit_formula'))
+    monkeypatch.setattr(main, 'override_actionlint_config', record_call('override_actionlint_config'))
+    monkeypatch.setattr(main, 'brew_test_bot_only_tap_syntax', record_call('brew_test_bot_only_tap_syntax'))
+    monkeypatch.setattr(main, 'prepare_test_artifacts_dir', record_call('prepare_test_artifacts_dir', 'test-path'))
+    monkeypatch.setattr(main, 'brew_test_bot_only_formulae', record_call('brew_test_bot_only_formulae'))
+
+    with pytest.raises(SystemExit):
+        main.main()
+
+    assert calls.count('trust_tap') == 1
+    assert 'brew_test_bot_only_setup' not in calls
+    assert 'brew_test_bot_only_formulae' not in calls
 
 
 @pytest.mark.parametrize('scenario, mocks, expected_failures', [

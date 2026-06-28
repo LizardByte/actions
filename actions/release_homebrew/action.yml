@@ -12,6 +12,12 @@ inputs:
     description: 'Contents of actionlint config file, used to override the default brew config.'
     default: ''
     required: false
+  additional_trusted_taps:
+    description: >-
+      Comma or newline-separated list of additional Homebrew taps to trust before validation.
+      The working tap from org_homebrew_repo is always trusted automatically.
+    default: ''
+    required: false
   contribute_to_homebrew_core:
     description: 'Whether to contribute to homebrew-core.'
     default: 'false'
@@ -166,6 +172,7 @@ runs:
     - name: Homebrew tests
       env:
         INPUT_ACTIONLINT_CONFIG: ${{ inputs.actionlint_config }}
+        INPUT_ADDITIONAL_TRUSTED_TAPS: ${{ inputs.additional_trusted_taps }}
         INPUT_FORMULA_FILE: ${{ inputs.formula_file }}
         INPUT_CONTRIBUTE_TO_HOMEBREW_CORE: ${{ inputs.contribute_to_homebrew_core }}
         INPUT_GIT_EMAIL: ${{ inputs.git_email }}

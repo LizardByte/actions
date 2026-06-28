@@ -35,6 +35,7 @@ steps:
 | Name                          | Description                                                                               | Default                        | Required |
 |-------------------------------|-------------------------------------------------------------------------------------------|--------------------------------|----------|
 | actionlint_config             | Contents of actionlint config file, used to override the default brew config.             |                                | `false`  |
+| additional_trusted_taps       | Additional Homebrew taps to trust before validation.                                      |                                | `false`  |
 | contribute_to_homebrew_core   | Whether to contribute to homebrew-core.                                                   | `false`                        | `false`  |
 | formula_file                  | The full path to the formula file.                                                        |                                | `true`   |
 | git_email                     | The email to use for the commit.                                                          |                                | `true`   |
@@ -55,6 +56,8 @@ steps:
 > [!NOTE]
 > `org_homebrew_repo` repo name should conform to the documentation.
 > See: https://docs.brew.sh/Taps#repository-naming-conventions-and-assumptions
+> The working tap derived from `org_homebrew_repo` is always trusted automatically. Use `additional_trusted_taps` only
+> for extra taps, as a comma or newline-separated list.
 
 ## 📤 Outputs
 
