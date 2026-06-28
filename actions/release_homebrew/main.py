@@ -539,6 +539,65 @@ def _get_tap_name_from_repo(org_homebrew_repo_input: str) -> tuple[str, str]:
     return owner, tap_name
 
 
+def is_homebrew_tap_installed(tap_name: str) -> bool:
+    """
+    Check whether Homebrew has already tapped the named repository.
+
+    Parameters
+    ----------
+    tap_name : str
+        Canonical tap name, e.g. owner/tap.
+
+    Returns
+    -------
+    bool
+        True when the tap is installed; otherwise False.
+    """
+    proc = subprocess.run(
+        args=['brew', 'tap'],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return False
+
+    normalized_tap_name = tap_name.strip().lower()
+    installed_taps = []
+    for installed_tap in proc.stdout.splitlines():
+        installed_taps.append(installed_tap.strip().lower())
+
+    return normalized_tap_name in installed_taps
+
+
+def tap_homebrew_repo(tap_name: str) -> bool:
+    """
+    Tap the Homebrew repository using its canonical tap name.
+
+    Parameters
+    ----------
+    tap_name : str
+        Canonical tap name, e.g. owner/tap.
+
+    Returns
+    -------
+    bool
+        True when Homebrew taps the repository successfully; otherwise False.
+    """
+    start_group('Tapping Homebrew repository')
+
+    if is_homebrew_tap_installed(tap_name):
+        print('Untapping existing Homebrew tap before canonical checkout')
+        if not _run_subprocess(args_list=['brew', 'untap', tap_name]):
+            end_group()
+            return False
+
+    print('Running `brew tap` for configured Homebrew tap')
+    result = _run_subprocess(args_list=['brew', 'tap', tap_name])
+
+    end_group()
+    return result
+
+
 def process_input_formula(formula_file: str) -> str:
     global tap_repo_name
 
@@ -588,19 +647,8 @@ def process_input_formula(formula_file: str) -> str:
     print(f'org_homebrew_repo: {org_homebrew_repo}')
     print(f'homebrew_core_fork_repo: {homebrew_core_fork_repo}')
 
-    # Tap the existing repo
-    start_group(f'Tapping repository {tap_repo_name}')
-    print(f'Running `brew tap {tap_repo_name} {org_homebrew_repo}`')
-    _run_subprocess(
-        args_list=[
-            'brew',
-            'tap',
-            tap_repo_name,
-            org_homebrew_repo,
-        ],
-    )
-
-    end_group()
+    if not tap_homebrew_repo(tap_repo_name):
+        raise SystemExit(1, '::error:: Failed to tap Homebrew repository')
 
     # Prepare branches for both repositories
     # Get base branches from inputs, with defaults
@@ -1175,12 +1223,6 @@ def main():
     if not brew_test_bot_only_tap_syntax():
         print('::error:: brew test-bot --only-tap-syntax failed')
         FAILURES.append('tap-syntax')
-
-    # Refresh trust immediately before formulae validation. test-bot may reset
-    # or isolate Homebrew state between setup/tap-syntax and dependent checks.
-    if not trust_tap():
-        print('::error:: Failed to trust Homebrew taps before formulae validation')
-        raise SystemExit(1)
 
     if not brew_test_bot_only_formulae(formula, test_artifacts_dir):
         print('::error:: brew test-bot --only-formulae failed')
