@@ -28,6 +28,10 @@ inputs:
       Set to false to avoid errors from third party rate limits.
     default: "true"
     required: false
+  list-python-versions:
+    description: Whether to list available Python versions with `pyenv install --list`.
+    default: "true"
+    required: false
 
 outputs:
   python-version:
@@ -97,6 +101,7 @@ runs:
         echo "default-version=${DEFAULT_PYTHON_VERSION}" >> $GITHUB_OUTPUT
 
     - name: Available Python versions
+      if: ${{ inputs.list-python-versions == 'true' }}
       shell: bash
       run: pyenv install --list
 

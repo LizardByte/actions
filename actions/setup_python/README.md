@@ -59,12 +59,13 @@ steps:
 
 ## 📥 Inputs
 
-| Name                | Description                                                                                                              | Default | Required |
-|---------------------|--------------------------------------------------------------------------------------------------------------------------|---------|----------|
-| python-version      | The version(s) of Python to set up. Can be a single version or multiple versions separated by newlines or spaces.        |         | `false`  |
-| python-version-file | File containing the Python version to set up. Supports `.python-version`, `pyproject.toml`, `.tool-versions`, `Pipfile`. |         | `false`  |
-| update-environment  | Whether to update the environment variables.                                                                             | `true`  | `false`  |
-| update-pyenv        | Whether Pyenv should retrieve the list of latest available Pythons variables.                                            | `true`  | `false`  |
+| Name                 | Description                                                                                                              | Default | Required |
+|----------------------|--------------------------------------------------------------------------------------------------------------------------|---------|----------|
+| list-python-versions | Whether to list available Python versions with `pyenv install --list`.                                                   | `true`  | `false`  |
+| python-version       | The version(s) of Python to set up. Can be a single version or multiple versions separated by newlines or spaces.        |         | `false`  |
+| python-version-file  | File containing the Python version to set up. Supports `.python-version`, `pyproject.toml`, `.tool-versions`, `Pipfile`. |         | `false`  |
+| update-environment   | Whether to update the environment variables.                                                                             | `true`  | `false`  |
+| update-pyenv         | Whether Pyenv should retrieve the list of latest available Pythons variables.                                            | `true`  | `false`  |
 
 > [!NOTE]
 > Either `python-version` or `python-version-file` must be specified.
