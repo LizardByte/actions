@@ -422,11 +422,13 @@ def test_process_input_formula(operating_system, org_homebrew_repo):
     with pytest.raises(FileNotFoundError):
         main.process_input_formula(formula_file='foo')
 
+    missing_formula = os.path.join(os.getcwd(), 'build')
     with pytest.raises(FileNotFoundError):
-        main.process_input_formula(formula_file=os.path.join(os.getcwd(), 'build'))
+        main.process_input_formula(formula_file=missing_formula)
 
+    invalid_formula = os.path.join(os.getcwd(), 'README.md')
     with pytest.raises(ValueError):
-        main.process_input_formula(formula_file=os.path.join(os.getcwd(), 'README.md'))
+        main.process_input_formula(formula_file=invalid_formula)
 
     formula = main.process_input_formula(
         formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
@@ -1545,8 +1547,9 @@ def test_process_input_formula_copy_failure(
     mock_run_subprocess.return_value = True
 
     # Test that the function raises FileNotFoundError when copy verification fails
+    formula_file = str(test_formula_file)
     with pytest.raises(FileNotFoundError, match="was not copied"):
-        main.process_input_formula(formula_file=str(test_formula_file))
+        main.process_input_formula(formula_file=formula_file)
 
 
 @patch('actions.release_homebrew.main._run_subprocess')
