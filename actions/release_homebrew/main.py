@@ -1133,9 +1133,6 @@ def copy_test_artifacts(source_dir: str, destination_dir: str) -> None:
 def brew_test_bot_only_formulae(formula: str, test_artifacts_dir: Optional[str] = None) -> bool:
     start_group(f'Running brew test-bot --only-formulae for {formula}')
 
-    org_repo = os.environ['INPUT_ORG_HOMEBREW_REPO']
-    root_url = f'https://ghcr.io/v2/{org_repo.rsplit("-", 1)[0].lower()}'
-
     # Check if we should skip stable version audit (default: true, meaning skip it)
     skip_stable_version_audit = os.getenv('INPUT_SKIP_STABLE_VERSION_AUDIT', 'true').lower() == 'true'
     stable_version_audit_arg = '--skip-stable-version-audit' if skip_stable_version_audit else ''
@@ -1143,14 +1140,15 @@ def brew_test_bot_only_formulae(formula: str, test_artifacts_dir: Optional[str] 
     # Check if running from a fork PR to skip livecheck
     is_fork_pr = os.getenv('INPUT_IS_FORK_PR', 'false').lower() == 'true'
 
-    # Build args list, filtering out empty strings
+    # test-bot's bottle is only used for local validation and is never published.
+    # Let test-bot use its default GitHub Releases URL for non-core taps so Homebrew
+    # does not require an unpublished GHCR manifest during its final dependency check.
     args_list = [
         'brew',
         'test-bot',
         '--only-formulae',
         f'--tap={tap_repo_name}',
         f'--testing-formulae={tap_repo_name}/{formula}',
-        f'--root-url={root_url}',
     ]
 
     if stable_version_audit_arg:

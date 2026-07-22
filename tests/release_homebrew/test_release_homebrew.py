@@ -1096,6 +1096,23 @@ def test_brew_test_bot_only_formulae_fork_pr(
 
 
 @patch('actions.release_homebrew.main._run_subprocess')
+def test_brew_test_bot_only_formulae_uses_non_oci_default_root(
+        mock_run_subprocess,
+        monkeypatch,
+        tmp_path,
+):
+    """Test that local validation does not point its unpublished bottle at GHCR."""
+    mock_run_subprocess.return_value = True
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(main, 'tap_repo_name', 'lizardbyte/homebrew')
+
+    assert main.brew_test_bot_only_formulae(formula='hello_world')
+
+    args_list = mock_run_subprocess.call_args.kwargs['args_list']
+    assert not any(arg.startswith('--root-url=') for arg in args_list)
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
 def test_brew_test_bot_only_formulae_includes_test_artifacts_dir(
         mock_run_subprocess,
         monkeypatch,
