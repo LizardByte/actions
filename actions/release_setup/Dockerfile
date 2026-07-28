@@ -1,5 +1,5 @@
 # NOSONAR(docker:S6471): GitHub Docker actions must run as root to write mounted file-command paths.
-FROM ghcr.io/astral-sh/uv:0.11-python3.14-alpine3.23 AS base
+FROM ghcr.io/astral-sh/uv:0.12-python3.14-alpine3.23 AS base
 
 COPY . /app
 
