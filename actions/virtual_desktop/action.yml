@@ -15,7 +15,7 @@ inputs:
   display-size:
     description: 'Display resolution (e.g., 1280x720, 1920x1080)'
     required: false
-    default: '1280x720'
+    default: '1024x768'
   environment:
     description: 'Desktop environment to setup (fluxbox, lxde, mate, openbox, xfce)'
     required: false

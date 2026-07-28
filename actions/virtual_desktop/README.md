@@ -29,7 +29,7 @@ steps:
 | Name                  | Description                                                           | Default    | Required |
 |-----------------------|-----------------------------------------------------------------------|------------|----------|
 | appindicator-version  | AppIndicator version (ayatana, legacy). Only applies to mate and xfce | `ayatana`  | `false`  |
-| display-size          | Display resolution in WIDTHxHEIGHT format (e.g., 1920x1080)           | `1280x720` | `false`  |
+| display-size          | Display resolution in WIDTHxHEIGHT format (e.g., 1920x1080)           | `1024x768` | `false`  |
 | environment           | Desktop environment (fluxbox, lxde, mate, openbox, xfce)              | `xfce`     | `false`  |
 
 ## 📤 Outputs
