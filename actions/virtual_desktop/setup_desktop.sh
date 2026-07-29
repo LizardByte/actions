@@ -15,6 +15,7 @@ AYATANA="ayatana"
 CINNAMON="cinnamon"
 LEGACY="legacy"
 OPENBOX="openbox"
+PROCESS_START_TIMEOUT=15
 
 # Default values
 APPINDICATOR_VERSION="$AYATANA"
@@ -127,6 +128,29 @@ configure_appindicator() {
   fi
 
   return 0
+}
+
+# Session managers start their window manager and panel asynchronously. Wait
+# for each required process instead of treating a fixed startup delay as proof
+# that it failed.
+wait_for_process() {
+  local process_name="$1"
+  local timeout_seconds="$2"
+  local elapsed
+
+  if pgrep -x "$process_name" > /dev/null 2>&1; then
+    return 0
+  fi
+
+  echo -e "${BLUE}Waiting for ${process_name} to start...${RESET}"
+  for ((elapsed = 0; elapsed < timeout_seconds; elapsed++)); do
+    sleep 1
+    if pgrep -x "$process_name" > /dev/null 2>&1; then
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 # Desktop environment specific packages
@@ -499,17 +523,18 @@ fi
 
 # A session launcher can remain alive even when its shell or panel failed. Check
 # the user-visible components before reporting success to downstream steps.
-if ! pgrep -x "$WM_PROCESS" > /dev/null 2>&1; then
+if ! wait_for_process "$WM_PROCESS" "$PROCESS_START_TIMEOUT"; then
   echo -e "${RED}Error: ${ENVIRONMENT} window manager did not start (${WM_PROCESS})${RESET}" >&2
   exit 1
 fi
 
-if ! pgrep -x "$PANEL_PROCESS" > /dev/null 2>&1; then
+if ! wait_for_process "$PANEL_PROCESS" "$PROCESS_START_TIMEOUT"; then
   echo -e "${RED}Error: ${ENVIRONMENT} panel did not start (${PANEL_PROCESS})${RESET}" >&2
   exit 1
 fi
 
-if [[ "$START_BUDGIE_COMPONENTS" == "true" ]] && ! pgrep -x "budgie-daemon" > /dev/null 2>&1; then
+if [[ "$START_BUDGIE_COMPONENTS" == "true" ]] && \
+   ! wait_for_process "budgie-daemon" "$PROCESS_START_TIMEOUT"; then
   echo -e "${RED}Error: Budgie background service did not start (budgie-daemon)${RESET}" >&2
   exit 1
 fi
