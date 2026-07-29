@@ -21,16 +21,16 @@ steps:
     with:
       appindicator-version: ayatana
       display-size: 1280x720
-      environment: xfce
+      environment: plasma
 ```
 
 ## 📥 Inputs
 
-| Name                  | Description                                                           | Default    | Required |
-|-----------------------|-----------------------------------------------------------------------|------------|----------|
-| appindicator-version  | AppIndicator version (ayatana, legacy). Only applies to mate and xfce | `ayatana`  | `false`  |
-| display-size          | Display resolution in WIDTHxHEIGHT format (e.g., 1920x1080)           | `1024x768` | `false`  |
-| environment           | Desktop environment (fluxbox, lxde, mate, openbox, xfce)              | `xfce`     | `false`  |
+| Name                 | Description                                                                                        | Default    | Required |
+|----------------------|----------------------------------------------------------------------------------------------------|------------|----------|
+| appindicator-version | AppIndicator version (ayatana, legacy). Only applies to mate and xfce                              | `ayatana`  | `false`  |
+| display-size         | Display resolution in WIDTHxHEIGHT format (e.g., 1920x1080)                                        | `1024x768` | `false`  |
+| environment          | Desktop environment (budgie, cinnamon, fluxbox, gnome, lxde, lxqt, mate, openbox, plasma, or xfce) | `plasma`   | `false`  |
 
 ## 📤 Outputs
 
@@ -40,6 +40,34 @@ steps:
 | xvfb-pid  | Process ID of the Xvfb server         |
 
 ## 🖥️ Desktop Environments
+
+### Budgie
+
+**Best for:** A polished GTK desktop with a traditional panel layout
+
+- **Tray Support:** ✅ Excellent (Budgie panel and indicator applet)
+- **Notifications:** ✅ Full support (Budgie Raven)
+- **Footprint:** Medium
+- **Features:** Modern GTK desktop, integrated panel, application menu, and notification center
+
+```yaml
+with:
+  environment: budgie
+```
+
+### Cinnamon
+
+**Best for:** A modern, familiar desktop with a traditional workflow
+
+- **Tray Support:** ✅ Excellent (integrated Cinnamon panel)
+- **Notifications:** ✅ Full support (Cinnamon)
+- **Footprint:** Medium
+- **Features:** Composited desktop, panel, application menu, and window effects
+
+```yaml
+with:
+  environment: cinnamon
+```
 
 ### Fluxbox
 
@@ -57,6 +85,20 @@ with:
   environment: fluxbox
 ```
 
+### GNOME
+
+**Best for:** Testing against the standard modern GNOME desktop
+
+- **Tray Support:** ✅ AppIndicator and StatusNotifierItem support through the GNOME Shell extension
+- **Notifications:** ✅ Full support (GNOME Shell)
+- **Footprint:** Large
+- **Features:** GNOME Shell, Activities overview, modern GTK stack, and window compositing
+
+```yaml
+with:
+  environment: gnome
+```
+
 ### LXDE
 
 ![LXDE Desktop](docs/images/screenshot-lxde.png)
@@ -71,6 +113,20 @@ with:
 ```yaml
 with:
   environment: lxde
+```
+
+### LXQt
+
+**Best for:** A modern, lightweight Qt desktop
+
+- **Tray Support:** ✅ Excellent (LXQt panel)
+- **Notifications:** ✅ Full support (lxqt-notificationd)
+- **Footprint:** Small
+- **Features:** Qt-based desktop, integrated panel, desktop icons, and fast startup
+
+```yaml
+with:
+  environment: lxqt
 ```
 
 ### MATE
@@ -105,6 +161,20 @@ with:
 ```yaml
 with:
   environment: openbox
+```
+
+### KDE Plasma
+
+**Best for:** Testing against a full-featured modern Qt desktop
+
+- **Tray Support:** ✅ Excellent (Plasma system tray)
+- **Notifications:** ✅ Full support (Plasma Workspace)
+- **Footprint:** Large
+- **Features:** KWin compositor, Plasma panel, StatusNotifierItem support, and extensive Qt integration
+
+```yaml
+with:
+  environment: plasma
 ```
 
 ### XFCE
@@ -286,7 +356,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        desktop: [xfce, lxde, openbox, fluxbox]
+        desktop: [budgie, cinnamon, fluxbox, gnome, lxde, lxqt, mate, openbox, plasma, xfce]
     steps:
       - name: Setup ${{ matrix.desktop }}
         uses: LizardByte/actions/actions/virtual_desktop@master
@@ -303,12 +373,14 @@ jobs:
 - **Display Variable:** The `DISPLAY` environment variable is automatically set for subsequent steps
 - **Process Management:** Xvfb and the desktop environment run in the background for the duration of the job
 - **Resource Usage:** Desktop environments vary in size:
-  - Minimal (openbox, fluxbox): ~50MB
-  - Lightweight (lxde): ~80MB
-  - Full-featured (xfce): ~150MB
+  - Minimal: openbox and fluxbox
+  - Lightweight: lxde and lxqt
+  - Full-featured: budgie, cinnamon, gnome, mate, plasma, and xfce
 - **Tray Icons:** All environments support system tray icons through their respective panel implementations
 - **AppIndicator Support:**
-  - Only available on MATE and XFCE environments
+  - The `appindicator-version` input applies to MATE and XFCE
+  - GNOME includes its AppIndicator and StatusNotifierItem shell extension
+  - Budgie, Cinnamon, LXQt, and Plasma use their integrated panel implementations
   - **Ayatana** (recommended): Modern fork with active development
   - **Legacy**: Original Ubuntu implementation (deprecated but still available)
   - Python apps need `gir1.2-ayatanaappindicator3-0.1` or `gir1.2-appindicator3-0.1`
@@ -330,10 +402,10 @@ jobs:
 ```
 
 ### Tray Icon Not Appearing
-Different environments have different tray implementations. Try XFCE for the most reliable tray support.
+Different environments have different tray implementations. Try Plasma or XFCE for the most reliable tray support.
 
 ### Out of Memory
-Use a lighter environment (openbox, fluxbox, or lxde) if you encounter memory issues.
+Use a lighter environment (openbox, fluxbox, lxde, or lxqt) if you encounter memory issues.
 
 ## 🔗 See Also
 

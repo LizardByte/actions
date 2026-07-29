@@ -17,9 +17,10 @@ inputs:
     required: false
     default: '1024x768'
   environment:
-    description: 'Desktop environment to setup (fluxbox, lxde, mate, openbox, xfce)'
+    description: >-
+      Desktop environment to setup (budgie, cinnamon, fluxbox, gnome, lxde, lxqt, mate, openbox, plasma, xfce)
     required: false
-    default: 'xfce'
+    default: 'plasma'
 
 outputs:
   display:

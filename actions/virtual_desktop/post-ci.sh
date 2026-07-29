@@ -49,7 +49,7 @@ if command -v notify-send &> /dev/null; then
   echo "✓ notify-send is available"
 
   # Try sending a test notification
-  if notify-send "Test Notification" "Virtual desktop is working!" 2>/dev/null; then
+  if timeout 10s notify-send "Test Notification" "Virtual desktop is working!" 2>/dev/null; then
     echo "✓ Notification sent successfully"
   else
     echo "✗ Notification command ran but may not be visible"
@@ -65,7 +65,7 @@ echo ""
 echo "Checking for window manager..."
 WM_FOUND=false
 
-for wm in fluxbox lxsession mate-session openbox xfce4-session; do
+for wm in budgie-wm cinnamon fluxbox gnome-shell kwin_x11 lxsession mate-session openbox xfce4-session; do
   if pgrep -x "$wm" > /dev/null 2>&1; then
     echo "✓ Found window manager: $wm"
     WM_FOUND=true
@@ -83,7 +83,7 @@ echo ""
 echo "Checking for panel/tray..."
 PANEL_FOUND=false
 
-for panel in lxpanel mate-panel stalonetray tint2 xfce4-panel; do
+for panel in budgie-panel cinnamon gnome-shell lxpanel lxqt-panel mate-panel plasmashell stalonetray tint2 xfce4-panel; do
   if pgrep -x "$panel" > /dev/null 2>&1; then
     echo "✓ Found panel: $panel"
     PANEL_FOUND=true

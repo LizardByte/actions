@@ -2,13 +2,37 @@
   {
     "runs-on": "ubuntu-latest",
     "with": {
+      "environment": "budgie"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "environment": "cinnamon"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
       "environment": "fluxbox"
     }
   },
   {
     "runs-on": "ubuntu-latest",
     "with": {
+      "environment": "gnome"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
       "environment": "lxde"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "environment": "lxqt"
     }
   },
   {
@@ -29,6 +53,12 @@
     "runs-on": "ubuntu-latest",
     "with": {
       "environment": "openbox"
+    }
+  },
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "environment": "plasma"
     }
   },
   {
