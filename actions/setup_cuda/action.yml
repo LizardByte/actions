@@ -14,10 +14,12 @@ inputs:
   driver-version:
     description: >
       The driver version included in the CUDA installer (e.g., '560.35.03', '520.61.05').
+      Required for Linux, not used for Windows (uses network installer).
       This can be found on NVIDIA's CUDA Toolkit download page.
-    required: true
+    required: false
+    default: ""
   install-path:
-    description: "Installation path for CUDA Toolkit"
+    description: "Installation path for CUDA Toolkit (Linux only, Windows uses default location)"
     required: false
     default: "/usr/local/cuda"
 
