@@ -38,6 +38,7 @@ jobs:
     name: ${{ format('{0} ({1}, {2})', matrix.action, matrix.runs-on, toJson(matrix.with)) }}
     needs: generate-matrix
     permissions:
+      actions: read  # needed for artifact_comment action
       contents: write  # needed for setup_release action
     runs-on: ${{ matrix.runs-on }}
     container: ${{ matrix.container }}
