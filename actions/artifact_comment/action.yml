@@ -1,0 +1,89 @@
+---
+name: "PR Artifact Comment"
+description: "Post workflow artifact links in a sticky pull request comment."
+author: "LizardByte"
+
+branding:
+  icon: package
+  color: green
+
+inputs:
+  artifact_patterns:
+    description: |
+      Newline-separated artifact name patterns to include. Supports * and ? wildcards.
+    required: false
+    default: '*'
+  dry_run:
+    description: 'Build the comment without posting it.'
+    required: false
+    default: 'false'
+  message_id:
+    description: 'Stable ID used to update the existing comment on later workflow runs.'
+    required: false
+    default: 'artifact-comment'
+  pr_number:
+    description: 'Pull request number to comment on. By default it is resolved from the source workflow run.'
+    required: false
+    default: ''
+  run_id:
+    description: 'Workflow run ID whose artifacts should be listed.'
+    required: false
+    default: ${{ github.event.workflow_run.id || github.run_id }}
+  title:
+    description: 'Markdown heading text for the artifact comment.'
+    required: false
+    default: 'Build artifacts'
+  token:
+    description: 'GitHub token used to read artifacts and post the pull request comment.'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  artifact_count:
+    description: 'Number of artifacts included in the comment.'
+    value: ${{ steps.build_comment.outputs.ARTIFACT_COUNT }}
+  artifact_names:
+    description: 'Newline-separated names of artifacts included in the comment.'
+    value: ${{ steps.build_comment.outputs.ARTIFACT_NAMES }}
+  comment_created:
+    description: 'Whether a new pull request comment was created.'
+    value: ${{ steps.comment.outputs.comment-created }}
+  comment_body:
+    description: 'Generated Markdown comment body.'
+    value: ${{ steps.build_comment.outputs.COMMENT_BODY }}
+  comment_id:
+    description: 'ID of the created or updated pull request comment.'
+    value: ${{ steps.comment.outputs.comment-id }}
+  comment_updated:
+    description: 'Whether an existing pull request comment was updated.'
+    value: ${{ steps.comment.outputs.comment-updated }}
+  pr_number:
+    description: 'Pull request number resolved for the source workflow run.'
+    value: ${{ steps.build_comment.outputs.PR_NUMBER }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build artifact comment
+      id: build_comment
+      env:
+        INPUT_ARTIFACT_PATTERNS: ${{ inputs.artifact_patterns }}
+        INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+        INPUT_RUN_ID: ${{ inputs.run_id }}
+        INPUT_TITLE: ${{ inputs.title }}
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const script = require('${{ github.action_path }}/artifact_comment.js');
+          await script({ github, context, core });
+
+    - name: Add pull request comment
+      id: comment
+      if: inputs.dry_run != 'true'
+      uses: mshick/add-pr-comment@ec328af66588ab8f77cdeb2c264f14aba45bbf59  # v3.12.0
+      with:
+        issue: ${{ steps.build_comment.outputs.PR_NUMBER }}
+        message: ${{ steps.build_comment.outputs.COMMENT_BODY }}
+        message-id: ${{ inputs.message_id }}
+        repo-token: ${{ inputs.token }}

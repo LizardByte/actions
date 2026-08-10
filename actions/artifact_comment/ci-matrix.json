@@ -1,0 +1,10 @@
+[
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "artifact_patterns": "artifact-comment-ci-*",
+      "dry_run": "true",
+      "pr_number": "1"
+    }
+  }
+]

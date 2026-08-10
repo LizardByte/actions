@@ -20,6 +20,7 @@
 
 | Action                                                | Description                                                                     | Type      | Language         |
 |-------------------------------------------------------|---------------------------------------------------------------------------------|-----------|------------------|
+| [artifact_comment](actions/artifact_comment#readme)   | Post workflow artifact links in a sticky pull request comment                   | composite | javascript       |
 | [audit_repos](actions/audit_repos#readme)             | Audit repositories in an organization                                           | composite | javascript       |
 | [facebook_post](actions/facebook_post#readme)         | Post to Facebook page/group using Graph API                                     | docker    | python           |
 | [get_changed_files](actions/get_changed_files#readme) | Get the list of changed files in a pull request                                 | composite | javascript       |
