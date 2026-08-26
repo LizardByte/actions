@@ -25,8 +25,8 @@
 | [facebook_post](actions/facebook_post#readme)         | Post to Facebook page/group using Graph API                                     | docker    | python           |
 | [get_changed_files](actions/get_changed_files#readme) | Get the list of changed files in a pull request                                 | composite | javascript       |
 | [monitor_space](actions/monitor_space#readme)         | Monitor and track minimum free disk space                                       | composite | bash             |
-| [pinact](actions/pinact#readme)                       | Run pinact against repositories in an organization and create PRs for updates   | composite | javascript       |
 | [more_space](actions/more_space#readme)               | Free up disk space in GitHub Actions runners                                    | composite | bash             |
+| [pinact](actions/pinact#readme)                       | Run pinact against repositories in an organization and create PRs for updates   | composite | javascript       |
 | [release_changelog](actions/release_changelog#readme) | Generate a changelog for the latest release                                     | composite | javascript       |
 | [release_create](actions/release_create#readme)       | Create a new release                                                            | composite | bash, javascript |
 | [release_homebrew](actions/release_homebrew#readme)   | Validate and update Homebrew formula                                            | composite | bash, python     |
