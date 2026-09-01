@@ -37,10 +37,10 @@ def pytest_runtest_setup(item):
 
 @pytest.fixture(scope='session')
 def github_token():
-    yield
+    return
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def github_output_file():
     f = os.environ['GITHUB_OUTPUT']
 
@@ -58,7 +58,7 @@ def github_output_file():
         fi.write('')
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def github_step_summary_file():
     f = os.environ['GITHUB_STEP_SUMMARY']
 
@@ -76,7 +76,7 @@ def github_step_summary_file():
         fi.write('')
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def latest_commit(github_token):
     global COMMIT
     original_sha = os.environ.get('GITHUB_SHA', '')
@@ -98,7 +98,7 @@ def latest_commit(github_token):
     os.environ['GITHUB_SHA'] = original_sha
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def dummy_github_push_event_path():
     original_value = DUMMY_GITHUB_EVENT_PATH
     os.environ['GITHUB_EVENT_PATH'] = os.path.join(DATA_DIRECTORY, 'dummy_github_push_event.json')
@@ -106,7 +106,7 @@ def dummy_github_push_event_path():
     os.environ['GITHUB_EVENT_PATH'] = original_value
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def dummy_github_push_event_path_invalid_commits():
     original_value = DUMMY_GITHUB_EVENT_PATH
     os.environ['GITHUB_EVENT_PATH'] = os.path.join(DATA_DIRECTORY, 'dummy_github_push_event_invalid_commits.json')
@@ -114,7 +114,7 @@ def dummy_github_push_event_path_invalid_commits():
     os.environ['GITHUB_EVENT_PATH'] = original_value
 
 
-@pytest.fixture(scope='function', params=['pr', 'push', 'push_alt_timestamp'])
+@pytest.fixture(params=['pr', 'push', 'push_alt_timestamp'])
 def github_event_path(request):
     original_value = DUMMY_GITHUB_EVENT_PATH
     os.environ['GITHUB_EVENT_PATH'] = os.path.join(DATA_DIRECTORY, f'dummy_github_{request.param}_event.json')
@@ -122,7 +122,7 @@ def github_event_path(request):
     os.environ['GITHUB_EVENT_PATH'] = original_value
 
 
-@pytest.fixture(params=[True, False], scope='function')
+@pytest.fixture(params=[True, False])
 def input_dotnet(request):
     os.environ['INPUT_DOTNET'] = str(request.param).lower()
     yield
@@ -130,7 +130,7 @@ def input_dotnet(request):
     del os.environ['INPUT_DOTNET']
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def requests_get_error():
     original_get = requests.get
 
@@ -143,7 +143,7 @@ def requests_get_error():
     requests.get = original_get
 
 
-@pytest.fixture(scope='function', params=[True, False])
+@pytest.fixture(params=[True, False])
 def mock_get_push_event_details(request):
     if request.param:
         # If the parameter is True, return a mock
@@ -159,7 +159,7 @@ def mock_get_push_event_details(request):
         yield
 
 
-@pytest.fixture(scope='function', params=[True, False])
+@pytest.fixture(params=[True, False])
 def mock_get_repo_squash_and_merge_required(request):
     original_get = requests.get
 
@@ -178,7 +178,7 @@ def mock_get_repo_squash_and_merge_required(request):
     requests.get = original_get
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def mock_get_repo_squash_and_merge_required_key_error():
     original_get = requests.get
 
@@ -193,7 +193,7 @@ def mock_get_repo_squash_and_merge_required_key_error():
     requests.get = original_get
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def mock_get_squash_and_merge_return_value():
     original_function = main.get_repo_squash_and_merge_required
     main.get_repo_squash_and_merge_required = Mock(return_value=False)
@@ -201,7 +201,7 @@ def mock_get_squash_and_merge_return_value():
     main.get_repo_squash_and_merge_required = original_function
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def mock_generate_release_body_success():
     original_get = requests.get
     original_post = requests.post
@@ -227,7 +227,7 @@ def mock_generate_release_body_success():
     requests.post = original_post
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def mock_generate_release_body_first_release_success():
     original_get = requests.get
     original_post = requests.post
@@ -252,7 +252,7 @@ def mock_generate_release_body_first_release_success():
     requests.post = original_post
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def mock_generate_release_body_post_error():
     original_get = requests.get
     original_post = requests.post
@@ -275,7 +275,7 @@ def mock_generate_release_body_post_error():
     requests.post = original_post
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def mock_check_release_exists():
     original_get = requests.get
 
@@ -294,7 +294,7 @@ BOT_AVATAR_MOCKS = {
 }
 
 
-@pytest.fixture(scope='function', params=[0, 1, 2])
+@pytest.fixture(params=[0, 1, 2])
 def release_notes_sample(request):
     sample_set = ()
     with open(os.path.join(DATA_DIRECTORY, f'provided_release_notes_sample_{request.param}.md'), 'r') as f:

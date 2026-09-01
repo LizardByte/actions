@@ -694,7 +694,7 @@ def test_parse_additional_trusted_taps():
 
 def test_get_trusted_taps_includes_current_tap_and_deduplicates(monkeypatch):
     """Test that the working tap is always trusted before additional taps."""
-    main.tap_repo_name = 'lizardbyte/homebrew'
+    monkeypatch.setattr(main, 'tap_repo_name', 'lizardbyte/homebrew')
     monkeypatch.setenv(
         'INPUT_ADDITIONAL_TRUSTED_TAPS',
         'homebrew/core,lizardbyte/homebrew\nExample/Tap\nexample/tap',
@@ -709,7 +709,7 @@ def test_get_trusted_taps_includes_current_tap_and_deduplicates(monkeypatch):
 
 @patch('actions.release_homebrew.main._run_subprocess')
 @patch('actions.release_homebrew.main.get_test_bot_env')
-def test_trust_tap(mock_get_test_bot_env, mock_run_subprocess, capsys):
+def test_trust_tap(mock_get_test_bot_env, mock_run_subprocess, capsys, monkeypatch):
     """
     Test that trust_tap trusts the configured Homebrew tap.
 
@@ -721,8 +721,10 @@ def test_trust_tap(mock_get_test_bot_env, mock_run_subprocess, capsys):
         Mocked subprocess runner.
     capsys : pytest.CaptureFixture
         Fixture used to inspect the log output.
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch module state.
     """
-    main.tap_repo_name = 'lizardbyte/homebrew'
+    monkeypatch.setattr(main, 'tap_repo_name', 'lizardbyte/homebrew')
     mock_get_test_bot_env.return_value = {
         'HOME': os.path.join(os.getcwd(), 'runner-home'),
     }
@@ -760,7 +762,7 @@ def test_trust_tap_includes_additional_taps(mock_get_test_bot_env, mock_run_subp
     monkeypatch : pytest.MonkeyPatch
         Fixture used to patch environment variables.
     """
-    main.tap_repo_name = 'lizardbyte/homebrew'
+    monkeypatch.setattr(main, 'tap_repo_name', 'lizardbyte/homebrew')
     monkeypatch.setenv('INPUT_ADDITIONAL_TRUSTED_TAPS', 'homebrew/core\nexample/tap')
     mock_get_test_bot_env.return_value = {
         'HOME': os.path.join(os.getcwd(), 'runner-home'),
@@ -817,7 +819,7 @@ def test_trust_tap_stops_when_a_tap_fails_without_logging_tap_names(
     capsys : pytest.CaptureFixture
         Fixture used to inspect the log output.
     """
-    main.tap_repo_name = 'lizardbyte/homebrew'
+    monkeypatch.setattr(main, 'tap_repo_name', 'lizardbyte/homebrew')
     monkeypatch.setenv('INPUT_ADDITIONAL_TRUSTED_TAPS', 'homebrew/core')
     mock_get_test_bot_env.return_value = {
         'HOME': os.path.join(os.getcwd(), 'runner-home'),
@@ -850,7 +852,7 @@ def test_trust_tap_stops_when_a_tap_fails_without_logging_tap_names(
 
 @patch('actions.release_homebrew.main._run_subprocess')
 @patch('actions.release_homebrew.main.get_test_bot_env')
-def test_brew_test_bot_only_setup_uses_test_bot_env(mock_get_test_bot_env, mock_run_subprocess):
+def test_brew_test_bot_only_setup_uses_test_bot_env(mock_get_test_bot_env, mock_run_subprocess, monkeypatch):
     """
     Test that brew_test_bot_only_setup uses the shared test-bot environment.
 
@@ -860,8 +862,10 @@ def test_brew_test_bot_only_setup_uses_test_bot_env(mock_get_test_bot_env, mock_
         Mocked test-bot environment builder.
     mock_run_subprocess : unittest.mock.Mock
         Mocked subprocess runner.
+    monkeypatch : pytest.MonkeyPatch
+        Fixture used to patch module state.
     """
-    main.tap_repo_name = 'lizardbyte/homebrew'
+    monkeypatch.setattr(main, 'tap_repo_name', 'lizardbyte/homebrew')
     mock_get_test_bot_env.return_value = {
         'HOME': os.path.join(os.getcwd(), 'runner-home'),
     }
@@ -1227,8 +1231,15 @@ def test_brew_test_bot_only_formulae_no_fork_pr_env(
     assert '--skip-livecheck' not in args_list
 
 
-def test_main(brew_untap, org_homebrew_repo, homebrew_core_fork_repo, input_validate, operating_system):
-    main.args = main._parse_args(args_list=[])
+def test_main(
+        brew_untap,
+        org_homebrew_repo,
+        homebrew_core_fork_repo,
+        input_validate,
+        operating_system,
+        monkeypatch,
+):
+    monkeypatch.setattr(main, 'args', main._parse_args(args_list=[]))
     main.main()
     assert not main.ERROR
     assert not main.FAILURES
@@ -1244,9 +1255,9 @@ def test_main_trusts_tap_after_cleanup_before_setup(monkeypatch):
         Fixture used to patch environment variables and action steps.
     """
     monkeypatch.setenv('INPUT_VALIDATE', 'true')
-    main.ERROR = False
-    main.FAILURES = []
-    main.args = main._parse_args([])
+    monkeypatch.setattr(main, 'ERROR', False)
+    monkeypatch.setattr(main, 'FAILURES', [])
+    monkeypatch.setattr(main, 'args', main._parse_args([]))
     calls = []
 
     def record_call(name, return_value=True):
@@ -1292,9 +1303,9 @@ def test_main_fails_when_initial_trust_fails(monkeypatch):
         Fixture used to patch environment variables and action steps.
     """
     monkeypatch.setenv('INPUT_VALIDATE', 'true')
-    main.ERROR = False
-    main.FAILURES = []
-    main.args = main._parse_args([])
+    monkeypatch.setattr(main, 'ERROR', False)
+    monkeypatch.setattr(main, 'FAILURES', [])
+    monkeypatch.setattr(main, 'args', main._parse_args([]))
     calls = []
 
     def record_call(name, return_value=True):
@@ -1451,11 +1462,11 @@ def test_main_error_cases(
     monkeypatch.setenv('INPUT_VALIDATE', 'true')
 
     # Reset global state
-    main.ERROR = False
-    main.FAILURES = []
+    monkeypatch.setattr(main, 'ERROR', False)
+    monkeypatch.setattr(main, 'FAILURES', [])
 
     # Set up mock args
-    main.args = main._parse_args([])
+    monkeypatch.setattr(main, 'args', main._parse_args([]))
 
     # Apply all the mocks
     mock_dict = {
@@ -1468,7 +1479,7 @@ def test_main_error_cases(
     # set main.ERROR to true when there are expected failures
     # not the best approach, but this causes the code to raise SystemExit
     if expected_failures:
-        main.ERROR = True
+        monkeypatch.setattr(main, 'ERROR', True)
 
     # We need to catch SystemExit exceptions
     with patch.multiple(main, **mock_dict):
@@ -1485,11 +1496,11 @@ def test_main_skip_validate(monkeypatch):
     monkeypatch.setenv('INPUT_VALIDATE', 'false')
 
     # Reset global state
-    main.ERROR = False
-    main.FAILURES = []
+    monkeypatch.setattr(main, 'ERROR', False)
+    monkeypatch.setattr(main, 'FAILURES', [])
 
     # Set up mock args
-    main.args = main._parse_args([])
+    monkeypatch.setattr(main, 'args', main._parse_args([]))
 
     # Mock only the necessary functions to pass through the first part
     with patch.object(main, 'is_brew_installed', return_value=True), \
