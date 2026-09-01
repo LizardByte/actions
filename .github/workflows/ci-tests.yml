@@ -53,12 +53,14 @@ jobs:
           uv sync \
             --frozen \
             --extra dev \
+            --no-build \
+            --no-install-local \
             --no-python-downloads \
             --python "${{ steps.setup-python.outputs.python-path }}"
 
       - name: Install Node Dependencies
         shell: bash
-        run: npm install --ignore-scripts
+        run: npm ci --ignore-scripts
 
       - name: Setup Homebrew
         if: runner.os != 'Windows'
@@ -71,7 +73,7 @@ jobs:
         shell: bash
         run: |
           # `brew test-bot --only-cleanup-before` removes the CA bundle, so make a backup
-          uv run --frozen --extra dev python -c \
+          uv run --frozen --extra dev --no-build --no-sync python -c \
             'import certifi, shutil; shutil.copyfile(certifi.where(), "cacert.pem")'
           echo "REQUESTS_CA_BUNDLE=cacert.pem" >> "${GITHUB_ENV}"
 
@@ -90,7 +92,7 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Run Python Tests"
-          uv run --frozen --extra dev python -m pytest
+          uv run --frozen --extra dev --no-build --no-sync python -m pytest
           echo "::endgroup::"
 
       - name: Test with Jest

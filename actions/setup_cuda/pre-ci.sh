@@ -24,11 +24,11 @@ CLEANUP_SCRIPT_URL="https://raw.githubusercontent.com/LizardByte/actions/${CLEAN
 CLEANUP_SCRIPT="/tmp/cleanup_more_space.sh"
 
 echo "Downloading cleanup script from more_space action..."
-if curl -fsSL -o "${CLEANUP_SCRIPT}" "${CLEANUP_SCRIPT_URL}"; then
+if curl --proto '=https' -fsSL -o "${CLEANUP_SCRIPT}" "${CLEANUP_SCRIPT_URL}"; then
     echo "✓ Downloaded cleanup script"
 else
     echo "✗ Failed to download cleanup script, trying wget..."
-    if wget -q -O "${CLEANUP_SCRIPT}" "${CLEANUP_SCRIPT_URL}"; then
+    if wget --max-redirect=0 -q -O "${CLEANUP_SCRIPT}" "${CLEANUP_SCRIPT_URL}"; then
         echo "✓ Downloaded cleanup script with wget"
     else
         echo "✗ Failed to download cleanup script"

@@ -15,7 +15,7 @@ install_uv() {
       -ExecutionPolicy Bypass \
       -Command "irm https://astral.sh/uv/install.ps1 | iex"
   else
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+    curl --proto '=https' -LsSf https://astral.sh/uv/install.sh | sh
   fi
 
   export PATH="${HOME}/.local/bin:${PATH}"

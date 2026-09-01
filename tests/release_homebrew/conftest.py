@@ -69,7 +69,7 @@ def reinstall_packages_after_homebrew_tests(is_macos):
             print(f"✗ Exception while reinstalling {package}: {e}")
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(autouse=True)
 def setup_release_homebrew_env():
     """Set up environment variables for release_homebrew tests only."""
     # Save original values
@@ -97,18 +97,18 @@ def setup_release_homebrew_env():
             os.environ[key] = original_value
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(autouse=True)
 def change_dir():
     os.chdir(og_dir)
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(autouse=True)
 def error_reset():
     main.ERROR = False
     main.FAILURES = []
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def test_formula_file(tmp_path):
     """
     Create a test_formula.rb file for tests that need to verify copy failure scenarios.
@@ -124,12 +124,10 @@ def test_formula_file(tmp_path):
 end
 """)
 
-    yield str(test_formula_path)
-
-    # Cleanup is automatic with tmp_path
+    return str(test_formula_path)
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def github_output_file():
     f = os.environ['GITHUB_OUTPUT']
     os.makedirs(os.path.dirname(f), exist_ok=True)
@@ -151,7 +149,7 @@ def operating_system():
         pytest.skip("Skipping, cannot be tested on Windows")
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def org_homebrew_repo():
     directory = os.path.join(os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action')
     os.makedirs(directory, exist_ok=True)
@@ -193,7 +191,7 @@ def org_homebrew_repo():
     subprocess.run(['git', 'reset', '--hard', 'HEAD'], cwd=repo_directory, capture_output=True)
     subprocess.run(['git', 'clean', '-fd'], cwd=repo_directory, capture_output=True)
 
-    yield repo_directory
+    return repo_directory
 
 
 def _make_writable_and_retry(function, path, _exc_info):
@@ -219,7 +217,7 @@ def cleanup_homebrew_core_fork_repo():
     _remove_test_repo(repo_directory)
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def homebrew_core_fork_repo():
     directory = os.path.join(os.environ['GITHUB_WORKSPACE'], 'release_homebrew_action')
     os.makedirs(directory, exist_ok=True)
@@ -256,7 +254,7 @@ def homebrew_core_fork_repo():
         cwd=repo_directory,
     )
 
-    yield repo_directory
+    return repo_directory
 
 
 def _cleanup_bottle_files():
@@ -338,7 +336,7 @@ def _untap_and_remove_directory(tap_name):
         shutil.rmtree(tap_directory)
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def brew_untap():
     def cleanup():
         _cleanup_bottle_files()
@@ -359,7 +357,7 @@ def brew_untap():
     cleanup()
 
 
-@pytest.fixture(scope='function', params=['true', 'false'])
+@pytest.fixture(params=['true', 'false'])
 def input_validate(request):
     os.environ['INPUT_VALIDATE'] = request.param
     yield

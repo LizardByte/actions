@@ -63,7 +63,23 @@ runs:
       if: ${{ runner.os == 'Linux' || runner.os == 'macOS' }}
       run: |
         # Install pyenv (Unix)
-        curl -fsSL https://pyenv.run | bash
+        # renovate: datasource=github-digest depName=pyenv/pyenv-installer versioning=exact
+        pyenv_installer_branch="master"
+        pyenv_installer_ref="63a9e6a216796aeba2535a3bac8e79ba5d95166d"
+        pyenv_installer="${RUNNER_TEMP}/pyenv-installer"
+        echo "Installing pyenv-installer ${pyenv_installer_branch} at ${pyenv_installer_ref}"
+        curl \
+          --proto '=https' \
+          --tlsv1.2 \
+          --fail \
+          --silent \
+          --show-error \
+          --location \
+          "https://cdn.jsdelivr.net/gh/pyenv/pyenv-installer@${pyenv_installer_ref}/bin/pyenv-installer" \
+          --output "${pyenv_installer}"
+
+        bash "${pyenv_installer}"
+        rm -f "${pyenv_installer}"
         echo "${HOME}/.pyenv/bin" >> "${GITHUB_PATH}"
 
         # Fix git merge issue for pyenv update
@@ -178,12 +194,11 @@ runs:
             get_pip_url="https://bootstrap.pypa.io/pip/get-pip.py"
           fi
 
-          if [[ -z "${get_pip_url}" ]]; then
-            # TODO: this isn't working for 2.7-win32 or 2.7 on windows-11-arm runner
-            # Set environment variables to suppress SSL warnings and handle deprecation warnings
+          if [[ -n "${get_pip_url}" ]]; then
+            # Suppress SSL and deprecation warnings emitted by legacy Python runtimes.
             export PYTHONWARNINGS="ignore:InsecurePlatformWarning"
 
-            curl -fsSL "${get_pip_url}" --output get-pip.py
+            curl --proto '=https' --tlsv1.2 -fsSL "${get_pip_url}" --output get-pip.py
             python get-pip.py
             rm -f get-pip.py
           else
@@ -192,7 +207,11 @@ runs:
         fi
 
         echo "Installing virtualenv"
-        python -m pip install virtualenv
+        if [[ $version_numeric -lt 309 ]]; then
+          python -m pip install virtualenv==20.15.1
+        else
+          python -m pip install --only-binary=:all: virtualenv==21.7.7
+        fi
 
         # create venv
         python -m virtualenv ${venv_base_path}
