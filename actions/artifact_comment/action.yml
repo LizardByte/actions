@@ -66,6 +66,10 @@ runs:
   steps:
     - name: Build artifact comment
       id: build_comment
+      if: >-
+        inputs.pr_number != '' ||
+        (github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.pull_requests[0].number)
       env:
         INPUT_ARTIFACT_PATTERNS: ${{ inputs.artifact_patterns }}
         INPUT_PR_NUMBER: ${{ inputs.pr_number }}
@@ -80,7 +84,11 @@ runs:
 
     - name: Add pull request comment
       id: comment
-      if: inputs.dry_run != 'true'
+      if: >-
+        inputs.dry_run != 'true' &&
+        (inputs.pr_number != '' ||
+        (github.event.workflow_run.event == 'pull_request' &&
+        github.event.workflow_run.pull_requests[0].number))
       uses: mshick/add-pr-comment@ec328af66588ab8f77cdeb2c264f14aba45bbf59  # v3.12.0
       with:
         issue: ${{ steps.build_comment.outputs.PR_NUMBER }}
