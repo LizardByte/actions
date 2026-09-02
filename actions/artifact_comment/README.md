@@ -49,6 +49,9 @@ jobs:
 Each non-empty line in `artifact_patterns` is matched against the complete artifact name. `*` matches any number of
 characters and `?` matches one character. A literal artifact name is therefore also a valid pattern.
 
+When the source workflow run was not triggered by an associated pull request, all steps in the action are skipped.
+Providing an explicit `pr_number` overrides this behavior.
+
 ## 📥 Inputs
 
 | Name                | Description                                                                  | Default                               | Required |
