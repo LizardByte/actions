@@ -41,7 +41,7 @@ case "${INPUT_DRY_RUN}" in
   false)
     ;;
   *)
-    echo "::error::dry_run must be either 'true' or 'false'."
+    echo "::error::dry_run must be either 'true' or 'false'." >&2
     exit 1
     ;;
 esac
@@ -59,17 +59,17 @@ response=$(curl \
   https://api.buffer.com)
 
 graphql_errors=$(jq --raw-output '[.errors[]?.message] | join("; ")' <<< "${response}")
-if [ -n "${graphql_errors}" ]; then
-  echo "::error::Buffer API request failed: ${graphql_errors}"
+if [[ -n "${graphql_errors}" ]]; then
+  echo "::error::Buffer API request failed: ${graphql_errors}" >&2
   exit 1
 fi
 
 response_type=$(jq --raw-output '.data.createPost.__typename // empty' <<< "${response}")
-if [ "${response_type}" != "PostActionSuccess" ]; then
+if [[ "${response_type}" != "PostActionSuccess" ]]; then
   message=$(jq --raw-output \
     '.data.createPost.message // "Buffer did not return a failure message."' \
     <<< "${response}")
-  echo "::error::Buffer failed to create the post: ${message}"
+  echo "::error::Buffer failed to create the post: ${message}" >&2
   exit 1
 fi
 
