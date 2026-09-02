@@ -1,0 +1,11 @@
+[
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "api_key": "unused-in-dry-run",
+      "channel_id": "unused-in-dry-run",
+      "dry_run": "true",
+      "message": "Buffer Post CI"
+    }
+  }
+]

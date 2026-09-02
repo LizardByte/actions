@@ -1,0 +1,41 @@
+---
+name: "Buffer Post"
+description: "Create an immediate social media post through Buffer."
+author: "LizardByte"
+
+branding:
+  icon: send
+  color: green
+
+inputs:
+  api_key:
+    description: "Buffer API key with postsWrite access."
+    required: true
+  channel_id:
+    description: "Buffer channel ID that should receive the post."
+    required: true
+  dry_run:
+    description: "Build the request without sending it to Buffer."
+    required: false
+    default: "false"
+  message:
+    description: "Text content of the post."
+    required: true
+
+outputs:
+  post_url:
+    description: "Published post URL returned by Buffer, when available."
+    value: ${{ steps.post.outputs.post_url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Post through Buffer
+      id: post
+      env:
+        INPUT_API_KEY: ${{ inputs.api_key }}
+        INPUT_CHANNEL_ID: ${{ inputs.channel_id }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        INPUT_MESSAGE: ${{ inputs.message }}
+      shell: bash
+      run: bash "${{ github.action_path }}/post.sh"
