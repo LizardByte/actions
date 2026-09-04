@@ -1,0 +1,11 @@
+[
+  {
+    "runs-on": "ubuntu-latest",
+    "with": {
+      "dry_run": "true",
+      "owner": "example-workspace",
+      "package_path": "${ github.workspace }/build/cloudsmith-upload",
+      "repository": "beta"
+    }
+  }
+]
