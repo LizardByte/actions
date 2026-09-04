@@ -172,9 +172,18 @@ jobs:
           fi
 
   conclude:
+    if: ${{ always() }}
     needs: test
     permissions: {}
     runs-on: ubuntu-latest
     steps:
       - name: Conclude
-        run: echo "All tests passed"
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+        run: |
+          if [[ "${TEST_RESULT}" != "success" ]]; then
+            echo "::error::At least one matrix job did not succeed (result: ${TEST_RESULT})."
+            exit 1
+          fi
+
+          echo "All tests passed"

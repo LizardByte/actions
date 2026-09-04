@@ -1,0 +1,120 @@
+---
+name: "Cloudsmith Upload"
+description: "Publish DEB and RPM packages to distro-specific Cloudsmith repositories."
+author: "LizardByte"
+
+branding:
+  icon: upload-cloud
+  color: green
+
+inputs:
+  api_key:
+    description: "Cloudsmith API key. Prefer OIDC when it is configured."
+    required: false
+    default: ""
+  api_host:
+    description: "Cloudsmith API host."
+    required: false
+    default: "https://api.cloudsmith.io"
+  cli_version:
+    description: "Cloudsmith CLI version to install."
+    required: false
+    default: "latest"
+  component:
+    description: "Optional Debian component, such as main or unstable."
+    required: false
+    default: ""
+  dry_run:
+    description: "Resolve and report uploads without authenticating or publishing."
+    required: false
+    default: "false"
+  fail_on_no_packages:
+    description: "Fail when no supported packages remain after discovery and resolution."
+    required: false
+    default: "true"
+  fail_on_unmatched:
+    description: "Fail when a DEB or RPM filename does not identify its distribution."
+    required: false
+    default: "true"
+  oidc_namespace:
+    description: "Cloudsmith namespace for OIDC authentication."
+    required: false
+    default: ""
+  oidc_service_slug:
+    description: "Cloudsmith service account slug for OIDC authentication."
+    required: false
+    default: ""
+  owner:
+    description: "Cloudsmith organization or namespace."
+    required: true
+  package_path:
+    description: "Newline-separated package files or directories to scan recursively."
+    required: true
+  republish:
+    description: "Replace existing packages with the same attributes."
+    required: false
+    default: "false"
+  repository:
+    description: "Cloudsmith repository slug."
+    required: true
+  skip_unsupported:
+    description: "Skip releases not yet present in Cloudsmith's distribution catalog."
+    required: false
+    default: "true"
+  tags:
+    description: "Optional comma-separated Cloudsmith package tags."
+    required: false
+    default: ""
+  wait_for_sync:
+    description: "Wait for each package to finish synchronizing in Cloudsmith."
+    required: false
+    default: "true"
+
+outputs:
+  package_plan:
+    description: "JSON upload plan, including resolved distro and release targets."
+    value: ${{ steps.upload.outputs.package_plan }}
+  planned_count:
+    description: "Number of packages resolved for upload."
+    value: ${{ steps.upload.outputs.planned_count }}
+  published_count:
+    description: "Number of packages submitted to Cloudsmith; zero for a dry run."
+    value: ${{ steps.upload.outputs.published_count }}
+  skipped_count:
+    description: "Number of package files skipped as unmatched or unsupported."
+    value: ${{ steps.upload.outputs.skipped_count }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Cloudsmith CLI
+      if: inputs.dry_run != 'true'
+      uses: cloudsmith-io/cloudsmith-cli-action@ad73fafb92e3e29a5166c529464c2df7658a608e  # v3.1.0
+      with:
+        api-host: ${{ inputs.api_host }}
+        api-key: ${{ inputs.api_key }}
+        cli-version: ${{ inputs.cli_version }}
+        oidc-namespace: ${{ inputs.oidc_namespace }}
+        oidc-service-slug: ${{ inputs.oidc_service_slug }}
+        verify-auth: "true"
+
+    - name: Resolve and upload packages
+      id: upload
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+      env:
+        INPUT_API_HOST: ${{ inputs.api_host }}
+        INPUT_COMPONENT: ${{ inputs.component }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        INPUT_FAIL_ON_NO_PACKAGES: ${{ inputs.fail_on_no_packages }}
+        INPUT_FAIL_ON_UNMATCHED: ${{ inputs.fail_on_unmatched }}
+        INPUT_OWNER: ${{ inputs.owner }}
+        INPUT_PACKAGE_PATH: ${{ inputs.package_path }}
+        INPUT_REPUBLISH: ${{ inputs.republish }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_SKIP_UNSUPPORTED: ${{ inputs.skip_unsupported }}
+        INPUT_TAGS: ${{ inputs.tags }}
+        INPUT_WAIT_FOR_SYNC: ${{ inputs.wait_for_sync }}
+      with:
+        script: |
+          const script = require('${{ github.action_path }}/publish.js');
+          await script.main();
