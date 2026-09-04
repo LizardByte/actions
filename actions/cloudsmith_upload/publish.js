@@ -1,6 +1,6 @@
-const childProcess = require('child_process');
-const fs = require('fs');
-const path = require('path');
+const childProcess = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const PACKAGE_EXTENSION = /\.(deb|rpm)$/i;
 
@@ -149,7 +149,10 @@ function resolveDistributionVersion(releaseHint, versions) {
  * @returns {Promise<object[]>} Supported versions.
  */
 async function fetchDistributionVersions(apiHost, distro, fetchImpl) {
-  const host = apiHost.replace(/\/+$/, '');
+  let host = apiHost;
+  while (host.endsWith('/')) {
+    host = host.slice(0, -1);
+  }
   const apiBase = host.endsWith('/v1') ? host : `${host}/v1`;
   const response = await fetchImpl(`${apiBase}/distros/${distro}/`);
   if (!response.ok) {
@@ -157,7 +160,7 @@ async function fetchDistributionVersions(apiHost, distro, fetchImpl) {
   }
   const payload = await response.json();
   if (!Array.isArray(payload.versions)) {
-    throw new Error(`Cloudsmith distribution lookup returned no versions for ${distro}.`);
+    throw new TypeError(`Cloudsmith distribution lookup returned no versions for ${distro}.`);
   }
   return payload.versions;
 }
@@ -200,24 +203,27 @@ function setOutput(outputFile, name, value, fsApi = fs) {
 }
 
 /**
- * Resolve packages and publish them to Cloudsmith.
+ * Validate required action inputs.
  *
- * @param {object} dependencies Injectable runtime dependencies.
- * @returns {Promise<object>} Upload result.
+ * @param {object} env Action environment.
  */
-async function main(dependencies = {}) {
-  const env = dependencies.env || process.env;
-  const fetchImpl = dependencies.fetchImpl || global.fetch;
-  const execFileSyncImpl = dependencies.execFileSyncImpl || childProcess.execFileSync;
-  const fsApi = dependencies.fsApi || fs;
+function validateRequiredInputs(env) {
   const required = ['INPUT_OWNER', 'INPUT_PACKAGE_PATH', 'INPUT_REPOSITORY'];
   for (const name of required) {
     if (!env[name]) {
       throw new Error(`Missing required input: ${name.slice(6).toLowerCase()}.`);
     }
   }
+}
 
-  const options = {
+/**
+ * Parse upload options from the action environment.
+ *
+ * @param {object} env Action environment.
+ * @returns {object} Parsed upload options.
+ */
+function readOptions(env) {
+  return {
     apiHost: env.INPUT_API_HOST || 'https://api.cloudsmith.io',
     component: env.INPUT_COMPONENT || '',
     dryRun: parseBoolean(env.INPUT_DRY_RUN, false),
@@ -230,26 +236,50 @@ async function main(dependencies = {}) {
     tags: env.INPUT_TAGS || '',
     waitForSync: parseBoolean(env.INPUT_WAIT_FOR_SYNC, true),
   };
-  const entries = env.INPUT_PACKAGE_PATH.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean);
-  const files = listPackageFiles(entries, fsApi);
-  const classified = files.map((file) => classifyPackage(file));
-  const unmatched = files.filter((file, index) => classified[index] === null);
-  if (unmatched.length > 0 && options.failOnUnmatched) {
+}
+
+/**
+ * Enforce unmatched-package handling and report any skipped filenames.
+ *
+ * @param {string[]} unmatched Unmatched package paths.
+ * @param {boolean} failOnUnmatched Whether unmatched packages are fatal.
+ */
+function handleUnmatchedPackages(unmatched, failOnUnmatched) {
+  if (unmatched.length > 0 && failOnUnmatched) {
     throw new Error(`Unable to infer a distribution from: ${unmatched.map((file) => path.basename(file)).join(', ')}.`);
   }
   for (const file of unmatched) {
     console.log(`::warning::Skipping package with an unrecognized filename: ${path.basename(file)}`);
   }
+}
 
-  const targets = classified.filter(Boolean);
+/**
+ * Load Cloudsmith versions for every distribution represented by the targets.
+ *
+ * @param {object[]} targets Classified package targets.
+ * @param {object} options Upload options.
+ * @param {Function} fetchImpl Fetch implementation.
+ * @returns {Promise<Map<string, object[]>>} Versions grouped by distribution.
+ */
+async function fetchVersionsByDistro(targets, options, fetchImpl) {
   const versionsByDistro = new Map();
-  for (const distro of [...new Set(targets.map((target) => target.distro))]) {
+  for (const distro of new Set(targets.map((target) => target.distro))) {
     versionsByDistro.set(
       distro,
       await fetchDistributionVersions(options.apiHost, distro, fetchImpl),
     );
   }
+  return versionsByDistro;
+}
 
+/**
+ * Partition package targets by Cloudsmith distribution support.
+ *
+ * @param {object[]} targets Classified package targets.
+ * @param {Map<string, object[]>} versionsByDistro Versions grouped by distribution.
+ * @returns {{plan: object[], unsupported: object[]}} Resolved and unsupported targets.
+ */
+function partitionTargets(targets, versionsByDistro) {
   const plan = [];
   const unsupported = [];
   for (const target of targets) {
@@ -260,8 +290,17 @@ async function main(dependencies = {}) {
       unsupported.push(target);
     }
   }
+  return {plan, unsupported};
+}
 
-  if (unsupported.length > 0 && !options.skipUnsupported) {
+/**
+ * Enforce unsupported-release handling and report skipped packages.
+ *
+ * @param {object[]} unsupported Unsupported package targets.
+ * @param {boolean} skipUnsupported Whether unsupported releases may be skipped.
+ */
+function handleUnsupportedPackages(unsupported, skipUnsupported) {
+  if (unsupported.length > 0 && !skipUnsupported) {
     const names = unsupported.map((target) => `${target.filename} (${target.distro}/${target.releaseHint})`);
     throw new Error(`Cloudsmith does not support the requested releases: ${names.join(', ')}.`);
   }
@@ -271,11 +310,16 @@ async function main(dependencies = {}) {
       + `${target.distro}/${target.releaseHint}.`,
     );
   }
+}
 
-  if (plan.length === 0 && options.failOnNoPackages) {
-    throw new Error('No supported DEB or RPM packages were resolved for upload.');
-  }
-
+/**
+ * Publish or report every resolved package upload.
+ *
+ * @param {object[]} plan Resolved package targets.
+ * @param {object} options Upload options.
+ * @param {Function} execFileSyncImpl Command implementation.
+ */
+function publishPackages(plan, options, execFileSyncImpl) {
   for (const target of plan) {
     const destination = `${options.owner}/${options.repository}/${target.distro}/${target.release}`;
     console.log(`${options.dryRun ? 'Would upload' : 'Uploading'} ${target.filename} to ${destination}.`);
@@ -283,6 +327,38 @@ async function main(dependencies = {}) {
       execFileSyncImpl('cloudsmith', buildCommand(target, options), {stdio: 'inherit'});
     }
   }
+}
+
+/**
+ * Resolve packages and publish them to Cloudsmith.
+ *
+ * @param {object} dependencies Injectable runtime dependencies.
+ * @returns {Promise<object>} Upload result.
+ */
+async function main(dependencies = {}) {
+  const env = dependencies.env || process.env;
+  const fetchImpl = dependencies.fetchImpl || global.fetch;
+  const execFileSyncImpl = dependencies.execFileSyncImpl || childProcess.execFileSync;
+  const fsApi = dependencies.fsApi || fs;
+  validateRequiredInputs(env);
+
+  const options = readOptions(env);
+  const entries = env.INPUT_PACKAGE_PATH.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean);
+  const files = listPackageFiles(entries, fsApi);
+  const classified = files.map((file) => classifyPackage(file));
+  const unmatched = files.filter((file, index) => classified[index] === null);
+  handleUnmatchedPackages(unmatched, options.failOnUnmatched);
+
+  const targets = classified.filter(Boolean);
+  const versionsByDistro = await fetchVersionsByDistro(targets, options, fetchImpl);
+  const {plan, unsupported} = partitionTargets(targets, versionsByDistro);
+  handleUnsupportedPackages(unsupported, options.skipUnsupported);
+
+  if (plan.length === 0 && options.failOnNoPackages) {
+    throw new Error('No supported DEB or RPM packages were resolved for upload.');
+  }
+
+  publishPackages(plan, options, execFileSyncImpl);
 
   const packagePlan = plan.map((target) => ({
     distro: target.distro,
