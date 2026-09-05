@@ -22,7 +22,11 @@ INSTALL_PATH=""
 OS_TYPE=""
 
 print_colored_line() {
-    printf '%b%s%b\n' "$1" "$2" "$3"
+    local color="$1"
+    local message="$2"
+    local reset="$3"
+
+    printf '%b%s%b\n' "$color" "$message" "$reset"
 }
 
 # Return the major.minor portion used by NVIDIA's Windows install directory and
