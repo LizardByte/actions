@@ -14,7 +14,7 @@
     }
   },
   {
-    "runs-on": "windows-latest",
+    "runs-on": "windows-2022",
     "with": {
       "cuda-version": "13.1.0"
     }

@@ -1,6 +1,6 @@
 ---
 name: "Setup CUDA Toolkit"
-description: "A reusable action to install NVIDIA CUDA Toolkit on Linux runners using runfile installer."
+description: "Install NVIDIA CUDA Toolkit on Linux and Windows runners using official installers."
 author: "LizardByte"
 
 branding:
@@ -19,9 +19,9 @@ inputs:
     required: false
     default: ""
   install-path:
-    description: "Installation path for CUDA Toolkit (Linux only, Windows uses default location)"
+    description: "Installation path for CUDA Toolkit (defaults to /usr/local/cuda on Linux; ignored on Windows)"
     required: false
-    default: "/usr/local/cuda"
+    default: ""
 
 outputs:
   cuda-version:

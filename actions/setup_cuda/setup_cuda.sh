@@ -21,6 +21,72 @@ DRIVER_VERSION=""
 INSTALL_PATH=""
 OS_TYPE=""
 
+# Return the major.minor portion used by NVIDIA's Windows install directory and
+# component names (for example, 13.1.0 -> 13.1).
+get_cuda_short_version() {
+    local version="$1"
+
+    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo -e "${RED}Error: CUDA version must use the X.Y.Z format: ${version}${RESET}" >&2
+        exit 1
+    fi
+
+    echo "${version%.*}"
+}
+
+# Keep an explicit component list so the Windows network installer never falls
+# back to installing the display driver, profilers, samples, or docs.
+get_windows_installer_components() {
+    local version="$1"
+    local short_version
+    local major_version
+    short_version=$(get_cuda_short_version "$version")
+    major_version="${short_version%%.*}"
+
+    local components=(
+        "nvcc_${short_version}"
+        "cuobjdump_${short_version}"
+        "nvprune_${short_version}"
+        "cupti_${short_version}"
+        "cublas_${short_version}"
+        "cublas_dev_${short_version}"
+        "cudart_${short_version}"
+        "cufft_${short_version}"
+        "cufft_dev_${short_version}"
+        "curand_${short_version}"
+        "curand_dev_${short_version}"
+        "cusolver_${short_version}"
+        "cusolver_dev_${short_version}"
+        "cusparse_${short_version}"
+        "cusparse_dev_${short_version}"
+        "npp_${short_version}"
+        "npp_dev_${short_version}"
+        "nvrtc_${short_version}"
+        "nvrtc_dev_${short_version}"
+        "nvml_dev_${short_version}"
+        "thrust_${short_version}"
+        "visual_studio_integration_${short_version}"
+    )
+
+    if (( major_version >= 12 )); then
+        components+=("nvjitlink_${short_version}")
+    fi
+
+    if (( major_version >= 13 )); then
+        components+=("nvfatbin_${short_version}")
+    fi
+
+    printf '%s\n' "${components[@]}"
+}
+
+get_windows_cuda_path() {
+    local version="$1"
+    local short_version
+    short_version=$(get_cuda_short_version "$version")
+
+    echo "/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v${short_version}"
+}
+
 # Detect OS
 detect_os() {
     case "$(uname -s)" in
@@ -146,11 +212,16 @@ install_cuda() {
     if [[ "$os_type" == "$OS_WINDOWS" ]]; then
         # Windows installation using network installer
         echo -e "${BLUE}Installing CUDA Toolkit (network installer)${RESET}"
-        echo -e "${YELLOW}Note: Installing toolkit only (no driver, no visual studio integration)${RESET}"
+        echo -e "${YELLOW}Note: Installing development toolkit components only (no driver, profilers, samples, or docs)${RESET}"
+
+        local -a installer_components=()
+        mapfile -t installer_components < <(get_windows_installer_components "$version")
 
         # Run the network installer silently
         # -s: silent mode
-        if ! "$installer_path" -s; then
+        # -n: prevent an automatic reboot
+        # Explicit components prevent the silent installer from installing all packages.
+        if ! "$installer_path" -s "${installer_components[@]}" -n; then
             echo -e "${RED}Error: CUDA installation failed${RESET}" >&2
             rm -rf "$tmp_dir"
             exit 1
@@ -183,22 +254,27 @@ install_cuda() {
     # Verify installation
     local nvcc_path
     if [[ "$os_type" == "$OS_WINDOWS" ]]; then
-        # Windows: CUDA installs to C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v<version>
-        # Find the nvcc.exe
-        nvcc_path=$(find "/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA" -name "nvcc.exe" 2>/dev/null | head -1 || true)
-        if [[ -z "$nvcc_path" ]]; then
-            # Try Program Files (x86)
-            nvcc_path=$(find "/c/Program Files (x86)/NVIDIA GPU Computing Toolkit/CUDA" -name "nvcc.exe" 2>/dev/null | head -1 || true)
-        fi
+        # Check the exact requested version instead of accepting another CUDA
+        # installation that may already be present on the runner.
+        nvcc_path="$(get_windows_cuda_path "$version")/bin/nvcc.exe"
     else
         nvcc_path="${install_path}/bin/nvcc"
     fi
 
     if [[ -f "$nvcc_path" ]]; then
-        echo -e "${GREEN}CUDA compiler (nvcc) found at ${nvcc_path}${RESET}"
-        "$nvcc_path" --version || true
+        printf '%b%s%b\n' "${GREEN}CUDA compiler (nvcc) found at " "$nvcc_path" "$RESET"
+        local nvcc_version_output
+        nvcc_version_output=$("$nvcc_path" --version)
+        printf '%s\n' "$nvcc_version_output"
+
+        local expected_release
+        expected_release=$(get_cuda_short_version "$version")
+        if [[ "$nvcc_version_output" != *"release ${expected_release},"* ]]; then
+            echo -e "${RED}Error: Installed nvcc does not match requested CUDA ${version}${RESET}" >&2
+            exit 1
+        fi
     else
-        echo -e "${RED}Error: CUDA compiler not found after installation${RESET}" >&2
+        printf '%b%s%b\n' "${RED}Error: CUDA compiler not found at " "$nvcc_path" "$RESET" >&2
         exit 1
     fi
 
@@ -214,18 +290,13 @@ setup_environment() {
     echo -e "${BLUE}Setting up environment variables...${RESET}"
 
     if [[ "$os_type" == "$OS_WINDOWS" ]]; then
-        # Windows: Find CUDA installation
-        local cuda_base="/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA"
-        if [[ ! -d "$cuda_base" ]]; then
-            cuda_base="/c/Program Files (x86)/NVIDIA GPU Computing Toolkit/CUDA"
-        fi
-
-        # Find the version directory
+        # Use the exact directory for the requested release instead of the
+        # newest CUDA installation already present on the runner.
         local cuda_version_dir
-        cuda_version_dir=$(find "$cuda_base" -maxdepth 1 -type d -name "v*" | sort -V | tail -1)
+        cuda_version_dir=$(get_windows_cuda_path "$version")
 
-        if [[ -z "$cuda_version_dir" ]]; then
-            echo -e "${RED}Error: Could not find CUDA installation directory${RESET}" >&2
+        if [[ ! -d "$cuda_version_dir" ]]; then
+            printf '%b%s%b\n' "${RED}Error: CUDA installation directory not found: " "$cuda_version_dir" "$RESET" >&2
             exit 1
         fi
 
@@ -243,34 +314,37 @@ setup_environment() {
             win_nvcc_path=$(echo "$nvcc_path" | sed 's|^/\([a-z]\)/|\U\1:/|' | sed 's|/|\\|g')
         fi
 
-        # Add CUDA to PATH (use Unix-style for bash)
-        echo "${cuda_version_dir}/bin" >> "${GITHUB_PATH}"
+        # GitHub's runner adds this path for every subsequent shell. Use the
+        # native form so PowerShell/cmd consumers work as well as Git Bash.
+        printf '%s\\bin\n' "$win_cuda_path" >> "${GITHUB_PATH}"
 
         # Set environment variables for GitHub Actions (use Windows-style paths)
         if [[ -n "${GITHUB_ENV:-}" ]]; then
+            local short_version
+            short_version=$(get_cuda_short_version "$version")
             {
-                echo "CUDA_PATH=${win_cuda_path}"
-                echo "CUDA_HOME=${win_cuda_path}"
-                echo "CUDA_ROOT=${win_cuda_path}"
-                echo "CUDA_PATH_V${version//./_}=${win_cuda_path}"
-                echo "CMAKE_CUDA_COMPILER=${win_nvcc_path}"
+                printf 'CUDA_PATH=%s\n' "$win_cuda_path"
+                printf 'CUDA_HOME=%s\n' "$win_cuda_path"
+                printf 'CUDA_ROOT=%s\n' "$win_cuda_path"
+                printf 'CUDA_PATH_V%s=%s\n' "${short_version//./_}" "$win_cuda_path"
+                printf 'CMAKE_CUDA_COMPILER=%s\n' "$win_nvcc_path"
             } >> "${GITHUB_ENV}"
         fi
 
         # Set outputs for GitHub Actions (use Windows-style paths)
         if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
             {
-                echo "cuda-version=${version}"
-                echo "cuda-path=${win_cuda_path}"
-                echo "nvcc-path=${win_nvcc_path}"
+                printf 'cuda-version=%s\n' "$version"
+                printf 'cuda-path=%s\n' "$win_cuda_path"
+                printf 'nvcc-path=%s\n' "$win_nvcc_path"
             } >> "${GITHUB_OUTPUT}"
         fi
 
         echo -e "${GREEN}Environment variables configured:${RESET}"
-        echo -e "  ${CYAN}CUDA_PATH=${win_cuda_path}${RESET}"
-        echo -e "  ${CYAN}CUDA_HOME=${win_cuda_path}${RESET}"
-        echo -e "  ${CYAN}CMAKE_CUDA_COMPILER=${win_nvcc_path}${RESET}"
-        echo -e "  ${CYAN}PATH includes ${cuda_version_dir}/bin${RESET}"
+        printf '  %bCUDA_PATH=%s%b\n' "$CYAN" "$win_cuda_path" "$RESET"
+        printf '  %bCUDA_HOME=%s%b\n' "$CYAN" "$win_cuda_path" "$RESET"
+        printf '  %bCMAKE_CUDA_COMPILER=%s%b\n' "$CYAN" "$win_nvcc_path" "$RESET"
+        printf '  %bPATH includes %s/bin%b\n' "$CYAN" "$cuda_version_dir" "$RESET"
     else
         # Linux: Use provided install path
         # Add CUDA to PATH
@@ -344,14 +418,16 @@ fi
 # Detect OS
 OS_TYPE=$(detect_os)
 
-# Skip on macOS
+# CUDA Toolkit is not available for current macOS runners, so leave dependent
+# workflows free to include macOS in a shared matrix.
 if [[ "$OS_TYPE" == "$OS_MACOS" ]]; then
-    echo -e "${YELLOW}macOS detected - CUDA Toolkit installation not supported on macOS${RESET}"
-    echo -e "${YELLOW}Skipping CUDA installation...${RESET}"
-    echo ""
-    echo -e "${GREEN}=== CUDA Toolkit Setup Skipped (macOS) ===${RESET}"
+    echo -e "${YELLOW}macOS detected - CUDA Toolkit installation is not supported${RESET}"
+    echo -e "${GREEN}Skipping CUDA setup successfully${RESET}"
     exit 0
 fi
+
+# Validate before constructing download URLs or installer component names.
+get_cuda_short_version "$CUDA_VERSION" >/dev/null
 
 # Validate driver-version is provided for Linux (not needed for Windows network installer)
 if [[ "$OS_TYPE" == "$OS_LINUX" ]] && [[ -z "$DRIVER_VERSION" ]]; then
@@ -361,15 +437,14 @@ if [[ "$OS_TYPE" == "$OS_LINUX" ]] && [[ -z "$DRIVER_VERSION" ]]; then
     exit 1
 fi
 
-# Set default install path if not provided
-if [[ -z "$INSTALL_PATH" ]]; then
-    if [[ "$OS_TYPE" == "$OS_WINDOWS" ]]; then
-        # Windows default is handled by the installer itself
-        INSTALL_PATH="C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v${CUDA_VERSION}"
-    else
-        # Linux default
-        INSTALL_PATH="/usr/local/cuda"
+# Set the effective installation path.
+if [[ "$OS_TYPE" == "$OS_WINDOWS" ]]; then
+    if [[ -n "$INSTALL_PATH" ]]; then
+        echo -e "${YELLOW}Note: --install-path is ignored on Windows; NVIDIA's versioned default is used${RESET}"
     fi
+    INSTALL_PATH=$(get_windows_cuda_path "$CUDA_VERSION")
+elif [[ -z "$INSTALL_PATH" ]]; then
+    INSTALL_PATH="/usr/local/cuda"
 fi
 
 # Main execution
@@ -379,7 +454,7 @@ echo -e "${CYAN}CUDA Version: ${CUDA_VERSION}${RESET}"
 if [[ "$OS_TYPE" == "$OS_LINUX" ]]; then
     echo -e "${CYAN}Driver Version: ${DRIVER_VERSION}${RESET}"
 fi
-echo -e "${CYAN}Install Path: ${INSTALL_PATH}${RESET}"
+printf '%b%s%b\n' "${CYAN}Install Path: " "$INSTALL_PATH" "$RESET"
 echo ""
 
 # Install CUDA
