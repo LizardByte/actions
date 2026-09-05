@@ -21,6 +21,10 @@ DRIVER_VERSION=""
 INSTALL_PATH=""
 OS_TYPE=""
 
+print_colored_line() {
+    printf '%b%s%b\n' "$1" "$2" "$3"
+}
+
 # Return the major.minor portion used by NVIDIA's Windows install directory and
 # component names (for example, 13.1.0 -> 13.1).
 get_cuda_short_version() {
@@ -269,7 +273,7 @@ install_cuda() {
     fi
 
     if [[ -f "$nvcc_path" ]]; then
-        printf '%b%s%b\n' "${GREEN}CUDA compiler (nvcc) found at " "$nvcc_path" "$RESET"
+        print_colored_line "${GREEN}CUDA compiler (nvcc) found at " "$nvcc_path" "$RESET"
         local nvcc_version_output
         nvcc_version_output=$("$nvcc_path" --version)
         printf '%s\n' "$nvcc_version_output"
@@ -281,7 +285,7 @@ install_cuda() {
             exit 1
         fi
     else
-        printf '%b%s%b\n' "${RED}Error: CUDA compiler not found at " "$nvcc_path" "$RESET" >&2
+        print_colored_line "${RED}Error: CUDA compiler not found at " "$nvcc_path" "$RESET" >&2
         exit 1
     fi
 
@@ -303,7 +307,8 @@ setup_environment() {
         cuda_version_dir=$(get_windows_cuda_path "$version")
 
         if [[ ! -d "$cuda_version_dir" ]]; then
-            printf '%b%s%b\n' "${RED}Error: CUDA installation directory not found: " "$cuda_version_dir" "$RESET" >&2
+            print_colored_line \
+                "${RED}Error: CUDA installation directory not found: " "$cuda_version_dir" "$RESET" >&2
             exit 1
         fi
 
@@ -461,7 +466,7 @@ echo -e "${CYAN}CUDA Version: ${CUDA_VERSION}${RESET}"
 if [[ "$OS_TYPE" == "$OS_LINUX" ]]; then
     echo -e "${CYAN}Driver Version: ${DRIVER_VERSION}${RESET}"
 fi
-printf '%b%s%b\n' "${CYAN}Install Path: " "$INSTALL_PATH" "$RESET"
+print_colored_line "${CYAN}Install Path: " "$INSTALL_PATH" "$RESET"
 echo ""
 
 # Install CUDA
