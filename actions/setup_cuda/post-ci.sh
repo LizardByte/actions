@@ -91,16 +91,7 @@ enable_msvc_windows() {
     echo ""
     echo "MSVC host compiler (cl.exe) not found in PATH. Enabling the Visual Studio environment..."
 
-    local programfiles_x86
-    programfiles_x86=$(printenv 'ProgramFiles(x86)' 2>/dev/null || true)
-
-    local vswhere_winpath="${programfiles_x86}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
-    local vswhere
-    vswhere=$(to_unix_path "$vswhere_winpath")
-
-    if [[ ! -f "$vswhere" ]]; then
-        vswhere="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
-    fi
+    local vswhere="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
 
     if [[ ! -f "$vswhere" ]]; then
         echo "✗ vswhere.exe not found; cannot enable the MSVC environment."
@@ -108,9 +99,12 @@ enable_msvc_windows() {
     fi
 
     local vs_install
-    vs_install=$("$vswhere" -latest -products '*' \
-        -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
-        -property installationPath 2>/dev/null | tr -d '\r')
+    if ! vs_install=$("$vswhere" -latest -products '*' \
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
+            -property installationPath 2>/dev/null | tr -d '\r'); then
+        echo "✗ vswhere.exe failed while locating Visual Studio."
+        return 1
+    fi
 
     if [[ -z "$vs_install" ]]; then
         echo "✗ Visual Studio with C++ build tools not found via vswhere.exe."
@@ -127,10 +121,10 @@ enable_msvc_windows() {
     local bat_to_call
     local bat_arguments
     if [[ -f "$vsdevcmd" ]]; then
-        bat_to_call="$vsdevcmd_win"
+        bat_to_call=$(cygpath -d "$vsdevcmd")
         bat_arguments="-arch=amd64 -host_arch=amd64"
     elif [[ -f "$vcvars64" ]]; then
-        bat_to_call="$vcvars64_win"
+        bat_to_call=$(cygpath -d "$vcvars64")
         bat_arguments=""
     else
         echo "✗ Could not find VsDevCmd.bat or vcvars64.bat under: ${vs_install}"
@@ -138,8 +132,11 @@ enable_msvc_windows() {
     fi
 
     local env_dump
-    env_dump=$(MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /s /c \
-        "call \"${bat_to_call}\" ${bat_arguments} >nul 2>&1 && set" 2>/dev/null | tr -d '\r')
+    if ! env_dump=$(MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /s /c \
+            "call ${bat_to_call} ${bat_arguments} >nul 2>&1 && set" 2>/dev/null | tr -d '\r'); then
+        echo "✗ Visual Studio developer-command script failed."
+        return 1
+    fi
 
     if [[ -z "$env_dump" ]]; then
         echo "✗ Failed to capture the Visual Studio environment."
