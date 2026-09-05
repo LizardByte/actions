@@ -164,7 +164,9 @@ enable_msvc_windows() {
 
 enable_msvc_windows
 
-test_dir=$(mktemp -d)
+test_root="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+test_root=$(to_unix_path "$test_root")
+test_dir=$(mktemp -d "${test_root%/}/setup-cuda.XXXXXX")
 readonly test_dir
 trap 'rm -rf "$test_dir"' EXIT
 
