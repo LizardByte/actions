@@ -132,7 +132,7 @@ enable_msvc_windows() {
     fi
 
     local env_dump
-    if ! env_dump=$(MSYS2_ARG_CONV_EXCL='*' cmd.exe /d /s /c \
+    if ! env_dump=$(cmd.exe //d //s //c \
             "call ${bat_to_call} ${bat_arguments} >nul 2>&1 && set" 2>/dev/null | tr -d '\r'); then
         echo "✗ Visual Studio developer-command script failed."
         return 1
