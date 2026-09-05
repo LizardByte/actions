@@ -73,7 +73,14 @@ get_windows_installer_components() {
     fi
 
     if (( major_version >= 13 )); then
-        components+=("nvfatbin_${short_version}")
+        # CUDA 13 split compiler internals out of the nvcc component. These
+        # packages are required for headers, device compilation, and linking.
+        components+=(
+            "crt_${short_version}"
+            "nvvm_${short_version}"
+            "nvfatbin_${short_version}"
+            "nvptxcompiler_${short_version}"
+        )
     fi
 
     printf '%s\n' "${components[@]}"
