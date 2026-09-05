@@ -68,6 +68,21 @@ function createFetch(distributions) {
   });
 }
 
+describe('action definition', () => {
+  test('passes the action path through the environment for container jobs', () => {
+    const definition = fs.readFileSync(
+      path.join(process.cwd(), 'actions/cloudsmith_upload/action.yml'),
+      'utf8',
+    );
+
+    expect(definition).toContain('CLOUDSMITH_UPLOAD_ACTION_PATH: ${{ github.action_path }}');
+    expect(definition).toContain(
+      'const script = require(`${process.env.CLOUDSMITH_UPLOAD_ACTION_PATH}/publish.js`);',
+    );
+    expect(definition).not.toContain("require('${{ github.action_path }}/publish.js')");
+  });
+});
+
 describe('parseBoolean', () => {
   test('parses explicit booleans and empty fallbacks', () => {
     expect(parseBoolean('true', false)).toBe(true);

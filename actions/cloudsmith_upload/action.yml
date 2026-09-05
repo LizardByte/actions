@@ -102,6 +102,7 @@ runs:
       id: upload
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
       env:
+        CLOUDSMITH_UPLOAD_ACTION_PATH: ${{ github.action_path }}
         INPUT_API_HOST: ${{ inputs.api_host }}
         INPUT_COMPONENT: ${{ inputs.component }}
         INPUT_DRY_RUN: ${{ inputs.dry_run }}
@@ -116,5 +117,5 @@ runs:
         INPUT_WAIT_FOR_SYNC: ${{ inputs.wait_for_sync }}
       with:
         script: |
-          const script = require('${{ github.action_path }}/publish.js');
+          const script = require(`${process.env.CLOUDSMITH_UPLOAD_ACTION_PATH}/publish.js`);
           await script.main();
