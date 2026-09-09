@@ -2,7 +2,7 @@ const childProcess = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PACKAGE_EXTENSION = /\.(deb|rpm)$/i;
+const PACKAGE_EXTENSION = /\.(apk|deb|rpm)$/i;
 
 /**
  * Parse a GitHub Action boolean input.
@@ -25,7 +25,7 @@ function parseBoolean(value, fallback) {
 }
 
 /**
- * Recursively find DEB and RPM files below the requested paths.
+ * Recursively find APK, DEB, and RPM files below the requested paths.
  *
  * @param {string[]} entries Files or directories to inspect.
  * @param {object} fsApi File-system implementation.
@@ -65,6 +65,21 @@ function listPackageFiles(entries, fsApi = fs) {
 function classifyPackage(packagePath) {
   const filename = path.basename(packagePath);
   const normalized = filename.toLowerCase();
+
+  if (normalized.endsWith('.apk')) {
+    const alpine = normalized.match(
+      /(?:^|[+_.-])alpine[-_.]?(v?\d+(?:\.\d+)*|any-version)(?=[+_.-])/,
+    );
+    if (alpine) {
+      return {
+        distro: 'alpine',
+        file: packagePath,
+        filename,
+        format: 'alpine',
+        releaseHint: alpine[1],
+      };
+    }
+  }
 
   if (normalized.endsWith('.deb')) {
     const conventional = normalized.match(/\+(debian|ubuntu)([a-z0-9.]+)_[^_]+\.deb$/);
@@ -355,7 +370,7 @@ async function main(dependencies = {}) {
   handleUnsupportedPackages(unsupported, options.skipUnsupported);
 
   if (plan.length === 0 && options.failOnNoPackages) {
-    throw new Error('No supported DEB or RPM packages were resolved for upload.');
+    throw new Error('No supported APK, DEB, or RPM packages were resolved for upload.');
   }
 
   publishPackages(plan, options, execFileSyncImpl);

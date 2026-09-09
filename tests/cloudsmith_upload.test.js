@@ -102,9 +102,10 @@ describe('listPackageFiles', () => {
     fs.mkdirSync(nested);
     const rpm = writePackage('z.rpm', nested);
     const deb = writePackage('a.deb');
+    const apk = writePackage('sunshine_1.2.3_alpine3.24_x86_64.apk');
     writePackage('ignored.txt');
 
-    expect(listPackageFiles([tempDirectory, deb])).toEqual([deb, rpm]);
+    expect(listPackageFiles([tempDirectory, deb])).toEqual([deb, rpm, apk]);
   });
 
   test('rejects a missing package path', () => {
@@ -116,6 +117,9 @@ describe('listPackageFiles', () => {
 
 describe('classifyPackage', () => {
   test.each([
+    ['sunshine_2026.908.0_alpine3.24_x86_64.apk', 'alpine', 'alpine', '3.24'],
+    ['sunshine-alpine-v3.24-aarch64.apk', 'alpine', 'alpine', 'v3.24'],
+    ['libjq-1.0.3-alpine-any-version-x86_64.apk', 'alpine', 'alpine', 'any-version'],
     ['helloworld_1.2.3-1+debiantrixie_amd64.deb', 'deb', 'debian', 'trixie'],
     ['helloworld_1.2.3-1+ubuntu22.04_arm64.deb', 'deb', 'ubuntu', '22.04'],
     ['helloworld-ubuntu-24.04-amd64.deb', 'deb', 'ubuntu', '24.04'],
@@ -127,20 +131,28 @@ describe('classifyPackage', () => {
     expect(classifyPackage(filename)).toMatchObject({filename, format, distro, releaseHint});
   });
 
-  test.each(['package.deb', 'package.rpm', 'package.zip'])('does not guess a target for %s', (filename) => {
-    expect(classifyPackage(filename)).toBeNull();
-  });
+  test.each(['package.apk', 'package.deb', 'package.rpm', 'package.zip'])(
+    'does not guess a target for %s',
+    (filename) => {
+      expect(classifyPackage(filename)).toBeNull();
+    },
+  );
 });
 
 describe('resolveDistributionVersion', () => {
   const versions = [
     {name: '22.04 LTS Jammy Jellyfish', slug: 'jammy'},
     {name: '13 (Trixie)', slug: 'trixie'},
+    {name: '3.24', slug: 'v3.24'},
+    {name: 'Any Version', slug: 'any-version'},
   ];
 
   test('matches an exact slug or a numeric display version', () => {
     expect(resolveDistributionVersion('TRIXIE', versions)).toBe('trixie');
     expect(resolveDistributionVersion('22.04', versions)).toBe('jammy');
+    expect(resolveDistributionVersion('3.24', versions)).toBe('v3.24');
+    expect(resolveDistributionVersion('v3.24', versions)).toBe('v3.24');
+    expect(resolveDistributionVersion('any-version', versions)).toBe('any-version');
   });
 
   test('returns null for an unsupported version', () => {
@@ -210,6 +222,27 @@ describe('buildCommand', () => {
       waitForSync: true,
     })).toEqual(['push', 'rpm', 'example-workspace/stable/ubuntu/jammy', '/tmp/package.deb']);
   });
+
+  test('builds an Alpine distribution target', () => {
+    expect(buildCommand({
+      distro: 'alpine',
+      file: '/tmp/package.apk',
+      format: 'alpine',
+      release: 'v3.24',
+    }, {
+      component: 'main',
+      owner: 'example-workspace',
+      republish: false,
+      repository: 'stable',
+      tags: '',
+      waitForSync: true,
+    })).toEqual([
+      'push',
+      'alpine',
+      'example-workspace/stable/alpine/v3.24',
+      '/tmp/package.apk',
+    ]);
+  });
 });
 
 describe('setOutput', () => {
@@ -222,6 +255,9 @@ describe('setOutput', () => {
 
 describe('main', () => {
   const distributions = {
+    alpine: [
+      {name: '3.24', slug: 'v3.24'},
+    ],
     fedora: [
       {name: '44 (forty four)', slug: '44'},
     ],
@@ -234,6 +270,7 @@ describe('main', () => {
   };
 
   test('builds a dry-run plan, skips unsupported packages, and writes outputs', async () => {
+    writePackage('sunshine_1.2.3_alpine3.24_x86_64.apk');
     writePackage('helloworld_1.2.3-1+ubuntu22.04_amd64.deb');
     writePackage('HelloWorld-1.2.3-1.fc44.x86_64.rpm');
     writePackage('HelloWorld-1.2.3-1.fc45.aarch64.rpm');
@@ -247,10 +284,16 @@ describe('main', () => {
       fetchImpl: createFetch(distributions),
     });
 
-    expect(result).toMatchObject({plannedCount: 2, publishedCount: 0, skippedCount: 2});
+    expect(result).toMatchObject({plannedCount: 3, publishedCount: 0, skippedCount: 2});
     expect(result.packagePlan).toEqual([
       {distro: 'fedora', filename: 'HelloWorld-1.2.3-1.fc44.x86_64.rpm', format: 'rpm', release: '44'},
       {distro: 'ubuntu', filename: 'helloworld_1.2.3-1+ubuntu22.04_amd64.deb', format: 'deb', release: 'jammy'},
+      {
+        distro: 'alpine',
+        filename: 'sunshine_1.2.3_alpine3.24_x86_64.apk',
+        format: 'alpine',
+        release: 'v3.24',
+      },
     ]);
     expect(execFileSyncImpl).not.toHaveBeenCalled();
     expect(consoleMocks.consoleOutput).toContain(
@@ -259,7 +302,7 @@ describe('main', () => {
     expect(consoleMocks.consoleOutput).toContain(
       '::warning::Skipping HelloWorld-1.2.3-1.fc45.aarch64.rpm; Cloudsmith does not yet support fedora/45.',
     );
-    expect(fs.readFileSync(env.GITHUB_OUTPUT, 'utf8')).toContain('planned_count=2\n');
+    expect(fs.readFileSync(env.GITHUB_OUTPUT, 'utf8')).toContain('planned_count=3\n');
   });
 
   test('publishes resolved packages with default upload options', async () => {
@@ -298,7 +341,7 @@ describe('main', () => {
 
   test('rejects an empty plan by default and can explicitly allow it', async () => {
     await expect(main({env: createEnvironment(), fetchImpl: createFetch(distributions)})).rejects.toThrow(
-      'No supported DEB or RPM packages were resolved for upload.',
+      'No supported APK, DEB, or RPM packages were resolved for upload.',
     );
 
     const result = await main({

@@ -1,6 +1,6 @@
 ---
 name: "Cloudsmith Upload"
-description: "Publish DEB and RPM packages to distro-specific Cloudsmith repositories."
+description: "Publish APK, DEB, and RPM packages to distro-specific Cloudsmith repositories."
 author: "LizardByte"
 
 branding:
@@ -33,7 +33,7 @@ inputs:
     required: false
     default: "true"
   fail_on_unmatched:
-    description: "Fail when a DEB or RPM filename does not identify its distribution."
+    description: "Fail when an APK, DEB, or RPM filename does not identify its distribution."
     required: false
     default: "true"
   oidc_namespace:

@@ -1,6 +1,6 @@
 # cloudsmith_upload
 
-A reusable action that publishes DEB and RPM packages to distro-specific Cloudsmith repositories. It uses the
+A reusable action that publishes APK, DEB, and RPM packages to distro-specific Cloudsmith repositories. It uses the
 [official Cloudsmith CLI Setup Action](https://github.com/cloudsmith-io/cloudsmith-cli-action), infers each target from
 the package filename, and checks Cloudsmith's current distribution catalog before uploading.
 
@@ -21,8 +21,8 @@ steps:
       republish: true
 ```
 
-`package_path` accepts newline-separated files or directories. Directories are scanned recursively for `.deb` and
-`.rpm` files.
+`package_path` accepts newline-separated files or directories. Directories are scanned recursively for `.apk`, `.deb`,
+and `.rpm` files.
 
 ## 🔐 OIDC Authentication
 
@@ -71,21 +71,26 @@ GitHub organizations. Repository access assigned to the Cloudsmith service accou
 
 The action recognizes these naming conventions:
 
-| Package | Example                                     | Cloudsmith target     |
-|---------|---------------------------------------------|-----------------------|
-| DEB     | `helloworld_1.2.3-1+debiantrixie_amd64.deb` | `debian/trixie`       |
-| DEB     | `helloworld_1.2.3-1+ubuntu22.04_arm64.deb`  | `ubuntu/jammy`        |
-| DEB     | `helloworld-ubuntu-24.04-amd64.deb`         | `ubuntu/noble`        |
-| RPM     | `HelloWorld-1.2.3-1.fc44.x86_64.rpm`        | `fedora/44`           |
-| RPM     | `HelloWorld-1.2.3-1.suse.lp156.aarch64.rpm` | `opensuse/15.6`       |
-| RPM     | `HelloWorld-1.2.3-1.suse.tw.x86_64.rpm`     | `opensuse/tumbleweed` |
+| Package | Example                                          | Cloudsmith target     |
+|---------|--------------------------------------------------|-----------------------|
+| APK     | `helloworld_1.2.3_alpine3.24_x86_64.apk`         | `alpine/v3.24`        |
+| APK     | `helloworld-1.2.2-alpine-any-version-x86_64.apk` | `alpine/any-version`  |
+| DEB     | `helloworld_1.2.3-1+debiantrixie_amd64.deb`      | `debian/trixie`       |
+| DEB     | `helloworld_1.2.3-1+ubuntu22.04_arm64.deb`       | `ubuntu/jammy`        |
+| DEB     | `helloworld-ubuntu-24.04-amd64.deb`              | `ubuntu/noble`        |
+| RPM     | `HelloWorld-1.2.3-1.fc44.x86_64.rpm`             | `fedora/44`           |
+| RPM     | `HelloWorld-1.2.3-1.suse.lp156.aarch64.rpm`      | `opensuse/15.6`       |
+| RPM     | `HelloWorld-1.2.3-1.suse.tw.x86_64.rpm`          | `opensuse/tumbleweed` |
 
-Numeric Ubuntu versions are matched to Cloudsmith's codename slug using its live API. Fedora and openSUSE releases are
-also checked against that catalog. By default, a correctly recognized package for a release Cloudsmith does not yet
-support is skipped with a warning. It will begin uploading automatically once the release appears in Cloudsmith.
+Alpine filenames must include an `alpine{version}` or `alpine-{version}` marker because an APK does not identify the
+Alpine release used to build it. Use `alpine-any-version` only for a package that is compatible with every Alpine
+release. Numeric Alpine and Ubuntu versions are matched to Cloudsmith's slug using its live API. Fedora and openSUSE
+releases are also checked against that catalog. By default, a correctly recognized package for a release Cloudsmith
+does not yet support is skipped with a warning. It will begin uploading automatically once the release appears in
+Cloudsmith.
 
-An unrecognized DEB or RPM filename fails the action by default so a newly introduced naming convention cannot silently
-go unpublished.
+An unrecognized APK, DEB, or RPM filename fails the action by default so a newly introduced naming convention cannot
+silently go unpublished.
 
 ## 📥 Inputs
 
@@ -137,5 +142,6 @@ Dry-run mode still queries Cloudsmith's public distribution catalog, but it skip
 ## 🔗 See Also
 
 - [Cloudsmith GitHub Actions integration](https://docs.cloudsmith.com/integrations/integrating-with-github-actions)
+- [Cloudsmith Alpine repository documentation](https://docs.cloudsmith.com/formats/alpine-repository)
 - [Cloudsmith Debian repository documentation](https://docs.cloudsmith.com/formats/debian-repository)
 - [Cloudsmith RPM repository documentation](https://docs.cloudsmith.com/formats/redhat-repository)
