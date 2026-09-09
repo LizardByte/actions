@@ -165,7 +165,7 @@ runs:
 
     - name: Setup Homebrew
       id: set-up-homebrew
-      uses: Homebrew/actions/setup-homebrew@main
+      uses: Homebrew/actions/setup-homebrew@6373c73b318da78d7a3457597e6cc3b6526cbd59  # main
       with:
         stable: true
 
