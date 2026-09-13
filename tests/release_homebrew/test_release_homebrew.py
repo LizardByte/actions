@@ -588,15 +588,24 @@ def test_tap_homebrew_repo_uses_canonical_tap_name(mock_is_tap_installed, mock_r
     assert main.tap_homebrew_repo('lizardbyte/homebrew')
 
     mock_is_tap_installed.assert_called_once_with('lizardbyte/homebrew')
-    mock_run_subprocess.assert_called_once_with(
-        args_list=[
+    assert [call.kwargs['args_list'] for call in mock_run_subprocess.call_args_list] == [
+        [
+            'brew',
+            'trust',
+            '--tap',
+            'lizardbyte/homebrew',
+        ],
+        [
             'brew',
             'tap',
             'lizardbyte/homebrew',
         ],
-    )
+    ]
 
     captured = capsys.readouterr()
+    assert captured.out.index('Trusting configured Homebrew tap before tapping') < captured.out.index(
+        'Running `brew tap` for configured Homebrew tap'
+    )
     assert 'Running `brew tap` for configured Homebrew tap' in captured.out
     assert 'org_homebrew_repo' not in captured.out
 
@@ -614,6 +623,12 @@ def test_tap_homebrew_repo_replaces_existing_tap(mock_is_tap_installed, mock_run
         [
             'brew',
             'untap',
+            'lizardbyte/homebrew',
+        ],
+        [
+            'brew',
+            'trust',
+            '--tap',
             'lizardbyte/homebrew',
         ],
         [
@@ -644,12 +659,45 @@ def test_tap_homebrew_repo_stops_when_untap_fails(mock_is_tap_installed, mock_ru
 
 @patch('actions.release_homebrew.main._run_subprocess')
 @patch('actions.release_homebrew.main.is_homebrew_tap_installed')
-def test_tap_homebrew_repo_returns_false_when_tap_fails(mock_is_tap_installed, mock_run_subprocess):
-    """Test that tap_homebrew_repo returns false when brew tap fails."""
+def test_tap_homebrew_repo_stops_when_initial_trust_fails(mock_is_tap_installed, mock_run_subprocess):
+    """Test that tap_homebrew_repo stops before tap when initial trust fails."""
     mock_is_tap_installed.return_value = False
     mock_run_subprocess.return_value = False
 
     assert not main.tap_homebrew_repo('lizardbyte/homebrew')
+
+    mock_run_subprocess.assert_called_once_with(
+        args_list=[
+            'brew',
+            'trust',
+            '--tap',
+            'lizardbyte/homebrew',
+        ],
+    )
+
+
+@patch('actions.release_homebrew.main._run_subprocess')
+@patch('actions.release_homebrew.main.is_homebrew_tap_installed')
+def test_tap_homebrew_repo_returns_false_when_tap_fails(mock_is_tap_installed, mock_run_subprocess):
+    """Test that tap_homebrew_repo returns false when brew tap fails."""
+    mock_is_tap_installed.return_value = False
+    mock_run_subprocess.side_effect = [True, False]
+
+    assert not main.tap_homebrew_repo('lizardbyte/homebrew')
+
+    assert [call.kwargs['args_list'] for call in mock_run_subprocess.call_args_list] == [
+        [
+            'brew',
+            'trust',
+            '--tap',
+            'lizardbyte/homebrew',
+        ],
+        [
+            'brew',
+            'tap',
+            'lizardbyte/homebrew',
+        ],
+    ]
 
 
 def test_is_brew_installed(operating_system):

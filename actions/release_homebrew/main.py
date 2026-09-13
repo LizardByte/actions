@@ -591,6 +591,13 @@ def tap_homebrew_repo(tap_name: str) -> bool:
             end_group()
             return False
 
+    # Homebrew 7 verifies every formula while tapping. Trust the canonical tap
+    # first so that verification can load its formulae.
+    print('Trusting configured Homebrew tap before tapping')
+    if not _run_subprocess(args_list=['brew', 'trust', '--tap', tap_name]):
+        end_group()
+        return False
+
     print('Running `brew tap` for configured Homebrew tap')
     result = _run_subprocess(args_list=['brew', 'tap', tap_name])
 
