@@ -22,14 +22,14 @@ Add-Type @'
 
 # Apply delay if specified
 if ($Delay -gt 0) {
-    Write-Information "Waiting $Delay ms before taking screenshot..." -ForegroundColor Yellow
+    Write-Information "Waiting $Delay ms before taking screenshot..." -InformationAction Continue
     Start-Sleep -Milliseconds $Delay
 }
 
 # Get the bounds of all screens combined
 $bounds = [System.Windows.Forms.SystemInformation]::VirtualScreen
 
-Write-Information "Screenshot dimensions: $($bounds.Width)x$($bounds.Height)" -ForegroundColor Cyan
+Write-Information "Screenshot dimensions: $($bounds.Width)x$($bounds.Height)" -InformationAction Continue
 
 # Create output directory if needed
 $outputDir = Split-Path -Parent $OutputPath
@@ -51,4 +51,4 @@ $bitmap.Save($OutputPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $graphics.Dispose()
 $bitmap.Dispose()
 
-Write-Information "Screenshot saved to: $OutputPath" -ForegroundColor Green
+Write-Information "Screenshot saved to: $OutputPath" -InformationAction Continue

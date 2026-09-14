@@ -14,6 +14,66 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  powershell:
+    name: PowerShell
+    permissions:
+      contents: read
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Run Pester tests
+        id: pester
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Path ./build/tests -Force | Out-Null
+
+          Import-Module Pester -RequiredVersion 5.9.0 -Force
+          $config = New-PesterConfiguration
+          $config.Run.Path = "./tests/powershell"
+          $config.Run.Exit = $true
+          $config.Output.Verbosity = "Detailed"
+          $config.TestResult.Enabled = $true
+          $config.TestResult.OutputFormat = "JUnitXml"
+          $config.TestResult.OutputPath = "./build/tests/test_results.xml"
+          $config.CodeCoverage.Enabled = $true
+          $config.CodeCoverage.Path = "./actions/screenshot/screenshot.ps1"
+          $config.CodeCoverage.OutputFormat = "Cobertura"
+          $config.CodeCoverage.OutputPath = "./build/coverage.xml"
+
+          Invoke-Pester -Configuration $config
+
+      - name: Upload PowerShell coverage
+        if: >-
+          always() &&
+          (steps.pester.outcome == 'success' || steps.pester.outcome == 'failure') &&
+          startsWith(github.repository, 'LizardByte/')
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
+        with:
+          disable_search: true
+          fail_ci_if_error: true
+          files: ./build/coverage.xml
+          flags: PowerShell
+          report_type: coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+      - name: Upload PowerShell test results
+        if: >-
+          always() &&
+          (steps.pester.outcome == 'success' || steps.pester.outcome == 'failure') &&
+          startsWith(github.repository, 'LizardByte/')
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
+        with:
+          disable_search: true
+          fail_ci_if_error: true
+          files: ./build/tests/test_results.xml
+          flags: PowerShell
+          report_type: test_results
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
   tests:
     permissions:
       contents: write  # write is required for release_setup
