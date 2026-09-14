@@ -1,9 +1,6 @@
-BeforeAll {
-    $scriptPath = Join-Path $PSScriptRoot "..\..\actions\screenshot\screenshot.ps1"
-}
-
 Describe "screenshot.ps1" {
     It "captures the virtual screen as a PNG in a new output directory" {
+        $scriptPath = Join-Path $PSScriptRoot "..\..\actions\screenshot\screenshot.ps1"
         $outputPath = Join-Path $TestDrive "screenshots\desktop.png"
 
         & $scriptPath -OutputPath $outputPath -Delay 1
