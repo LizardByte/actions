@@ -17,9 +17,12 @@ const {
   buildCommand,
   classifyPackage,
   fetchDistributionVersions,
+  fetchLinuxMintBases,
   listPackageFiles,
+  linuxMintTargets,
   main,
   parseBoolean,
+  parseLinuxMintBase,
   resolveDistributionVersion,
   setOutput,
 } = cloudsmithUpload;
@@ -54,8 +57,23 @@ function createEnvironment(overrides = {}) {
   };
 }
 
-function createFetch(distributions) {
+const mintConfigs = {
+  vanessa: '[general]\ncodename=vanessa\nbase_codename=jammy\n[mirrors]\nbase_default=http://archive.ubuntu.com/ubuntu',
+  wilma: '[general]\ncodename=wilma\nbase_codename=noble\n[mirrors]\nbase_default=http://archive.ubuntu.com/ubuntu',
+  zena: '[general]\ncodename=zena\nbase_codename=noble\n[mirrors]\nbase_default=http://archive.ubuntu.com/ubuntu',
+};
+
+function createFetch(distributions, configs = mintConfigs) {
   return jest.fn(async (url) => {
+    const mint = url.match(/\/mintsources\/([^/]+)\/mintsources\.conf$/);
+    if (mint) {
+      const value = configs[mint[1]];
+      return {
+        ok: value !== undefined,
+        status: value === undefined ? 404 : 200,
+        text: async () => value,
+      };
+    }
     const distro = url.match(/\/distros\/([^/]+)\/$/)[1];
     const value = distributions[distro];
     if (value instanceof Error) {
@@ -245,6 +263,67 @@ describe('buildCommand', () => {
   });
 });
 
+describe('Linux Mint package bases', () => {
+  test('reads Ubuntu and Debian bases from Linux Mint configuration', () => {
+    expect(parseLinuxMintBase(mintConfigs.wilma, 'wilma')).toEqual({distro: 'ubuntu', release: 'noble'});
+    expect(parseLinuxMintBase([
+      '[general]', 'codename=debbie', 'base_codename=buster',
+      '[mirrors]', 'base_default=https://deb.debian.org/debian',
+    ].join('\n'), 'debbie')).toEqual({distro: 'debian', release: 'buster'});
+    expect(() => parseLinuxMintBase(mintConfigs.wilma, 'zena')).toThrow('Linux Mint zena');
+  });
+
+  test('fetches Cloudsmith Mint slugs and skips those without official configuration', async () => {
+    const versions = [
+      {name: '22 (Wilma)', slug: 'wilma'},
+      {name: '22.3 (Zena)', slug: 'zena'},
+      {name: '21 (Vanessa)', slug: 'vanessa'},
+      {name: '6 (Bookworm)', slug: 'bookworm'},
+      {name: 'Any Version', slug: 'any-version'},
+    ];
+    const fetchImpl = createFetch({});
+
+    await expect(fetchLinuxMintBases(versions, fetchImpl)).resolves.toEqual([
+      {slug: 'wilma', distro: 'ubuntu', release: 'noble'},
+      {slug: 'zena', distro: 'ubuntu', release: 'noble'},
+      {slug: 'vanessa', distro: 'ubuntu', release: 'jammy'},
+    ]);
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+  });
+
+  test('fails when Linux Mint configuration cannot be checked', async () => {
+    const fetchImpl = jest.fn(async () => ({ok: false, status: 503}));
+
+    await expect(fetchLinuxMintBases([{name: '22 (Wilma)', slug: 'wilma'}], fetchImpl)).rejects.toThrow(
+      'Linux Mint package-base lookup failed for wilma: HTTP 503.',
+    );
+  });
+
+  test('routes DEBs using Mint metadata, including a future Ubuntu base', () => {
+    const bases = [
+      {slug: 'wilma', distro: 'ubuntu', release: 'noble'},
+      {slug: 'xia', distro: 'ubuntu', release: 'noble'},
+      {slug: 'vanessa', distro: 'ubuntu', release: 'jammy'},
+      {slug: 'future', distro: 'ubuntu', release: 'resolute'},
+      {slug: 'debbie', distro: 'debian', release: 'buster'},
+    ];
+    const plan = [
+      {distro: 'ubuntu', file: '/tmp/noble.deb', format: 'deb', release: 'noble'},
+      {distro: 'ubuntu', file: '/tmp/jammy.deb', format: 'deb', release: 'jammy'},
+      {distro: 'debian', file: '/tmp/buster.deb', format: 'deb', release: 'buster'},
+      {distro: 'ubuntu', file: '/tmp/other.deb', format: 'deb', release: 'resolute'},
+    ];
+
+    expect(linuxMintTargets(plan, bases)).toEqual([
+      {distro: 'linuxmint', file: '/tmp/noble.deb', format: 'deb', release: 'wilma'},
+      {distro: 'linuxmint', file: '/tmp/noble.deb', format: 'deb', release: 'xia'},
+      {distro: 'linuxmint', file: '/tmp/jammy.deb', format: 'deb', release: 'vanessa'},
+      {distro: 'linuxmint', file: '/tmp/buster.deb', format: 'deb', release: 'debbie'},
+      {distro: 'linuxmint', file: '/tmp/other.deb', format: 'deb', release: 'future'},
+    ]);
+  });
+});
+
 describe('setOutput', () => {
   test('appends a GitHub output', () => {
     const output = path.join(tempDirectory, 'output');
@@ -258,8 +337,15 @@ describe('main', () => {
     alpine: [
       {name: '3.24', slug: 'v3.24'},
     ],
+    debian: [
+      {name: '13 (Trixie)', slug: 'trixie'},
+    ],
     fedora: [
       {name: '44 (forty four)', slug: '44'},
+    ],
+    linuxmint: [
+      {name: '22 (Wilma)', slug: 'wilma'},
+      {name: '21 (Vanessa)', slug: 'vanessa'},
     ],
     opensuse: [
       {name: '15.6', slug: '15.6'},
@@ -284,7 +370,7 @@ describe('main', () => {
       fetchImpl: createFetch(distributions),
     });
 
-    expect(result).toMatchObject({plannedCount: 3, publishedCount: 0, skippedCount: 2});
+    expect(result).toMatchObject({plannedCount: 4, publishedCount: 0, skippedCount: 2});
     expect(result.packagePlan).toEqual([
       {distro: 'fedora', filename: 'HelloWorld-1.2.3-1.fc44.x86_64.rpm', format: 'rpm', release: '44'},
       {distro: 'ubuntu', filename: 'helloworld_1.2.3-1+ubuntu22.04_amd64.deb', format: 'deb', release: 'jammy'},
@@ -294,6 +380,7 @@ describe('main', () => {
         format: 'alpine',
         release: 'v3.24',
       },
+      {distro: 'linuxmint', filename: 'helloworld_1.2.3-1+ubuntu22.04_amd64.deb', format: 'deb', release: 'vanessa'},
     ]);
     expect(execFileSyncImpl).not.toHaveBeenCalled();
     expect(consoleMocks.consoleOutput).toContain(
@@ -302,7 +389,7 @@ describe('main', () => {
     expect(consoleMocks.consoleOutput).toContain(
       '::warning::Skipping HelloWorld-1.2.3-1.fc45.aarch64.rpm; Cloudsmith does not yet support fedora/45.',
     );
-    expect(fs.readFileSync(env.GITHUB_OUTPUT, 'utf8')).toContain('planned_count=3\n');
+    expect(fs.readFileSync(env.GITHUB_OUTPUT, 'utf8')).toContain('planned_count=4\n');
   });
 
   test('publishes resolved packages with default upload options', async () => {
@@ -316,12 +403,44 @@ describe('main', () => {
 
     const result = await main({env, execFileSyncImpl, fetchImpl: createFetch(distributions)});
 
-    expect(result).toMatchObject({plannedCount: 1, publishedCount: 1, skippedCount: 0});
+    expect(result).toMatchObject({plannedCount: 2, publishedCount: 2, skippedCount: 0});
     expect(execFileSyncImpl).toHaveBeenCalledWith(
       'cloudsmith',
       ['push', 'deb', 'example-workspace/beta/ubuntu/jammy', packagePath],
       {stdio: 'inherit'},
     );
+    expect(execFileSyncImpl).toHaveBeenCalledWith(
+      'cloudsmith',
+      ['push', 'deb', 'example-workspace/beta/linuxmint/vanessa', packagePath],
+      {stdio: 'inherit'},
+    );
+  });
+
+  test('routes the Ubuntu 24.04 package to Mint 22 used by Mint 22.3', async () => {
+    writePackage('sunshine_1.2.3-1+ubuntu24.04_amd64.deb');
+    const fetchImpl = createFetch({
+      ...distributions,
+      ubuntu: [{name: '24.04 Noble Numbat', slug: 'noble'}],
+    });
+
+    const result = await main({env: createEnvironment(), fetchImpl});
+
+    expect(result).toMatchObject({plannedCount: 2, skippedCount: 0});
+    expect(result.packagePlan.map(({distro, release}) => `${distro}/${release}`)).toEqual([
+      'ubuntu/noble',
+      'linuxmint/wilma',
+    ]);
+    expect(fetchImpl).toHaveBeenCalledWith('https://api.cloudsmith.io/v1/distros/linuxmint/');
+  });
+
+  test('keeps a Debian build on its Debian target', async () => {
+    writePackage('sunshine_1.2.3-1+debiantrixie_amd64.deb');
+    const fetchImpl = createFetch(distributions);
+
+    const result = await main({env: createEnvironment(), fetchImpl});
+
+    expect(result.packagePlan.map(({distro, release}) => `${distro}/${release}`)).toEqual(['debian/trixie']);
+    expect(fetchImpl).toHaveBeenCalledWith('https://api.cloudsmith.io/v1/distros/linuxmint/');
   });
 
   test('rejects unmatched filenames in strict mode', async () => {
