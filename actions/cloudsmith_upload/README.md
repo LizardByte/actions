@@ -89,6 +89,14 @@ releases are also checked against that catalog. By default, a correctly recogniz
 does not yet support is skipped with a warning. It will begin uploading automatically once the release appears in
 Cloudsmith.
 
+A DEB is also uploaded to Linux Mint releases built on the same Ubuntu or Debian base. The action gets release slugs
+from Cloudsmith's live Mint catalog and reads each release's `base_codename` from
+[Linux Mint's software-sources configuration](https://github.com/linuxmint/mintsources/tree/master/usr/share/mintsources).
+For example, Mint 22's `wilma` configuration names Ubuntu `noble` as its base, so an Ubuntu 24.04 package goes to both
+`ubuntu/noble` and `linuxmint/wilma`. Cloudsmith's setup script routes Mint 22.3 to `linuxmint/wilma`. The same DEB file
+is reused; no separate Mint package is built. Mint releases without a matching official configuration or available
+base package are skipped.
+
 An unrecognized APK, DEB, or RPM filename fails the action by default so a newly introduced naming convention cannot
 silently go unpublished.
 
@@ -121,8 +129,8 @@ Exactly one authentication method is required outside dry-run mode: `api_key`, o
 | Name            | Description                                                                    |
 |-----------------|--------------------------------------------------------------------------------|
 | package_plan    | JSON upload plan with filenames and resolved distro/release targets.           |
-| planned_count   | Number of packages resolved for upload.                                        |
-| published_count | Number of packages submitted to Cloudsmith; zero for a dry run.                |
+| planned_count   | Number of distro/release uploads resolved.                                     |
+| published_count | Number of uploads submitted to Cloudsmith; zero for a dry run.                 |
 | skipped_count   | Number of package files skipped because they were unmatched or unsupported.    |
 
 ## 🧪 Dry Run

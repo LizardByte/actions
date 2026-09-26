@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const PACKAGE_EXTENSION = /\.(apk|deb|rpm)$/i;
+const LINUX_MINT_SOURCES = 'https://raw.githubusercontent.com/linuxmint/mintsources/master/usr/share/mintsources';
 
 /**
  * Parse a GitHub Action boolean input.
@@ -309,6 +310,70 @@ function partitionTargets(targets, versionsByDistro) {
 }
 
 /**
+ * Read the Ubuntu or Debian base for a Mint release from Linux Mint's own
+ * software-sources configuration.
+ *
+ * @param {string} config Linux Mint software-sources configuration.
+ * @param {string} slug Expected Linux Mint codename.
+ * @returns {object} Base distribution and codename.
+ */
+function parseLinuxMintBase(config, slug) {
+  const codename = /^codename=([a-z0-9-]+)\r?$/m.exec(config)?.[1];
+  const release = /^base_codename=([a-z0-9-]+)\r?$/m.exec(config)?.[1];
+  const baseUrl = /^base_default=(https?:\/\/[^\s]+)\r?$/m.exec(config)?.[1];
+  const host = baseUrl && new URL(baseUrl).hostname;
+  let distro = null;
+  if (host === 'archive.ubuntu.com') {
+    distro = 'ubuntu';
+  } else if (host === 'deb.debian.org') {
+    distro = 'debian';
+  }
+  if (codename !== slug || !release || !distro) {
+    throw new Error(`Unable to determine the package base for Linux Mint ${slug}.`);
+  }
+  return {distro, release};
+}
+
+/**
+ * Read package bases for supported Mint releases from Linux Mint's source.
+ *
+ * @param {object[]} versions Cloudsmith Linux Mint distribution versions.
+ * @param {Function} fetchImpl Fetch implementation.
+ * @returns {Promise<object[]>} Mint targets with their package bases.
+ */
+async function fetchLinuxMintBases(versions, fetchImpl) {
+  const mintVersions = versions.filter((version) => /^\d+(?:\.\d+)*(?:\s|$)/.test(version.name));
+  const bases = await Promise.all(mintVersions.map(async (version) => {
+    const response = await fetchImpl(`${LINUX_MINT_SOURCES}/${version.slug}/mintsources.conf`);
+    if (response.status === 404) {
+      return null;
+    }
+    if (!response.ok) {
+      throw new Error(`Linux Mint package-base lookup failed for ${version.slug}: HTTP ${response.status}.`);
+    }
+    return {slug: version.slug, ...parseLinuxMintBase(await response.text(), version.slug)};
+  }));
+  return bases.filter(Boolean);
+}
+
+/**
+ * Reuse matching Ubuntu or Debian DEBs for Linux Mint releases.
+ *
+ * @param {object[]} plan Resolved original upload targets.
+ * @param {object[]} mintBases Linux Mint releases with their package bases.
+ * @returns {object[]} Additional Linux Mint upload targets.
+ */
+function linuxMintTargets(plan, mintBases) {
+  return plan.flatMap((target) => {
+    if (target.format !== 'deb') {
+      return [];
+    }
+    return mintBases.filter((base) => base.distro === target.distro && base.release === target.release)
+      .map((base) => ({...target, distro: 'linuxmint', release: base.slug}));
+  });
+}
+
+/**
  * Enforce unsupported-release handling and report skipped packages.
  *
  * @param {object[]} unsupported Unsupported package targets.
@@ -369,6 +434,12 @@ async function main(dependencies = {}) {
   const {plan, unsupported} = partitionTargets(targets, versionsByDistro);
   handleUnsupportedPackages(unsupported, options.skipUnsupported);
 
+  if (plan.some((target) => target.format === 'deb')) {
+    const mintVersions = await fetchDistributionVersions(options.apiHost, 'linuxmint', fetchImpl);
+    const mintBases = await fetchLinuxMintBases(mintVersions, fetchImpl);
+    plan.push(...linuxMintTargets(plan, mintBases));
+  }
+
   if (plan.length === 0 && options.failOnNoPackages) {
     throw new Error('No supported APK, DEB, or RPM packages were resolved for upload.');
   }
@@ -385,7 +456,7 @@ async function main(dependencies = {}) {
     packagePlan,
     plannedCount: plan.length,
     publishedCount: options.dryRun ? 0 : plan.length,
-    skippedCount: files.length - plan.length,
+    skippedCount: files.length - new Set(plan.map((target) => target.file)).size,
   };
   if (env.GITHUB_OUTPUT) {
     setOutput(env.GITHUB_OUTPUT, 'package_plan', JSON.stringify(result.packagePlan), fsApi);
@@ -400,8 +471,11 @@ module.exports = {
   buildCommand,
   classifyPackage,
   fetchDistributionVersions,
+  fetchLinuxMintBases,
   listPackageFiles,
+  linuxMintTargets,
   main,
+  parseLinuxMintBase,
   parseBoolean,
   resolveDistributionVersion,
   setOutput,
