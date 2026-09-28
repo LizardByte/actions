@@ -208,7 +208,7 @@ runs:
 
         echo "Installing virtualenv"
         if [[ $version_numeric -lt 309 ]]; then
-          python -m pip install virtualenv==20.15.1
+          python -m pip install virtualenv==20.15.1  # NOSONAR(githubactions:S8541) Py2 needs scandir sdist.
         else
           python -m pip install --only-binary=:all: virtualenv==21.7.7
         fi
