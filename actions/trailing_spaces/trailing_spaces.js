@@ -276,12 +276,18 @@ function pushEofViolation(enabled, detector, filePath, target) {
  * Run all checks on the given list of files.
  * @param {string[]} files - List of file paths to check
  * @param {Object} options - Check options
+ * @param {boolean} [options.checkTrailingSpaces=true] - Whether to check for trailing spaces and tabs
  * @param {boolean} options.checkEmptyLineAtEof - Whether to check for empty lines at EOF
  * @param {boolean} options.checkMissingNewlineAtEof - Whether to check for missing newline at EOF
  * @param {string[]} options.ignorePatterns - Patterns of files to ignore
  * @returns {{trailingSpaces: {file: string, line: number}[], emptyLines: {file: string, lastLine: number}[], missingNewlines: {file: string, lastLine: number}[]}} Results
  */
-function runChecks(files, { checkEmptyLineAtEof: checkEmpty, checkMissingNewlineAtEof: checkMissing, ignorePatterns }) {
+function runChecks(files, {
+  checkTrailingSpaces: checkSpaces = true,
+  checkEmptyLineAtEof: checkEmpty,
+  checkMissingNewlineAtEof: checkMissing,
+  ignorePatterns,
+}) {
   const trailingSpaces = [];
   const emptyLines = [];
   const missingNewlines = [];
@@ -303,8 +309,9 @@ function runChecks(files, { checkEmptyLineAtEof: checkEmpty, checkMissingNewline
     }
 
     // Check for trailing spaces
-    const spaceViolations = checkTrailingSpaces(filePath);
-    trailingSpaces.push(...spaceViolations);
+    if (checkSpaces) {
+      trailingSpaces.push(...checkTrailingSpaces(filePath));
+    }
 
     // Check for empty lines at EOF
     pushEofViolation(checkEmpty, checkEmptyLineAtEof, filePath, emptyLines);
@@ -378,13 +385,14 @@ async function checkTrailingSpacesAction({ github, context, core }) {
   const prNumber = process.env.INPUT_PR_NUMBER || context.payload?.pull_request?.number;
   const changedFilesInput = process.env.INPUT_CHANGED_FILES || '';
   const checkAllFiles = (process.env.INPUT_CHECK_ALL_FILES || 'false').toLowerCase() === 'true';
+  const checkSpaces = (process.env.INPUT_CHECK_TRAILING_SPACES || 'true').toLowerCase() === 'true';
   const checkEmpty = (process.env.INPUT_CHECK_EMPTY_LINE_AT_EOF || 'true').toLowerCase() === 'true';
   const checkMissing = (process.env.INPUT_CHECK_MISSING_NEWLINE_AT_EOF || 'true').toLowerCase() === 'true';
   const sourceDirectory = process.env.INPUT_SOURCE_DIRECTORY || '.';
   const ignorePatternsRaw = process.env.INPUT_IGNORE_PATTERNS || '';
   const ignorePatterns = ignorePatternsRaw.split('\n').map(p => p.trim()).filter(p => p.length > 0);
 
-  console.log('Check for trailing spaces inside text files');
+  console.log('Check whitespace in text files');
   console.log('===========================================');
 
   try {
@@ -405,6 +413,7 @@ async function checkTrailingSpacesAction({ github, context, core }) {
     console.log(`Checking ${files.length} file(s)...\n`);
 
     const results = runChecks(files, {
+      checkTrailingSpaces: checkSpaces,
       checkEmptyLineAtEof: checkEmpty,
       checkMissingNewlineAtEof: checkMissing,
       ignorePatterns,

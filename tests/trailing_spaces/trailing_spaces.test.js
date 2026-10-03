@@ -55,6 +55,7 @@ beforeEach(() => {
   delete process.env.INPUT_PR_NUMBER;
   delete process.env.INPUT_CHANGED_FILES;
   delete process.env.INPUT_CHECK_ALL_FILES;
+  delete process.env.INPUT_CHECK_TRAILING_SPACES;
   delete process.env.INPUT_CHECK_EMPTY_LINE_AT_EOF;
   delete process.env.INPUT_CHECK_MISSING_NEWLINE_AT_EOF;
   delete process.env.INPUT_SOURCE_DIRECTORY;
@@ -481,6 +482,20 @@ describe('runChecks', () => {
     expect(results.trailingSpaces).toHaveLength(1);
   });
 
+  test('disabling trailing spaces preserves both EOF checks', () => {
+    const blank = writeTmpFile('blank.patch', 'line \t\n\n');
+    const missing = writeTmpFile('missing.po', 'line \t');
+    const results = runChecks([blank, missing], {
+      checkTrailingSpaces: false,
+      checkEmptyLineAtEof: true,
+      checkMissingNewlineAtEof: true,
+      ignorePatterns: [],
+    });
+    expect(results.trailingSpaces).toHaveLength(0);
+    expect(results.emptyLines).toEqual([{ file: blank, lastLine: 2 }]);
+    expect(results.missingNewlines).toEqual([{ file: missing, lastLine: 1 }]);
+  });
+
   test('should detect empty line at eof and include last line number', () => {
     // 'line\n\n' → ['line', '', ''] → lines.length - 1 = 2
     const filePath = writeTmpFile('eof.txt', 'line\n\n');
@@ -724,6 +739,17 @@ describe('checkTrailingSpacesAction', () => {
     await checkTrailingSpacesAction({ github: mockGithub, context: mockContext, core: mockCore });
 
     expect(mockCore.setFailed).not.toHaveBeenCalled();
+  });
+
+  test.each(['false', 'FALSE'])('disables trailing spaces through input %s', async (value) => {
+    const filePath = writeTmpFile('spaces.po', 'line \t\n');
+    process.env.INPUT_CHANGED_FILES = filePath;
+    process.env.INPUT_CHECK_TRAILING_SPACES = value;
+
+    await checkTrailingSpacesAction({ github: mockGithub, context: mockContext, core: mockCore });
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    expect(mockCore.error).not.toHaveBeenCalled();
   });
 
   test('should handle errors gracefully', async () => {
