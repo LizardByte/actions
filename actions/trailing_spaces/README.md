@@ -30,6 +30,7 @@ steps:
 | check_all_files              | Set to `"true"` to check all files in the repository instead of only changed PR files.                              | `'false'`                                 | `false`  |
 | check_empty_line_at_eof      | Check that the last line in a file is not empty.                                                                    | `'true'`                                  | `false`  |
 | check_missing_newline_at_eof | Check that the last line in the file ends in a newline character.                                                   | `'true'`                                  | `false`  |
+| check_trailing_spaces        | Check for spaces and tabs at the end of lines.                                                                      | `'true'`                                  | `false`  |
 | source_directory             | Directory to check when `check_all_files` is `true`. Defaults to the current directory.                             | `'.'`                                     | `false`  |
 | ignore_patterns              | Newline-separated list of glob patterns for files to ignore (e.g., `*.md\n*.json`).                                 | `''`                                      | `false`  |
 
@@ -126,6 +127,16 @@ steps:
 ```
 
 ### Disable specific checks
+
+All three checks are enabled by default and can be disabled independently. For example, to check only EOF formatting:
+
+```yaml
+steps:
+  - name: Check EOF formatting
+    uses: LizardByte/actions/actions/trailing_spaces@master
+    with:
+      check_trailing_spaces: 'false'
+```
 
 ```yaml
 steps:

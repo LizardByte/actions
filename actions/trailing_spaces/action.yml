@@ -27,6 +27,10 @@ inputs:
     description: 'Set to "true" to check all files in the repository, not only those changed by the PR.'
     required: false
     default: 'false'
+  check_trailing_spaces:
+    description: 'Check for spaces and tabs at the end of lines.'
+    required: false
+    default: 'true'
   check_empty_line_at_eof:
     description: 'Check that the last line in a file is not empty.'
     required: false
@@ -54,6 +58,7 @@ runs:
         INPUT_PR_NUMBER: ${{ inputs.pr_number }}
         INPUT_CHANGED_FILES: ${{ inputs.changed_files }}
         INPUT_CHECK_ALL_FILES: ${{ inputs.check_all_files }}
+        INPUT_CHECK_TRAILING_SPACES: ${{ inputs.check_trailing_spaces }}
         INPUT_CHECK_EMPTY_LINE_AT_EOF: ${{ inputs.check_empty_line_at_eof }}
         INPUT_CHECK_MISSING_NEWLINE_AT_EOF: ${{ inputs.check_missing_newline_at_eof }}
         INPUT_SOURCE_DIRECTORY: ${{ inputs.source_directory }}
