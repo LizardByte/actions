@@ -485,38 +485,31 @@ function sleep(ms) {
  * @returns {Promise<*>} Result of the function
  */
 async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
-  let lastError;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  async function runAttempt(attempt) {
     try {
       return await fn();
     } catch (error) {
-      lastError = error;
-
       // Check if it's a rate limit error
       const isRateLimit = error.status === 429 ||
                          error.status === 403 && error.message.includes('rate limit');
 
-      if (isRateLimit && attempt < maxRetries) {
-        // Get retry-after header if available
-        const retryAfter = error.response?.headers['retry-after'];
-        const delay = retryAfter ? Number.parseInt(retryAfter) * 1000 : baseDelay * Math.pow(2, attempt);
-
-        const seconds = delay / 1000;
-        const attemptInfo = '(attempt ' + (attempt + 1) + '/' + maxRetries + ')';
-        Logger.warning('⚠️  Rate limit hit, retrying in ' + seconds + ' seconds... ' + attemptInfo);
-        await sleep(delay);
-        continue;
-      }
-
-      // For non-rate-limit errors, don't retry
-      if (!isRateLimit) {
+      if (!isRateLimit || attempt >= maxRetries) {
         throw error;
       }
+
+      // Get retry-after header if available
+      const retryAfter = error.response?.headers['retry-after'];
+      const delay = retryAfter ? Number.parseInt(retryAfter) * 1000 : baseDelay * Math.pow(2, attempt);
+
+      const seconds = delay / 1000;
+      const attemptInfo = '(attempt ' + (attempt + 1) + '/' + maxRetries + ')';
+      Logger.warning('⚠️  Rate limit hit, retrying in ' + seconds + ' seconds... ' + attemptInfo);
+      await sleep(delay);
+      return runAttempt(attempt + 1);
     }
   }
 
-  throw lastError;
+  return runAttempt(0);
 }
 
 /**
@@ -761,7 +754,9 @@ async function processAllRepositories(github, repos, owner, options) {
   const results = [];
   const errors = [];
 
-  for (const repoName of repos) {
+  // Keep GitHub writes and each repository's logs in sequence.
+  await repos.reduce(async (previous, repoName) => {
+    await previous;
     const result = await processRepository(github, {
       owner,
       repo: repoName,
@@ -775,7 +770,7 @@ async function processAllRepositories(github, repos, owner, options) {
     if (!result.success) {
       errors.push({ repo: repoName, error: result.error });
     }
-  }
+  }, Promise.resolve());
 
   return { results, errors };
 }

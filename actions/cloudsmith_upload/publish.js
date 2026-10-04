@@ -278,14 +278,14 @@ function handleUnmatchedPackages(unmatched, failOnUnmatched) {
  * @returns {Promise<Map<string, object[]>>} Versions grouped by distribution.
  */
 async function fetchVersionsByDistro(targets, options, fetchImpl) {
-  const versionsByDistro = new Map();
-  for (const distro of new Set(targets.map((target) => target.distro))) {
-    versionsByDistro.set(
+  const distros = [...new Set(targets.map((target) => target.distro))];
+  const entries = await Promise.all(distros.map(async (distro) => {
+    return [
       distro,
       await fetchDistributionVersions(options.apiHost, distro, fetchImpl),
-    );
-  }
-  return versionsByDistro;
+    ];
+  }));
+  return new Map(entries);
 }
 
 /**

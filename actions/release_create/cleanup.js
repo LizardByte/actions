@@ -185,10 +185,10 @@ async function deleteOldPreReleases({ github, context }) {
   // Filter releases to delete
   const releasesToDelete = filterReleasesToDelete(allReleases, IS_DRAFT, CURRENT_TAG, KEEP_LATEST);
 
-  // Delete the releases
-  for (const release of releasesToDelete) {
-    await deleteRelease(github, context.repo.owner, context.repo.repo, release);
-  }
+  // Serialize GitHub mutations to avoid concurrent release deletions.
+  await releasesToDelete.reduce((previous, release) => previous.then(() => {
+    return deleteRelease(github, context.repo.owner, context.repo.repo, release);
+  }), Promise.resolve());
 
   // Sleep to allow any on release deleted event workflow runs to be created
   // If the tag is deleted before the workflow run is created, the run will fail to be created
@@ -196,9 +196,9 @@ async function deleteOldPreReleases({ github, context }) {
 
   // Delete tags if requested
   if (DELETE_TAGS) {
-    for (const release of releasesToDelete) {
-      await deleteTag(github, context.repo.owner, context.repo.repo, release);
-    }
+    await releasesToDelete.reduce((previous, release) => previous.then(() => {
+      return deleteTag(github, context.repo.owner, context.repo.repo, release);
+    }), Promise.resolve());
   }
 }
 

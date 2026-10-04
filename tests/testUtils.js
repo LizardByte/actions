@@ -246,7 +246,7 @@ function setupCleanupEnv({
  * @param {Array} releases - Array of releases to return
  */
 function setupChangelogWorkflow(mockGithub, releases = []) {
-  mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
+  mockGithub.paginate.mockResolvedValue(releases);
   setupBranchCreationMocks(mockGithub);
 }
 

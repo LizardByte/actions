@@ -97,22 +97,11 @@ function generateChangelog(releases) {
  * @returns {Promise<Array>} Array of release objects sorted by creation date
  */
 async function fetchAllReleases(github, context) {
-  let releases = [];
-  let page = 1;
-  const perPage = 100;
-
-  let hasMorePages = true;
-  while (hasMorePages) {
-    const response = await github.rest.repos.listReleases({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      per_page: perPage,
-      page: page
-    });
-    releases = releases.concat(response.data);
-    hasMorePages = response.data.length === perPage;
-    page++;
-  }
+  const releases = await github.paginate(github.rest.repos.listReleases, {
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    per_page: 100
+  });
 
   // Sort releases by date created (oldest first)
   releases.sort((a, b) => {
