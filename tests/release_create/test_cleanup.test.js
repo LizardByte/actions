@@ -405,5 +405,70 @@ describe('Release Cleanup', () => {
 
       verifyDeleteCalls(mockGithub, { deleteReleaseCalls: 1, deleteTagCalls: 1 });
     });
+
+    test('should finish release deletions before starting the delay and serialize tag deletions', async () => {
+      mockGithub.paginate.mockResolvedValue(createMockReleases([
+        { tagName: 'v2024.1.1', prerelease: true, id: 1 },
+        { tagName: 'v2024.1.2', prerelease: true, id: 2 },
+      ]));
+      setupCleanupEnv({keepLatest: '0', sleepDuration: '10'});
+      const releaseResponses = new Map();
+      const tagResponses = new Map();
+      mockGithub.rest.repos.deleteRelease.mockImplementation(({release_id}) => {
+        return new Promise((resolve) => releaseResponses.set(release_id, resolve));
+      });
+      mockGithub.rest.git.deleteRef.mockImplementation(({ref}) => {
+        return new Promise((resolve) => tagResponses.set(ref, resolve));
+      });
+
+      const deletePromise = deleteOldPreReleases({github: mockGithub, context: mockContext});
+      await jest.advanceTimersByTimeAsync(0);
+      expect(mockGithub.rest.repos.deleteRelease).toHaveBeenCalledTimes(1);
+
+      releaseResponses.get(1)({});
+      await jest.advanceTimersByTimeAsync(10000);
+      expect(mockGithub.rest.repos.deleteRelease).toHaveBeenCalledTimes(2);
+      expect(mockGithub.rest.git.deleteRef).not.toHaveBeenCalled();
+
+      releaseResponses.get(2)({});
+      await jest.advanceTimersByTimeAsync(9999);
+      expect(mockGithub.rest.git.deleteRef).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(1);
+      expect(mockGithub.rest.git.deleteRef).toHaveBeenCalledTimes(1);
+      expect(mockGithub.rest.git.deleteRef).toHaveBeenLastCalledWith(expect.objectContaining({
+        ref: 'tags/v2024.1.1',
+      }));
+
+      tagResponses.get('tags/v2024.1.1')({});
+      await jest.advanceTimersByTimeAsync(0);
+      expect(mockGithub.rest.git.deleteRef).toHaveBeenCalledTimes(2);
+      tagResponses.get('tags/v2024.1.2')({});
+      await deletePromise;
+    });
+
+    test('should continue deleting releases and tags after individual API failures', async () => {
+      mockGithub.paginate.mockResolvedValue(createMockReleases([
+        { tagName: 'v2024.1.1', prerelease: true, id: 1 },
+        { tagName: 'v2024.1.2', prerelease: true, id: 2 },
+      ]));
+      setupCleanupEnv({keepLatest: '0'});
+      mockGithub.rest.repos.deleteRelease
+        .mockRejectedValueOnce(new Error('Release API error'))
+        .mockResolvedValueOnce({});
+      mockGithub.rest.git.deleteRef
+        .mockRejectedValueOnce(new Error('Tag API error'))
+        .mockResolvedValueOnce({});
+
+      const deletePromise = deleteOldPreReleases({github: mockGithub, context: mockContext});
+      await jest.runAllTimersAsync();
+      await deletePromise;
+
+      expect(mockGithub.rest.repos.deleteRelease.mock.calls.map(([call]) => call.release_id)).toEqual([1, 2]);
+      expect(mockGithub.rest.git.deleteRef.mock.calls.map(([call]) => call.ref)).toEqual([
+        'tags/v2024.1.1', 'tags/v2024.1.2',
+      ]);
+      expect(consoleErrors.some(line => line.includes('Release API error'))).toBe(true);
+      expect(consoleErrors.some(line => line.includes('Tag API error'))).toBe(true);
+    });
   });
 });

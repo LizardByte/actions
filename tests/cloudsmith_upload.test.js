@@ -416,6 +416,49 @@ describe('main', () => {
     );
   });
 
+  test('starts unique distribution lookups together and keeps their results associated', async () => {
+    writePackage('a-1.fc44.x86_64.rpm');
+    writePackage('b-1.suse.lp156.x86_64.rpm');
+    writePackage('c-1.fc44.aarch64.rpm');
+    const responses = new Map();
+    const fetchImpl = jest.fn((url) => new Promise((resolve) => responses.set(url, resolve)));
+    const resultPromise = main({env: createEnvironment(), fetchImpl});
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).toHaveBeenCalledWith('https://api.cloudsmith.io/v1/distros/fedora/');
+    expect(fetchImpl).toHaveBeenCalledWith('https://api.cloudsmith.io/v1/distros/opensuse/');
+
+    // Finish in the opposite order to the package plan.
+    responses.get('https://api.cloudsmith.io/v1/distros/opensuse/')({
+      ok: true, json: async () => ({versions: distributions.opensuse}),
+    });
+    responses.get('https://api.cloudsmith.io/v1/distros/fedora/')({
+      ok: true, json: async () => ({versions: distributions.fedora}),
+    });
+
+    const result = await resultPromise;
+    expect(result.packagePlan.map(({distro, release}) => `${distro}/${release}`)).toEqual([
+      'fedora/44', 'opensuse/15.6', 'fedora/44',
+    ]);
+  });
+
+  test('does not upload when a concurrent distribution lookup fails', async () => {
+    writePackage('a-1.fc44.x86_64.rpm');
+    writePackage('b-1.suse.lp156.x86_64.rpm');
+    const fetchImpl = createFetch({
+      fedora: new Error('503'),
+      opensuse: distributions.opensuse,
+    });
+    const execFileSyncImpl = jest.fn();
+
+    await expect(main({
+      env: createEnvironment({INPUT_DRY_RUN: 'false'}), fetchImpl, execFileSyncImpl,
+    })).rejects.toThrow('Cloudsmith distribution lookup failed for fedora: HTTP 503.');
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(execFileSyncImpl).not.toHaveBeenCalled();
+  });
+
   test('routes the Ubuntu 24.04 package to Mint 22 used by Mint 22.3', async () => {
     writePackage('sunshine_1.2.3-1+ubuntu24.04_amd64.deb');
     const fetchImpl = createFetch({

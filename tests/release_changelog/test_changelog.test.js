@@ -311,13 +311,15 @@ describe('Release Changelog Generator', () => {
         created_at: `2024-02-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
       }));
 
-      mockGithub.rest.repos.listReleases
-        .mockResolvedValueOnce({ data: page1 })
-        .mockResolvedValueOnce({ data: page2 });
+      mockGithub.paginate.mockResolvedValue([...page1, ...page2]);
 
       const releases = await fetchAllReleases(mockGithub, mockContext);
       expect(releases).toHaveLength(150);
-      expect(mockGithub.rest.repos.listReleases).toHaveBeenCalledTimes(2);
+      expect(mockGithub.paginate).toHaveBeenCalledWith(mockGithub.rest.repos.listReleases, {
+        owner: mockContext.repo.owner,
+        repo: mockContext.repo.repo,
+        per_page: 100,
+      });
     });
 
     test('should sort releases by creation date', async () => {
@@ -327,7 +329,7 @@ describe('Release Changelog Generator', () => {
         { tag_name: 'v3.0.0', created_at: '2024-03-01T00:00:00Z' },
       ];
 
-      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: releases });
+      mockGithub.paginate.mockResolvedValue(releases);
 
       const sorted = await fetchAllReleases(mockGithub, mockContext);
       expect(sorted[0].tag_name).toBe('v1.0.0');
@@ -336,7 +338,7 @@ describe('Release Changelog Generator', () => {
     });
 
     test('should handle empty releases', async () => {
-      mockGithub.rest.repos.listReleases.mockResolvedValue({ data: [] });
+      mockGithub.paginate.mockResolvedValue([]);
 
       const releases = await fetchAllReleases(mockGithub, mockContext);
       expect(releases).toHaveLength(0);
@@ -480,7 +482,7 @@ describe('Release Changelog Generator', () => {
     });
 
     test('should handle errors and set action as failed', async () => {
-      mockGithub.rest.repos.listReleases.mockRejectedValue(new Error('API error'));
+      mockGithub.paginate.mockRejectedValue(new Error('API error'));
 
       await generateReleaseChangelog({ github: mockGithub, context: mockContext, core: mockCore });
 

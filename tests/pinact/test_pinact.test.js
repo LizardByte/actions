@@ -1201,6 +1201,40 @@ describe('Pinact Action', () => {
   });
 
   describe('Summary Output', () => {
+    test('should process repositories in order and continue after a repository failure', async () => {
+      jest.useFakeTimers();
+      try {
+        setupMultipleReposWithChanges();
+        mockGithub.paginate.mockResolvedValue([
+          createRepoListItem({name: 'repo1'}),
+          createRepoListItem({name: 'repo2'}),
+          createRepoListItem({name: 'repo3'}),
+        ]);
+        let resolveFirstPR;
+        const firstPR = new Promise((resolve) => { resolveFirstPR = resolve; });
+        mockGithub.rest.pulls.create
+          .mockReturnValueOnce(firstPR)
+          .mockRejectedValueOnce(new Error('PR API error'))
+          .mockResolvedValueOnce({data: {html_url: 'https://github.com/test-org/repo3/pull/1'}});
+
+        const actionPromise = runPinactAction({github: mockGithub, context: mockContext, core: mockCore});
+        await jest.advanceTimersByTimeAsync(0);
+        expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1);
+        expect(mockGithub.rest.pulls.create).toHaveBeenCalledTimes(1);
+        expect(mockGithub.rest.pulls.create).toHaveBeenLastCalledWith(expect.objectContaining({repo: 'repo1'}));
+
+        resolveFirstPR({data: {html_url: 'https://github.com/test-org/repo1/pull/1'}});
+        await actionPromise;
+
+        expect(mockGithub.rest.repos.get.mock.calls.map(([call]) => call.repo)).toEqual(['repo1', 'repo2', 'repo3']);
+        expect(mockGithub.rest.pulls.create.mock.calls.map(([call]) => call.repo)).toEqual(['repo1', 'repo2', 'repo3']);
+        expect(consoleOutput.some(line => line.includes('Pull requests created/updated: 2'))).toBe(true);
+        expect(mockCore.setFailed).toHaveBeenCalledWith('Failed to process 1 repository(ies). See logs for details.');
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     test('should display summary with PR count', async () => {
       setupMultipleReposWithChanges();
 
@@ -1300,8 +1334,9 @@ describe('Pinact Action', () => {
 
       const actionPromise = runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
-      // Fast-forward through the retry delay (2 seconds from retry-after header)
-      await jest.advanceTimersByTimeAsync(2000);
+      await jest.advanceTimersByTimeAsync(1999);
+      expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(1);
 
       await actionPromise;
 
@@ -1425,27 +1460,34 @@ describe('Pinact Action', () => {
       // Use fake timers to speed up retry delays
       jest.useFakeTimers();
 
-      const rateLimitError = new Error('rate limit exceeded');
-      rateLimitError.status = 429;
-
       mockGithub.rest.repos.listForOrg.endpoint.merge.mockReturnValue({});
       mockGithub.paginate.mockResolvedValue([createRepoListItem()]);
 
-      // Always fail with rate limit error
-      let callCount = 0;
-      mockGithub.rest.repos.get.mockImplementation(async () => {
-        callCount++;
-        throw rateLimitError;
+      const errors = ['First', 'Second', 'Third', 'Last'].map((attempt) => {
+        const error = new Error(attempt + ' rate limit exceeded');
+        error.status = 429;
+        return error;
       });
+      mockGithub.rest.repos.get
+        .mockRejectedValueOnce(errors[0])
+        .mockRejectedValueOnce(errors[1])
+        .mockRejectedValueOnce(errors[2])
+        .mockRejectedValueOnce(errors[3]);
 
       // Start the action
       const actionPromise = runPinactAction({ github: mockGithub, context: mockContext, core: mockCore });
 
-      // Fast-forward through all the retry delays
-      // There are 3 retries with delays: 1s, 2s, 4s
-      await jest.advanceTimersByTimeAsync(1000); // First retry
-      await jest.advanceTimersByTimeAsync(2000); // Second retry
-      await jest.advanceTimersByTimeAsync(4000); // Third retry
+      await jest.advanceTimersByTimeAsync(999);
+      expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(2);
+      await jest.advanceTimersByTimeAsync(1999);
+      expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(2);
+      await jest.advanceTimersByTimeAsync(1);
+      expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(3);
+      await jest.advanceTimersByTimeAsync(3999);
+      expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(3);
+      await jest.advanceTimersByTimeAsync(1);
 
       // Wait for the action to complete
       await actionPromise;
@@ -1454,7 +1496,8 @@ describe('Pinact Action', () => {
       jest.useRealTimers();
 
       // Should have called 4 times total (initial + 3 retries)
-      expect(callCount).toBe(4);
+      expect(mockGithub.rest.repos.get).toHaveBeenCalledTimes(4);
+      expect(mockCore.setFailed).toHaveBeenCalledWith('Pinact action failed: Last rate limit exceeded');
 
       // Should log retry attempts
       const output = consoleOutput.join(' ');
