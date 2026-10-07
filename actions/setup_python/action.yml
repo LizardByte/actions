@@ -65,7 +65,7 @@ runs:
         # Install pyenv (Unix)
         # renovate: datasource=github-digest depName=pyenv/pyenv-installer versioning=exact
         pyenv_installer_branch="master"
-        pyenv_installer_ref="63a9e6a216796aeba2535a3bac8e79ba5d95166d"
+        pyenv_installer_ref="bdd89156f0e591558ca901c5984387dd993157f9"
         pyenv_installer="${RUNNER_TEMP}/pyenv-installer"
         echo "Installing pyenv-installer ${pyenv_installer_branch} at ${pyenv_installer_ref}"
         curl \
