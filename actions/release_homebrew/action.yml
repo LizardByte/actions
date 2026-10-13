@@ -33,7 +33,7 @@ inputs:
     required: true
   homebrew_core_fork_repo:
     description: 'The forked homebrew-core repository to publish to.'
-    default: 'LizardByte/homebrew-core'
+    default: 'LizardByte-bot/homebrew-core'
     required: false
   homebrew_core_base_branch:
     description: 'The base branch of the homebrew-core fork to create PR against.'
