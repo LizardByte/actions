@@ -40,7 +40,7 @@ steps:
 | formula_file                  | The full path to the formula file.                                                        |                                | `true`   |
 | git_email                     | The email to use for the commit.                                                          |                                | `true`   |
 | git_username                  | The username to use for the commit.                                                       |                                | `true`   |
-| homebrew_core_fork_repo       | The forked homebrew-core repository to publish to.                                        | `LizardByte/homebrew-core`     | `false`  |
+| homebrew_core_fork_repo       | The forked homebrew-core repository to publish to.                                        | `LizardByte-bot/homebrew-core` | `false`  |
 | homebrew_core_base_branch     | The base branch of the homebrew-core fork to create PR against.                           | `main`                         | `false`  |
 | homebrew_core_head_branch     | The head branch of the homebrew-core fork to create for the PR. If empty, auto-generated. |                                | `false`  |
 | org_homebrew_repo             | The target repository to publish to.                                                      | `LizardByte/homebrew-homebrew` | `false`  |

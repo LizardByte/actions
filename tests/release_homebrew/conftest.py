@@ -231,7 +231,7 @@ def homebrew_core_fork_repo():
             [
                 'git',
                 'clone',
-                'https://github.com/LizardByte/homebrew-core',
+                'https://github.com/LizardByte-bot/homebrew-core',
                 repo,
                 '--depth=1',
             ],

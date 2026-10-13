@@ -11,7 +11,7 @@
       "org_homebrew_repo_base_branch": "master",
       "publish": false,
       "token": "${ secrets.GH_BOT_TOKEN }",
-      "upstream_homebrew_core_repo": "LizardByte/homebrew-core"
+      "upstream_homebrew_core_repo": "LizardByte-bot/homebrew-core"
     }
   },
   {
@@ -26,7 +26,7 @@
       "org_homebrew_repo_base_branch": "master",
       "publish": false,
       "token": "${ secrets.GH_BOT_TOKEN }",
-      "upstream_homebrew_core_repo": "LizardByte/homebrew-core"
+      "upstream_homebrew_core_repo": "LizardByte-bot/homebrew-core"
     }
   },
   {
