@@ -1,3 +1,5 @@
 #!/bin/bash
 
-echo "# Created from ${GITHUB_REPOSITORY}@${GITHUB_SHA}" >> ./tests/release_homebrew/Formula/hello_world.rb
+set -euo pipefail
+
+python3 ./tests/release_homebrew/render_formula.py ./build/release_homebrew/hello_world.rb

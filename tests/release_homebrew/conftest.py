@@ -1,5 +1,6 @@
 # standard imports
 import os
+from pathlib import Path
 import shutil
 import stat
 import subprocess
@@ -10,6 +11,7 @@ import pytest
 
 # local imports
 from actions.release_homebrew import main
+from tests.release_homebrew.render_formula import render_formula
 
 
 og_dir = os.getcwd()
@@ -69,13 +71,20 @@ def reinstall_packages_after_homebrew_tests(is_macos):
             print(f"✗ Exception while reinstalling {package}: {e}")
 
 
+@pytest.fixture(scope='session')
+def release_homebrew_formula(tmp_path_factory):
+    """Render the same fetchable formula used by the pre-CI hook."""
+    formula_path = tmp_path_factory.mktemp('release_homebrew') / 'hello_world.rb'
+    return str(render_formula(Path(og_dir), formula_path))
+
+
 @pytest.fixture(autouse=True)
-def setup_release_homebrew_env():
+def setup_release_homebrew_env(release_homebrew_formula):
     """Set up environment variables for release_homebrew tests only."""
     # Save original values
     original_env = {}
     env_vars = {
-        'INPUT_FORMULA_FILE': os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'),
+        'INPUT_FORMULA_FILE': release_homebrew_formula,
         'INPUT_CONTRIBUTE_TO_HOMEBREW_CORE': 'true',
         'INPUT_GIT_EMAIL': 'test@example.com',
         'INPUT_GIT_USERNAME': 'Test User',
