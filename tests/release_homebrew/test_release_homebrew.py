@@ -13,6 +13,61 @@ import pytest
 from actions.release_homebrew import main
 
 
+def test_formula_uses_checkout_revision(release_homebrew_formula):
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    revision = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    with open(release_homebrew_formula) as formula_file:
+        formula = formula_file.read()
+
+    assert f'revision: "{revision}"' in formula
+    assert '@GIT_REVISION@' not in formula
+
+
+def test_pre_ci_renders_each_checkout_revision(tmp_path, operating_system):
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    template_path = os.path.join(repo_root, 'tests', 'release_homebrew', 'Formula', 'hello_world.rb')
+    with open(template_path) as template_file:
+        template = template_file.read()
+
+    test_repo = tmp_path / 'repo'
+    template_dir = test_repo / 'tests' / 'release_homebrew' / 'Formula'
+    template_dir.mkdir(parents=True)
+    source_formula = template_dir / 'hello_world.rb'
+    source_formula.write_text(template, encoding='utf-8')
+    subprocess.run(['git', 'init', '--quiet'], cwd=test_repo, check=True)
+    pre_ci_script = os.path.join(repo_root, 'actions', 'release_homebrew', 'pre-ci.sh')
+    env = dict(os.environ, GITHUB_REPOSITORY='LizardByte/actions', GITHUB_SHA='f' * 40)
+    revisions = []
+
+    for index in range(2):
+        subprocess.run(
+            ['git', '-c', 'user.name=Test User', '-c', 'user.email=test@example.com',
+             '-c', 'commit.gpgsign=false', 'commit', '--quiet', '--allow-empty', '-m', f'Checkout {index}'],
+            cwd=test_repo,
+            check=True,
+        )
+        revision = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'], cwd=test_repo, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        revisions.append(revision)
+        subprocess.run(['bash', pre_ci_script], cwd=test_repo, env=env, capture_output=True, text=True, check=True)
+        formula = (test_repo / 'build' / 'release_homebrew' / 'hello_world.rb').read_text()
+
+        assert f'revision: "{revision}"' in formula
+        assert f'# Created from LizardByte/actions@{revision}' in formula
+        assert formula.count('# Created from') == 1
+        assert '@GIT_REVISION@' not in formula
+        assert source_formula.read_text() == template
+
+    assert revisions[0] != revisions[1]
+
+
 def get_current_branch(cwd: Optional[str] = None) -> str:
     if cwd:
         os.chdir(cwd)  # hack for unit testing on windows
@@ -431,7 +486,7 @@ def test_process_input_formula(operating_system, org_homebrew_repo):
         main.process_input_formula(formula_file=invalid_formula)
 
     formula = main.process_input_formula(
-        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+        formula_file=os.environ['INPUT_FORMULA_FILE'])
     assert formula == 'hello_world'
 
     dirs = [
@@ -456,7 +511,7 @@ def test_process_input_formula_lizardbyte_actions_special_case(
     mock_tap_homebrew_repo.return_value = True
 
     formula = main.process_input_formula(
-        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+        formula_file=os.environ['INPUT_FORMULA_FILE'])
 
     assert formula == 'hello_world'
     # Verify that the tap_repo_name was set correctly
@@ -1109,7 +1164,7 @@ def test_copy_test_artifacts_missing_source(capsys, tmp_path):
 def test_audit_formula(operating_system, org_homebrew_repo):
     #  Call process_input_formula first to set up the tap
     main.process_input_formula(
-        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+        formula_file=os.environ['INPUT_FORMULA_FILE'])
     assert main.audit_formula(formula='hello_world')
 
 
@@ -1126,7 +1181,7 @@ def test_brew_test_bot_only_formulae_fork_pr(
 
     # Call process_input_formula first to set up the tap
     main.process_input_formula(
-        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+        formula_file=os.environ['INPUT_FORMULA_FILE'])
 
     result = main.brew_test_bot_only_formulae(formula='hello_world')
 
@@ -1235,7 +1290,7 @@ def test_brew_test_bot_only_formulae_not_fork_pr(
 
     # Call process_input_formula first to set up the tap
     main.process_input_formula(
-        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+        formula_file=os.environ['INPUT_FORMULA_FILE'])
 
     result = main.brew_test_bot_only_formulae(formula='hello_world')
 
@@ -1264,7 +1319,7 @@ def test_brew_test_bot_only_formulae_no_fork_pr_env(
 
     # Call process_input_formula first to set up the tap
     main.process_input_formula(
-        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+        formula_file=os.environ['INPUT_FORMULA_FILE'])
 
     result = main.brew_test_bot_only_formulae(formula='hello_world')
 
@@ -1776,7 +1831,7 @@ def test_process_input_formula_skips_commit_for_non_git_repo(capsys, operating_s
 
     # Process the formula - it should skip the commit
     formula = main.process_input_formula(
-        formula_file=os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'))
+        formula_file=os.environ['INPUT_FORMULA_FILE'])
 
     assert formula == 'hello_world'
 

@@ -4,7 +4,7 @@ class HelloWorld < Formula
   desc "Simple program that outputs 'Hello, World!'"
   homepage "https://app.lizardbyte.dev"
   url "https://github.com/LizardByte/actions.git",
-    revision: "c8b249df879febbe2bad47b489ae9a1613f572bf"
+    revision: "@GIT_REVISION@"
   version "0.0.1"
 
   bottle do

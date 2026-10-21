@@ -69,13 +69,32 @@ def reinstall_packages_after_homebrew_tests(is_macos):
             print(f"✗ Exception while reinstalling {package}: {e}")
 
 
+@pytest.fixture(scope='session')
+def release_homebrew_formula(tmp_path_factory):
+    """Render the formula with the current checkout's full commit hash."""
+    revision = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=og_dir,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    template_path = os.path.join(og_dir, 'tests', 'release_homebrew', 'Formula', 'hello_world.rb')
+    with open(template_path) as template_file:
+        template = template_file.read()
+
+    formula_path = tmp_path_factory.mktemp('release_homebrew') / 'hello_world.rb'
+    formula_path.write_text(template.replace('@GIT_REVISION@', revision), encoding='utf-8')
+    return str(formula_path)
+
+
 @pytest.fixture(autouse=True)
-def setup_release_homebrew_env():
+def setup_release_homebrew_env(release_homebrew_formula):
     """Set up environment variables for release_homebrew tests only."""
     # Save original values
     original_env = {}
     env_vars = {
-        'INPUT_FORMULA_FILE': os.path.join(os.getcwd(), 'tests', 'release_homebrew', 'Formula', 'hello_world.rb'),
+        'INPUT_FORMULA_FILE': release_homebrew_formula,
         'INPUT_CONTRIBUTE_TO_HOMEBREW_CORE': 'true',
         'INPUT_GIT_EMAIL': 'test@example.com',
         'INPUT_GIT_USERNAME': 'Test User',
