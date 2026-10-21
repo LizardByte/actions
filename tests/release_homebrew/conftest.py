@@ -1,5 +1,6 @@
 # standard imports
 import os
+from pathlib import Path
 import shutil
 import stat
 import subprocess
@@ -10,6 +11,7 @@ import pytest
 
 # local imports
 from actions.release_homebrew import main
+from tests.release_homebrew.render_formula import render_formula
 
 
 og_dir = os.getcwd()
@@ -71,21 +73,9 @@ def reinstall_packages_after_homebrew_tests(is_macos):
 
 @pytest.fixture(scope='session')
 def release_homebrew_formula(tmp_path_factory):
-    """Render the formula with the current checkout's full commit hash."""
-    revision = subprocess.run(
-        ['git', 'rev-parse', 'HEAD'],
-        cwd=og_dir,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
-    template_path = os.path.join(og_dir, 'tests', 'release_homebrew', 'Formula', 'hello_world.rb')
-    with open(template_path) as template_file:
-        template = template_file.read()
-
+    """Render the same fetchable formula used by the pre-CI hook."""
     formula_path = tmp_path_factory.mktemp('release_homebrew') / 'hello_world.rb'
-    formula_path.write_text(template.replace('@GIT_REVISION@', revision), encoding='utf-8')
-    return str(formula_path)
+    return str(render_formula(Path(og_dir), formula_path))
 
 
 @pytest.fixture(autouse=True)

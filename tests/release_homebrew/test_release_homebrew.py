@@ -1,5 +1,7 @@
 # standard imports
+import json
 import os
+from pathlib import Path
 import subprocess
 import sys
 import tempfile
@@ -11,25 +13,35 @@ import pytest
 
 # local imports
 from actions.release_homebrew import main
+from tests.release_homebrew.render_formula import render_formula
 
 
-def test_formula_uses_checkout_revision(release_homebrew_formula):
+def test_formula_uses_fetchable_revision(release_homebrew_formula):
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    revision = subprocess.run(
-        ['git', 'rev-parse', 'HEAD'],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
+    repository = os.environ['GITHUB_REPOSITORY']
+    if os.getenv('GITHUB_EVENT_NAME') in {'pull_request', 'pull_request_target'}:
+        with open(os.environ['GITHUB_EVENT_PATH']) as event_file:
+            head = json.load(event_file)['pull_request']['head']
+        repository = head['repo']['full_name']
+        revision = head['sha']
+    else:
+        revision = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
     with open(release_homebrew_formula) as formula_file:
         formula = formula_file.read()
 
     assert f'revision: "{revision}"' in formula
+    assert f'url "https://github.com/{repository}.git"' in formula
     assert '@GIT_REVISION@' not in formula
+    assert '@GIT_REPOSITORY@' not in formula
 
 
-def test_pre_ci_renders_each_checkout_revision(tmp_path, operating_system):
+def test_pre_ci_renders_each_checkout_revision(tmp_path, operating_system, monkeypatch):
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     template_path = os.path.join(repo_root, 'tests', 'release_homebrew', 'Formula', 'hello_world.rb')
     with open(template_path) as template_file:
@@ -40,8 +52,11 @@ def test_pre_ci_renders_each_checkout_revision(tmp_path, operating_system):
     template_dir.mkdir(parents=True)
     source_formula = template_dir / 'hello_world.rb'
     source_formula.write_text(template, encoding='utf-8')
+    renderer = Path(repo_root) / 'tests' / 'release_homebrew' / 'render_formula.py'
+    (template_dir.parent / 'render_formula.py').write_text(renderer.read_text(), encoding='utf-8')
     subprocess.run(['git', 'init', '--quiet'], cwd=test_repo, check=True)
     pre_ci_script = os.path.join(repo_root, 'actions', 'release_homebrew', 'pre-ci.sh')
+    monkeypatch.delenv('GITHUB_EVENT_NAME', raising=False)
     env = dict(os.environ, GITHUB_REPOSITORY='LizardByte/actions', GITHUB_SHA='f' * 40)
     revisions = []
 
@@ -66,6 +81,33 @@ def test_pre_ci_renders_each_checkout_revision(tmp_path, operating_system):
         assert source_formula.read_text() == template
 
     assert revisions[0] != revisions[1]
+
+
+@pytest.mark.parametrize('event_name, repository', [
+    ('pull_request', 'LizardByte/actions'),
+    ('pull_request', 'contributor/actions'),
+    ('pull_request_target', 'contributor/actions'),
+])
+def test_render_formula_uses_pr_head(tmp_path, monkeypatch, event_name, repository):
+    revision = 'a' * 40
+    merge_revision = 'b' * 40
+    event_file = tmp_path / 'event.json'
+    event_file.write_text(json.dumps({
+        'pull_request': {'head': {'sha': revision, 'repo': {'full_name': repository}}},
+    }))
+    monkeypatch.setenv('GITHUB_EVENT_NAME', event_name)
+    monkeypatch.setenv('GITHUB_EVENT_PATH', str(event_file))
+    monkeypatch.setenv('GITHUB_SHA', merge_revision)
+    repo_root = Path(__file__).resolve().parents[2]
+    formula_path = render_formula(repo_root, tmp_path / 'formula' / 'hello_world.rb')
+    formula = formula_path.read_text()
+
+    assert f'url "https://github.com/{repository}.git"' in formula
+    assert f'revision: "{revision}"' in formula
+    assert f'# Created from {repository}@{revision}' in formula
+    assert merge_revision not in formula
+    assert '@GIT_REVISION@' not in formula
+    assert '@GIT_REPOSITORY@' not in formula
 
 
 def get_current_branch(cwd: Optional[str] = None) -> str:
