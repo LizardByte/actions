@@ -89,7 +89,7 @@ runs:
   steps:
     - name: Set up Cloudsmith CLI
       if: inputs.dry_run != 'true'
-      uses: cloudsmith-io/cloudsmith-cli-action@69e169e2ad9bc9a1599c2dff464061a00fe9f8ba  # v3.1.1
+      uses: cloudsmith-io/cloudsmith-cli-action@595d225cfc4db1903155991d3279439dd0bcc99c  # v3.2.0
       with:
         api-host: ${{ inputs.api_host }}
         api-key: ${{ inputs.api_key }}
