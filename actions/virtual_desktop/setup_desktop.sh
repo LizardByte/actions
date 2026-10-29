@@ -180,6 +180,10 @@ configure_headless_session() {
       # Choose the window manager before LXQt can open its first-run chooser.
       crudini --set "${config_dir}/session.conf" General window_manager "$OPENBOX"
       ;;
+    *)
+      # Other desktops do not need session overrides.
+      return 0
+      ;;
   esac
 }
 
