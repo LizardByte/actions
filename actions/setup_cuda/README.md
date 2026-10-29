@@ -33,15 +33,19 @@ Requirements:
 See [action.yml](action.yml)
 
 ### Linux - CUDA 13.1.0
+
 ```yaml
-steps:
-  - name: Setup CUDA 13.1.0
-    uses: LizardByte/actions/actions/setup_cuda@master
-    with:
-      cuda-version: '13.1.0'
-      driver-version: '590.44.01'  # Required for Linux
-  - name: Verify CUDA Version
-    run: nvcc --version
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup CUDA 13.1.0
+        uses: LizardByte/actions/actions/setup_cuda@master
+        with:
+          cuda-version: '13.1.0'
+          driver-version: '590.44.01'  # Required for Linux
+      - name: Verify CUDA Version
+        run: nvcc --version
 ```
 
 ### Custom Installation Path
@@ -109,6 +113,16 @@ jobs:
 
 The requested CUDA Toolkit release must be available from NVIDIA's installer archive. Ensure the selected runner's
 host compiler is supported by that CUDA release.
+
+The Linux runfile installer requires the older `libxml2.so.2` ABI. When it is missing (including on Ubuntu 26.04),
+the action downloads Ubuntu 24.04's signed `libxml2` and `libicu74` packages into a temporary directory and uses
+them only while running the installer. Package versions come from Ubuntu's current updates and security repositories.
+The temporary libraries are removed afterward; system packages, APT sources, and subsequent workflow steps are unchanged.
+This lets the action run on `ubuntu-latest`. The selected CUDA release must still support your host compiler.
+
+On glibc 2.42 and newer, CUDA 13.0/13.1 also need the `rsqrt` exception-specification fix included upstream in CUDA 13.2.
+The action applies it to the installed toolkit's uncorrected declarations and inline wrappers. Headers that already
+use NVIDIA's `_NV_RSQRT_SPECIFIER` fix are preserved.
 
 | Platform       | Installer Type    | Driver Version |
 |----------------|-------------------|----------------|
