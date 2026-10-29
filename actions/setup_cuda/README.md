@@ -120,6 +120,10 @@ them only while running the installer. Package versions come from Ubuntu's curre
 The temporary libraries are removed afterward; system packages, APT sources, and subsequent workflow steps are unchanged.
 This lets the action run on `ubuntu-latest`. The selected CUDA release must still support your host compiler.
 
+On glibc 2.42 and newer, CUDA 13.0/13.1 also need the `rsqrt` exception-specification fix included upstream in CUDA 13.2.
+The action applies it to the installed toolkit's uncorrected declarations and inline wrappers. Headers that already
+use NVIDIA's `_NV_RSQRT_SPECIFIER` fix are preserved.
+
 | Platform       | Installer Type    | Driver Version |
 |----------------|-------------------|----------------|
 | Linux x86_64   | Local runfile     | ✅ Required     |

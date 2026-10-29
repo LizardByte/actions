@@ -262,6 +262,41 @@ prepare_linux_installer_runtime() {
     printf '%s\n' "$library_path"
 }
 
+# CUDA 13.0/13.1 predate glibc 2.42's rsqrt declarations. Match their exception
+# specifications as fixed upstream in CUDA 13.2, including the inline wrappers.
+# https://forums.developer.nvidia.com/t/cuda-headers-in-crt-math-functions-h-still-broken-in-debian-13-repo/362708
+patch_linux_math_functions() {
+    local install_path="$1"
+    local version="$2"
+    if [[ "$version" != 13.0.* && "$version" != 13.1.* ]]; then
+        return 0
+    fi
+
+    local libc_version
+    libc_version=$(getconf GNU_LIBC_VERSION 2>/dev/null) || return 0
+    if [[ ! "$libc_version" =~ ^glibc[[:space:]]+([0-9]+)\.([0-9]+) ]]; then
+        return 0
+    fi
+    local major="${BASH_REMATCH[1]}"
+    local minor="${BASH_REMATCH[2]}"
+    if (( major < 2 || (major == 2 && minor < 42) )); then
+        return 0
+    fi
+
+    local header="${install_path}/include/crt/math_functions.h"
+    if [[ ! -f "$header" ]] || grep -q '_NV_RSQRT_SPECIFIER' "$header"; then
+        return 0
+    fi
+    if ! grep -Eq '(rsqrt\(double [xa]\)|rsqrtf\(float [xa]\))\)?;' "$header"; then
+        return 0
+    fi
+    echo "Applying the CUDA rsqrt exception-specification fix for ${libc_version}..."
+    sudo sed -E -i \
+        -e 's/(rsqrt\(double x\)|rsqrtf\(float x\));/\1 noexcept (true);/' \
+        -e 's/(__func__\((double rsqrt\(double a\)|float rsqrtf\(float a\)))\);/\1 noexcept (true));/' \
+        "$header"
+}
+
 # Function to download and install CUDA
 install_cuda() {
     local version="$1"
@@ -353,6 +388,10 @@ install_cuda() {
 
     # Clean up
     rm -rf "$tmp_dir"
+
+    if [[ "$os_type" == "$OS_LINUX" ]]; then
+        patch_linux_math_functions "$install_path" "$version"
+    fi
 
     # Verify installation
     local nvcc_path
