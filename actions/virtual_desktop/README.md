@@ -30,7 +30,7 @@ steps:
 |----------------------|----------------------------------------------------------------------------------------------------|------------|----------|
 | appindicator-version | AppIndicator version (ayatana, legacy). Only applies to mate and xfce                              | `ayatana`  | `false`  |
 | display-size         | Display resolution in WIDTHxHEIGHT format (e.g., 1920x1080)                                        | `1024x768` | `false`  |
-| environment          | Desktop environment (budgie, cinnamon, fluxbox, gnome, lxde, lxqt, mate, openbox, plasma, or xfce) | `plasma`   | `false`  |
+| environment          | Desktop environment (cinnamon, fluxbox, lxde, lxqt, mate, openbox, plasma, or xfce) | `plasma`   | `false`  |
 
 ## 📤 Outputs
 
@@ -40,20 +40,6 @@ steps:
 | xvfb-pid  | Process ID of the Xvfb server         |
 
 ## 🖥️ Desktop Environments
-
-### Budgie
-
-**Best for:** A polished GTK desktop with a traditional panel layout
-
-- **Tray Support:** ✅ Excellent (Budgie panel and indicator applet)
-- **Notifications:** ✅ Full support (Budgie Raven)
-- **Footprint:** Medium
-- **Features:** Modern GTK desktop, integrated panel, application menu, and notification center
-
-```yaml
-with:
-  environment: budgie
-```
 
 ### Cinnamon
 
@@ -83,20 +69,6 @@ with:
 ```yaml
 with:
   environment: fluxbox
-```
-
-### GNOME
-
-**Best for:** Testing against the standard modern GNOME desktop
-
-- **Tray Support:** ✅ AppIndicator and StatusNotifierItem support through the GNOME Shell extension
-- **Notifications:** ✅ Full support (GNOME Shell)
-- **Footprint:** Large
-- **Features:** GNOME Shell, Activities overview, modern GTK stack, and window compositing
-
-```yaml
-with:
-  environment: gnome
 ```
 
 ### LXDE
@@ -356,7 +328,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        desktop: [budgie, cinnamon, fluxbox, gnome, lxde, lxqt, mate, openbox, plasma, xfce]
+        desktop: [cinnamon, fluxbox, lxde, lxqt, mate, openbox, plasma, xfce]
     steps:
       - name: Setup ${{ matrix.desktop }}
         uses: LizardByte/actions/actions/virtual_desktop@master
@@ -375,12 +347,11 @@ jobs:
 - **Resource Usage:** Desktop environments vary in size:
   - Minimal: openbox and fluxbox
   - Lightweight: lxde and lxqt
-  - Full-featured: budgie, cinnamon, gnome, mate, plasma, and xfce
+  - Full-featured: cinnamon, mate, plasma, and xfce
 - **Tray Icons:** All environments support system tray icons through their respective panel implementations
 - **AppIndicator Support:**
   - The `appindicator-version` input applies to MATE and XFCE
-  - GNOME includes its AppIndicator and StatusNotifierItem shell extension
-  - Budgie, Cinnamon, LXQt, and Plasma use their integrated panel implementations
+  - Cinnamon, LXQt, and Plasma use their integrated panel implementations
   - **Ayatana** (recommended): Modern fork with active development
   - **Legacy**: Original Ubuntu implementation (deprecated but still available)
   - Python apps need `gir1.2-ayatanaappindicator3-0.1` or `gir1.2-appindicator3-0.1`
