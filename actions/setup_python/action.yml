@@ -152,16 +152,16 @@ runs:
         python --version
 
         echo "Setting paths"
-        if [[ "${{ runner.os }}" == "Windows" ]]; then
+        if [[ "${RUNNER_OS}" == "Windows" ]]; then
           # set venv path
           venv_base_path="/c/tmp/python/venv"
           venv_base_path_windows="C:\\tmp\\python\\venv"
           venv_dir="Scripts"
-        elif [[ "${{ runner.os }}" == "Linux" || "${{ runner.os }}" == "macOS" ]]; then
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
+        elif [[ "${RUNNER_OS}" == "Linux" || "${RUNNER_OS}" == "macOS" ]]; then
+          if [[ "${RUNNER_OS}" == "Linux" ]]; then
             # update alternatives
             sudo update-alternatives --install /usr/bin/python python $(pyenv root)/shims/python 1
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+          elif [[ "${RUNNER_OS}" == "macOS" ]]; then
             export PATH="$(pyenv root)/shims:$(pyenv root)/bin:$PATH"  # use this instead of GITHUB_PATH to be first
           fi
           venv_base_path="/tmp/python/venv"
@@ -224,7 +224,7 @@ runs:
 
         # update the path environment, so the next steps can use the venv
         # required to use the shell
-        if [[ "${{ runner.os }}" == "Windows" ]]; then
+        if [[ "${RUNNER_OS}" == "Windows" ]]; then
             echo "${venv_base_path_windows}\\${venv_dir}" >> "${GITHUB_PATH}"
         else
             echo "${venv_base_path}/${venv_dir}" >> "${GITHUB_PATH}"
@@ -242,7 +242,7 @@ runs:
         python_path=$(which python)
 
         # Convert to Windows path format on Windows runners
-        if [[ "${{ runner.os }}" == "Windows" ]]; then
+        if [[ "${RUNNER_OS}" == "Windows" ]]; then
           python_path=$(cygpath -w "${python_path}")
         fi
 
@@ -257,7 +257,7 @@ runs:
       run: |
         # Set environment variables
         # Get the Python installation root directory from pyenv
-        if [[ "${{ runner.os }}" == "Windows" ]]; then
+        if [[ "${RUNNER_OS}" == "Windows" ]]; then
           # On Windows, pyenv-win doesn't support 'pyenv root' command
           # Use PYENV_ROOT environment variable or default location
           if [[ -n "${PYENV_ROOT}" ]]; then
