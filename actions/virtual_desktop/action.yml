@@ -37,7 +37,7 @@ runs:
       shell: bash
       run: |
         if [[ "$RUNNER_OS" != "Linux" ]]; then
-          echo "Error: This action only works on Linux runners"
+          echo "Error: This action only works on Linux runners" >&2
           echo "Current runner OS: $RUNNER_OS"
           exit 1
         fi
@@ -72,14 +72,16 @@ runs:
         SCREENSHOT_PATH: ${{ github.workspace }}/actions/screenshot/screenshot.sh
       shell: bash
       run: |
+        readonly END_GROUP="::endgroup::"
+
         echo "::group::Setup directories"
         mkdir -p tests/screenshots
         cd tests/screenshots
-        echo "::endgroup::"
+        echo "${END_GROUP}"
 
         echo "::group::Script setup"
         chmod +x ${SCREENSHOT_PATH}
-        echo "::endgroup::"
+        echo "${END_GROUP}"
 
         echo "::group::Install test dependencies"
         sudo apt-get update -qq
@@ -88,11 +90,11 @@ runs:
           python3-gi \
           xterm \
           yad
-        echo "::endgroup::"
+        echo "${END_GROUP}"
 
         echo "::group::Baseline screenshot"
         ${SCREENSHOT_PATH} --output-path=00-baseline.png
-        echo "::endgroup::"
+        echo "${END_GROUP}"
 
         echo "::group::Test notification"
         notify-send \
@@ -101,7 +103,7 @@ runs:
           "Test Notification" \
           "This is a test notification."
         ${SCREENSHOT_PATH} --output-path=01-notification.png --delay=2000
-        echo "::endgroup::"
+        echo "${END_GROUP}"
 
         echo "::group::Test tray icon"
         # Create a simple tray icon using yad
@@ -112,7 +114,7 @@ runs:
         YAD_PID=$!
         ${SCREENSHOT_PATH} --output-path=02-tray-icon.png --delay=3000
         kill $YAD_PID 2>/dev/null || true
-        echo "::endgroup::"
+        echo "${END_GROUP}"
 
         echo "::group::Test window manager"
         # Open a simple terminal window to verify WM is working
@@ -120,7 +122,7 @@ runs:
         XTERM_PID=$!
         ${SCREENSHOT_PATH} --output-path=03-window.png --delay=1000
         kill $XTERM_PID 2>/dev/null || true
-        echo "::endgroup::"
+        echo "${END_GROUP}"
 
         echo "::group::Test multiple tray icons"
         # Create multiple tray icons to verify tray is working properly
@@ -136,14 +138,14 @@ runs:
 
         ${SCREENSHOT_PATH} --output-path=04-multiple-tray.png --delay=2000
         kill $YAD1 $YAD2 2>/dev/null || true
-        echo "::endgroup::"
+        echo "${END_GROUP}"
 
         echo "::group::Test AppIndicator"
         # Test ayatana-appindicator (only on MATE/XFCE which have indicator support)
         if [[ "$INPUT_ENVIRONMENT" == "mate" ]] || [[ "$INPUT_ENVIRONMENT" == "xfce" ]]; then
           echo "::group::AppIndicator Debug Info"
           bash "${GITHUB_ACTION_PATH}/debug_indicators.sh"
-          echo "::endgroup::"
+          echo "${END_GROUP}"
 
           echo "Testing AppIndicator support (${INPUT_APPINDICATOR_VERSION})..."
           # Run the test in the background so we can screenshot while it's active
@@ -164,7 +166,7 @@ runs:
         else
           echo "Skipping AppIndicator test (not supported on ${INPUT_ENVIRONMENT})"
         fi
-        echo "::endgroup::"
+        echo "${END_GROUP}"
 
         ls -lh
 
