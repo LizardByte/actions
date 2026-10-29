@@ -26,10 +26,10 @@ steps:
 
 ## 📥 Inputs
 
-| Name                 | Description                                                                                        | Default    | Required |
-|----------------------|----------------------------------------------------------------------------------------------------|------------|----------|
-| appindicator-version | AppIndicator version (ayatana, legacy). Only applies to mate and xfce                              | `ayatana`  | `false`  |
-| display-size         | Display resolution in WIDTHxHEIGHT format (e.g., 1920x1080)                                        | `1024x768` | `false`  |
+| Name                 | Description                                                                         | Default    | Required |
+|----------------------|-------------------------------------------------------------------------------------|------------|----------|
+| appindicator-version | AppIndicator version (ayatana, legacy). Only applies to mate and xfce               | `ayatana`  | `false`  |
+| display-size         | Display resolution in WIDTHxHEIGHT format (e.g., 1920x1080)                         | `1024x768` | `false`  |
 | environment          | Desktop environment (cinnamon, fluxbox, lxde, lxqt, mate, openbox, plasma, or xfce) | `plasma`   | `false`  |
 
 ## 📤 Outputs
@@ -42,6 +42,8 @@ steps:
 ## 🖥️ Desktop Environments
 
 ### Cinnamon
+
+![Cinnamon Desktop](docs/images/screenshot-cinnamon.png)
 
 **Best for:** A modern, familiar desktop with a traditional workflow
 
@@ -88,6 +90,8 @@ with:
 ```
 
 ### LXQt
+
+![LXQt Desktop](docs/images/screenshot-lxqt.png)
 
 **Best for:** A modern, lightweight Qt desktop
 
@@ -136,6 +140,8 @@ with:
 ```
 
 ### KDE Plasma
+
+![KDE Plasma Desktop](docs/images/screenshot-plasma.png)
 
 **Best for:** Testing against a full-featured modern Qt desktop
 
