@@ -14,6 +14,8 @@ RESET='\033[0m'
 AYATANA="ayatana"
 CINNAMON="cinnamon"
 LEGACY="legacy"
+LXDE="lxde"
+LXQT="lxqt"
 OPENBOX="openbox"
 PLASMA="plasma"
 PROCESS_START_TIMEOUT=15
@@ -47,7 +49,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate environment
-VALID_ENVIRONMENTS=("$CINNAMON" "fluxbox" "lxde" "lxqt" "mate" "$OPENBOX" "$PLASMA" "xfce")
+VALID_ENVIRONMENTS=("$CINNAMON" "fluxbox" "$LXDE" "$LXQT" "mate" "$OPENBOX" "$PLASMA" "xfce")
 VALID=false
 for env in "${VALID_ENVIRONMENTS[@]}"; do
   if [[ "$ENVIRONMENT" == "$env" ]]; then
@@ -154,6 +156,33 @@ wait_for_process() {
   return 1
 }
 
+# Session managers otherwise prompt for settings that a headless runner cannot
+# supply. Keep their existing configuration and change only the relevant keys.
+configure_headless_session() {
+  local config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+  local config_dir
+  local config_file
+
+  case "$ENVIRONMENT" in
+    "$LXDE")
+      config_dir="${config_home}/lxsession/LXDE"
+      config_file="${config_dir}/desktop.conf"
+      mkdir -p "$config_dir"
+      if [[ ! -f "$config_file" ]]; then
+        cp /etc/xdg/lxsession/LXDE/desktop.conf "$config_file"
+      fi
+      # lxpolkit opens an error dialog without a logind login session.
+      crudini --set "$config_file" Session polkit/command ""
+      ;;
+    "$LXQT")
+      config_dir="${config_home}/lxqt"
+      mkdir -p "$config_dir"
+      # Choose the window manager before LXQt can open its first-run chooser.
+      crudini --set "${config_dir}/session.conf" General window_manager "$OPENBOX"
+      ;;
+  esac
+}
+
 # Desktop environment specific packages
 echo -e "${BLUE}Configuring ${ENVIRONMENT} desktop environment...${RESET}"
 
@@ -186,9 +215,10 @@ case "$ENVIRONMENT" in
     INDICATOR_SERVICE=""
     ;;
 
-  lxde)
+  "$LXDE")
     # LXDE - very lightweight, basic tray support
     ENV_DEPS=(
+      crudini
       lxde
       lxsession
       notification-daemon
@@ -203,9 +233,10 @@ case "$ENVIRONMENT" in
     INDICATOR_SERVICE=""
     ;;
 
-  lxqt)
+  "$LXQT")
     # LXQt - modern, lightweight Qt desktop
     ENV_DEPS=(
+      crudini
       lxqt-core
       "$OPENBOX"
     )
@@ -384,7 +415,7 @@ pulseaudio --start --exit-idle-time=-1 > /dev/null 2>&1 || true
 pactl load-module module-null-sink sink_name=dummy > /dev/null 2>&1 || true
 
 # Start gnome-keyring for credential management
-if [[ "$ENVIRONMENT" == "lxde" ]]; then
+if [[ "$ENVIRONMENT" == "$LXDE" ]]; then
   echo -e "${BLUE}Starting gnome-keyring daemon...${RESET}"
   eval "$(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh 2>/dev/null)"
   # Keyring versions without an SSH agent do not provide a socket.
@@ -399,6 +430,8 @@ if [[ "$ENVIRONMENT" == "$CINNAMON" ]] || [[ "$ENVIRONMENT" == "$PLASMA" ]]; the
   export LIBGL_ALWAYS_SOFTWARE=1
 fi
 
+configure_headless_session
+
 # Start window manager in background
 echo -e "${BLUE}Starting ${ENVIRONMENT} window manager...${RESET}"
 
@@ -408,7 +441,7 @@ WM_PID=$!
 # lxqt-session delegates these components to XDG autostart. That is not
 # consistently available on headless runners without a user systemd session,
 # so start the missing core components explicitly.
-if [[ "$ENVIRONMENT" == "lxqt" ]]; then
+if [[ "$ENVIRONMENT" == "$LXQT" ]]; then
   if ! pgrep -x "$OPENBOX" > /dev/null 2>&1; then
     "$OPENBOX" &
   fi
@@ -418,8 +451,8 @@ if [[ "$ENVIRONMENT" == "lxqt" ]]; then
 fi
 
 # Give session managers more time to start all components
-if [[ "$ENVIRONMENT" == "$CINNAMON" ]] || [[ "$ENVIRONMENT" == "lxde" ]] || \
-   [[ "$ENVIRONMENT" == "lxqt" ]] || [[ "$ENVIRONMENT" == "mate" ]] || \
+if [[ "$ENVIRONMENT" == "$CINNAMON" ]] || [[ "$ENVIRONMENT" == "$LXDE" ]] || \
+   [[ "$ENVIRONMENT" == "$LXQT" ]] || [[ "$ENVIRONMENT" == "mate" ]] || \
    [[ "$ENVIRONMENT" == "$PLASMA" ]] || [[ "$ENVIRONMENT" == "xfce" ]]; then
   sleep 5  # Session managers need more time to start panels, notification daemons, etc.
 else

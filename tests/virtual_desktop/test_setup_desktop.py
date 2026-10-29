@@ -11,6 +11,7 @@ import pytest
 
 
 SCRIPT = (Path(__file__).resolve().parents[2] / 'actions/virtual_desktop/setup_desktop.sh').read_text(encoding='utf-8')
+SETUP_PREAMBLE = SCRIPT.split('# Desktop environment specific packages', 1)[0]
 BASH = (shutil.which('bash', path=f"{os.environ.get('ProgramFiles', '')}/Git/bin")
         if os.name == 'nt' else shutil.which('bash'))
 pytestmark = pytest.mark.skipif(BASH is None, reason='Bash is required to test the desktop setup script')
@@ -86,20 +87,73 @@ def test_lxde_exports_ssh_socket_only_when_available(tmp_path, monkeypatch, init
     keyring_output = f'SSH_AUTH_SOCK={keyring_socket}; export SSH_AUTH_SOCK;' if keyring_socket else ''
     monkeypatch.setenv('TEST_KEYRING_OUTPUT', keyring_output)
 
-    preamble = SCRIPT.split('# Desktop environment specific packages', 1)[0]
     block = SCRIPT.split('# Start gnome-keyring for credential management', 1)[1].split('# Composited desktops', 1)[0]
     mocks = 'gnome-keyring-daemon() { printf "%s\\n" "$TEST_KEYRING_OUTPUT"; }\n'
-    result = run_bash(preamble + mocks + block, '--environment=lxde')
+    result = run_bash(SETUP_PREAMBLE + mocks + block, '--environment=lxde')
 
     assert result.returncode == 0, result.stderr
     socket = keyring_socket or initial_socket
     assert output.read_text(encoding='utf-8') == (f'SSH_AUTH_SOCK={socket}\n' if socket else '')
 
 
+@pytest.mark.parametrize('environment', ['lxde', 'lxqt'])
+@pytest.mark.parametrize('existing', [False, True])
+@pytest.mark.parametrize('custom_config_home', [False, True])
+def test_headless_session_configuration(tmp_path, monkeypatch, environment, existing, custom_config_home):
+    home = tmp_path / 'home'
+    config_home = tmp_path / 'custom config' if custom_config_home else home / '.config'
+    monkeypatch.setenv('HOME', home.as_posix())
+    monkeypatch.delenv('XDG_CONFIG_HOME', raising=False)
+    if custom_config_home:
+        monkeypatch.setenv('XDG_CONFIG_HOME', config_home.as_posix())
+
+    relative_path = 'lxsession/LXDE/desktop.conf' if environment == 'lxde' else 'lxqt/session.conf'
+    config_file = config_home / relative_path
+    original = '[General]\nexisting=value\n'
+    if existing:
+        config_file.parent.mkdir(parents=True)
+        config_file.write_text(original, encoding='utf-8')
+
+    system_config = tmp_path / 'desktop.conf'
+    system_config.write_text('[Session]\npanel/command=lxpanel\n', encoding='utf-8')
+    command_log = tmp_path / 'commands'
+    copy_log = tmp_path / 'copies'
+    monkeypatch.setenv('TEST_SYSTEM_CONFIG', system_config.as_posix())
+    monkeypatch.setenv('TEST_COMMAND_LOG', command_log.as_posix())
+    monkeypatch.setenv('TEST_COPY_LOG', copy_log.as_posix())
+    mocks = '''
+cp() {
+  printf '%s\\n' "$1" >> "$TEST_COPY_LOG"
+  command cp "$TEST_SYSTEM_CONFIG" "$2"
+}
+crudini() {
+  local config_path="$2"
+  if command -v cygpath > /dev/null 2>&1; then
+    config_path=$(cygpath -m "$config_path")
+  fi
+  printf '%s\\n' "$1" "$config_path" "${@:3}" >> "$TEST_COMMAND_LOG"
+  touch "$2"
+}
+'''
+    result = run_bash(SETUP_PREAMBLE + mocks + 'configure_headless_session\n', f'--environment={environment}')
+
+    assert result.returncode == 0, result.stderr
+    section, key, value = ('Session', 'polkit/command', '') if environment == 'lxde' else (
+        'General', 'window_manager', 'openbox')
+    assert command_log.read_text(encoding='utf-8').splitlines() == [
+        '--set', config_file.as_posix(), section, key, value]
+    if existing:
+        assert config_file.read_text(encoding='utf-8') == original
+    if environment == 'lxde' and not existing:
+        assert config_file.read_text(encoding='utf-8') == system_config.read_text(encoding='utf-8')
+        assert copy_log.read_text(encoding='utf-8').strip() == '/etc/xdg/lxsession/LXDE/desktop.conf'
+    else:
+        assert not copy_log.exists()
+
+
 def run_xfce_configuration(ready_after, restart_status=0):
     # Execute the configuration block with a panel whose process exists before
     # its D-Bus service is ready, as happens during slow session startup.
-    preamble = SCRIPT.split('# Desktop environment specific packages', 1)[0]
     block = SCRIPT.split('# Configure XFCE panel for indicator support', 1)[1].split('# Start panel/tray', 1)[0]
     mocks = f'''
 INDICATOR_SERVICE=indicator-service
@@ -122,7 +176,7 @@ timeout() {{
   return {restart_status}
 }}
 '''
-    return run_bash(preamble + mocks + block, '--environment=xfce')
+    return run_bash(SETUP_PREAMBLE + mocks + block, '--environment=xfce')
 
 
 def test_xfce_waits_for_panel_before_configuring():
