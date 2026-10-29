@@ -113,18 +113,30 @@ def test_headless_session_configuration(tmp_path, monkeypatch, environment, exis
     if existing:
         config_file.parent.mkdir(parents=True)
         config_file.write_text(original, encoding='utf-8')
+    autostart_file = config_home / 'autostart/lxpolkit.desktop'
+    autostart_contents = '[Desktop Entry]\nType=Application\nName=LXPolKit\nExec=lxpolkit\n'
+    if environment == 'lxde' and existing:
+        autostart_file.parent.mkdir(parents=True)
+        autostart_file.write_text(autostart_contents, encoding='utf-8')
 
     system_config = tmp_path / 'desktop.conf'
     system_config.write_text('[Session]\npanel/command=lxpanel\n', encoding='utf-8')
+    system_autostart = tmp_path / 'lxpolkit.desktop'
+    system_autostart.write_text(autostart_contents, encoding='utf-8')
     command_log = tmp_path / 'commands'
     copy_log = tmp_path / 'copies'
     monkeypatch.setenv('TEST_SYSTEM_CONFIG', system_config.as_posix())
+    monkeypatch.setenv('TEST_SYSTEM_AUTOSTART', system_autostart.as_posix())
     monkeypatch.setenv('TEST_COMMAND_LOG', command_log.as_posix())
     monkeypatch.setenv('TEST_COPY_LOG', copy_log.as_posix())
     mocks = '''
 cp() {
   printf '%s\\n' "$1" >> "$TEST_COPY_LOG"
-  command cp "$TEST_SYSTEM_CONFIG" "$2"
+  local source="$TEST_SYSTEM_CONFIG"
+  if [[ "$1" == */lxpolkit.desktop ]]; then
+    source="$TEST_SYSTEM_AUTOSTART"
+  fi
+  command cp "$source" "$2"
 }
 crudini() {
   local config_path="$2"
@@ -140,13 +152,18 @@ crudini() {
     assert result.returncode == 0, result.stderr
     section, key, value = ('Session', 'polkit/command', '') if environment == 'lxde' else (
         'General', 'window_manager', 'openbox')
-    assert command_log.read_text(encoding='utf-8').splitlines() == [
+    expected_commands = [
         '--set', config_file.as_posix(), section, key, value]
+    if environment == 'lxde':
+        expected_commands += ['--set', autostart_file.as_posix(), 'Desktop Entry', 'Hidden', 'true']
+        assert autostart_file.read_text(encoding='utf-8') == autostart_contents
+    assert command_log.read_text(encoding='utf-8').splitlines() == expected_commands
     if existing:
         assert config_file.read_text(encoding='utf-8') == original
     if environment == 'lxde' and not existing:
         assert config_file.read_text(encoding='utf-8') == system_config.read_text(encoding='utf-8')
-        assert copy_log.read_text(encoding='utf-8').strip() == '/etc/xdg/lxsession/LXDE/desktop.conf'
+        assert copy_log.read_text(encoding='utf-8').splitlines() == [
+            '/etc/xdg/lxsession/LXDE/desktop.conf', '/etc/xdg/autostart/lxpolkit.desktop']
     else:
         assert not copy_log.exists()
 

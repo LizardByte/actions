@@ -173,6 +173,14 @@ configure_headless_session() {
       fi
       # lxpolkit opens an error dialog without a logind login session.
       crudini --set "$config_file" Session polkit/command ""
+      # Ubuntu also starts the agent independently through XDG autostart.
+      config_dir="${config_home}/autostart"
+      config_file="${config_dir}/lxpolkit.desktop"
+      mkdir -p "$config_dir"
+      if [[ ! -f "$config_file" ]]; then
+        cp /etc/xdg/autostart/lxpolkit.desktop "$config_file"
+      fi
+      crudini --set "$config_file" "Desktop Entry" Hidden true
       ;;
     "$LXQT")
       config_dir="${config_home}/lxqt"
