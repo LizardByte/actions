@@ -65,7 +65,7 @@ echo ""
 echo "Checking for window manager..."
 WM_FOUND=false
 
-for wm in budgie-wm cinnamon fluxbox gnome-shell kwin_x11 lxsession mate-session openbox xfce4-session; do
+for wm in cinnamon fluxbox kwin_x11 lxsession mate-session openbox xfce4-session; do
   if pgrep -x "$wm" > /dev/null 2>&1; then
     echo "✓ Found window manager: $wm"
     WM_FOUND=true
@@ -83,7 +83,7 @@ echo ""
 echo "Checking for panel/tray..."
 PANEL_FOUND=false
 
-for panel in budgie-panel cinnamon gnome-shell lxpanel lxqt-panel mate-panel plasmashell stalonetray tint2 xfce4-panel; do
+for panel in cinnamon lxpanel lxqt-panel mate-panel plasmashell stalonetray tint2 xfce4-panel; do
   if pgrep -x "$panel" > /dev/null 2>&1; then
     echo "✓ Found panel: $panel"
     PANEL_FOUND=true

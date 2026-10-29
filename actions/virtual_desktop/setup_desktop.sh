@@ -14,7 +14,10 @@ RESET='\033[0m'
 AYATANA="ayatana"
 CINNAMON="cinnamon"
 LEGACY="legacy"
+LXDE="lxde"
+LXQT="lxqt"
 OPENBOX="openbox"
+PLASMA="plasma"
 PROCESS_START_TIMEOUT=15
 
 # Default values
@@ -46,7 +49,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate environment
-VALID_ENVIRONMENTS=("budgie" "$CINNAMON" "fluxbox" "gnome" "lxde" "lxqt" "mate" "$OPENBOX" "plasma" "xfce")
+VALID_ENVIRONMENTS=("$CINNAMON" "fluxbox" "$LXDE" "$LXQT" "mate" "$OPENBOX" "$PLASMA" "xfce")
 VALID=false
 for env in "${VALID_ENVIRONMENTS[@]}"; do
   if [[ "$ENVIRONMENT" == "$env" ]]; then
@@ -153,32 +156,49 @@ wait_for_process() {
   return 1
 }
 
+# Session managers otherwise prompt for settings that a headless runner cannot
+# supply. Keep their existing configuration and change only the relevant keys.
+configure_headless_session() {
+  local config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+  local config_dir
+  local config_file
+
+  case "$ENVIRONMENT" in
+    "$LXDE")
+      config_dir="${config_home}/lxsession/LXDE"
+      config_file="${config_dir}/desktop.conf"
+      mkdir -p "$config_dir"
+      if [[ ! -f "$config_file" ]]; then
+        cp /etc/xdg/lxsession/LXDE/desktop.conf "$config_file"
+      fi
+      # lxpolkit opens an error dialog without a logind login session.
+      crudini --set "$config_file" Session polkit/command ""
+      # Ubuntu also starts the agent independently through XDG autostart.
+      config_dir="${config_home}/autostart"
+      config_file="${config_dir}/lxpolkit.desktop"
+      mkdir -p "$config_dir"
+      if [[ ! -f "$config_file" ]]; then
+        cp /etc/xdg/autostart/lxpolkit.desktop "$config_file"
+      fi
+      crudini --set "$config_file" "Desktop Entry" Hidden true
+      ;;
+    "$LXQT")
+      config_dir="${config_home}/lxqt"
+      mkdir -p "$config_dir"
+      # Choose the window manager before LXQt can open its first-run chooser.
+      crudini --set "${config_dir}/session.conf" General window_manager "$OPENBOX"
+      ;;
+    *)
+      # Other desktops do not need session overrides.
+      return 0
+      ;;
+  esac
+}
+
 # Desktop environment specific packages
 echo -e "${BLUE}Configuring ${ENVIRONMENT} desktop environment...${RESET}"
 
-START_BUDGIE_COMPONENTS=false
-VERIFY_NOTIFICATION_SERVICE=false
-
 case "$ENVIRONMENT" in
-  budgie)
-    # Budgie - modern GTK desktop with an integrated panel and notifications
-    ENV_DEPS=(
-      budgie-desktop
-      budgie-desktop-environment
-      budgie-indicator-applet
-    )
-    # The stock session treats hardware-dependent services as required and
-    # displays a fatal-error overlay when one of them fails on a headless
-    # runner. Start Budgie's three core components directly instead.
-    WM_COMMAND="budgie-wm"
-    WM_PROCESS="budgie-wm"
-    PANEL_COMMAND="budgie-panel"
-    PANEL_PROCESS="budgie-panel"
-    NOTIF_COMMAND=""  # notifications are provided by Budgie
-    INDICATOR_SERVICE=""
-    START_BUDGIE_COMPONENTS=true
-    ;;
-
   "$CINNAMON")
     # Cinnamon - modern, full-featured desktop with an integrated panel
     ENV_DEPS=(
@@ -207,31 +227,14 @@ case "$ENVIRONMENT" in
     INDICATOR_SERVICE=""
     ;;
 
-  gnome)
-    # GNOME - modern desktop with AppIndicator support provided by an extension
-    ENV_DEPS=(
-      gnome-session
-      gnome-shell-extension-appindicator
-      notification-daemon
-    )
-    WM_COMMAND="gnome-session --session=gnome"
-    WM_PROCESS="gnome-shell"
-    PANEL_COMMAND=""  # GNOME Shell provides the panel
-    PANEL_PROCESS="gnome-shell"
-    # GNOME Shell does not claim the notification service when its session is
-    # launched outside a login manager, so provide a headless-safe fallback.
-    NOTIF_COMMAND="/usr/lib/notification-daemon/notification-daemon"
-    INDICATOR_SERVICE=""
-    VERIFY_NOTIFICATION_SERVICE=true
-    ;;
-
-  lxde)
+  "$LXDE")
     # LXDE - very lightweight, basic tray support
     ENV_DEPS=(
+      crudini
       lxde
       lxsession
       notification-daemon
-      policykit-1
+      polkitd
       policykit-1-gnome
     )
     WM_COMMAND="startlxde"
@@ -242,9 +245,10 @@ case "$ENVIRONMENT" in
     INDICATOR_SERVICE=""
     ;;
 
-  lxqt)
+  "$LXQT")
     # LXQt - modern, lightweight Qt desktop
     ENV_DEPS=(
+      crudini
       lxqt-core
       "$OPENBOX"
     )
@@ -294,7 +298,7 @@ case "$ENVIRONMENT" in
     INDICATOR_SERVICE=""
     ;;
 
-  plasma)
+  "$PLASMA")
     # KDE Plasma - modern Qt desktop with an integrated panel and notifications
     ENV_DEPS=(
       kwin-x11
@@ -337,9 +341,16 @@ esac
 ALL_DEPS=("${BASE_DEPS[@]}" "${ENV_DEPS[@]}")
 
 # Install all dependencies in one command
-echo -e "${BLUE}Installing all dependencies (${#ALL_DEPS[@]} packages)...${RESET}"
 echo "::group::Installing dependencies"
 sudo apt-get update -qq
+
+# Plasma 6 packages the X11 session launcher separately. Older releases ship
+# startplasma-x11 in plasma-workspace and do not have this package.
+if [[ "$ENVIRONMENT" == "$PLASMA" ]] && apt-cache show plasma-session-x11 > /dev/null 2>&1; then
+  ALL_DEPS+=(plasma-session-x11)
+fi
+
+echo -e "${BLUE}Installing all dependencies (${#ALL_DEPS[@]} packages)...${RESET}"
 sudo apt-get install -y -qq "${ALL_DEPS[@]}"
 echo "::endgroup::"
 
@@ -416,61 +427,40 @@ pulseaudio --start --exit-idle-time=-1 > /dev/null 2>&1 || true
 pactl load-module module-null-sink sink_name=dummy > /dev/null 2>&1 || true
 
 # Start gnome-keyring for credential management
-if [[ "$ENVIRONMENT" == "lxde" ]]; then
+if [[ "$ENVIRONMENT" == "$LXDE" ]]; then
   echo -e "${BLUE}Starting gnome-keyring daemon...${RESET}"
   eval "$(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh 2>/dev/null)"
-  export SSH_AUTH_SOCK
-  echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
-fi
-
-# GNOME's AppIndicator extension is installed system-wide but is not enabled in
-# a plain GNOME session by default.
-if [[ "$ENVIRONMENT" == "gnome" ]]; then
-  echo -e "${BLUE}Enabling GNOME AppIndicator extension...${RESET}"
-  gsettings set org.gnome.shell disable-user-extensions false
-  gsettings set org.gnome.shell enabled-extensions "['ubuntu-appindicators@ubuntu.com']"
+  # Keyring versions without an SSH agent do not provide a socket.
+  if [[ -n "${SSH_AUTH_SOCK:-}" ]]; then
+    export SSH_AUTH_SOCK
+    echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+  fi
 fi
 
 # Composited desktops need Mesa software rendering when running under Xvfb.
-if [[ "$ENVIRONMENT" == "budgie" ]] || [[ "$ENVIRONMENT" == "$CINNAMON" ]] || \
-   [[ "$ENVIRONMENT" == "gnome" ]] || [[ "$ENVIRONMENT" == "plasma" ]]; then
+if [[ "$ENVIRONMENT" == "$CINNAMON" ]] || [[ "$ENVIRONMENT" == "$PLASMA" ]]; then
   export LIBGL_ALWAYS_SOFTWARE=1
 fi
+
+configure_headless_session
 
 # Start window manager in background
 echo -e "${BLUE}Starting ${ENVIRONMENT} window manager...${RESET}"
 
-if [[ "$START_BUDGIE_COMPONENTS" == "true" ]]; then
-  export XDG_CURRENT_DESKTOP="Budgie:GNOME"
-  echo "XDG_CURRENT_DESKTOP=$XDG_CURRENT_DESKTOP" >> "$GITHUB_ENV"
-fi
-
 $WM_COMMAND &
 WM_PID=$!
 
-# Budgie's background service provides Raven notifications and the
-# StatusNotifier host without pulling in hardware-dependent session services.
-if [[ "$START_BUDGIE_COMPONENTS" == "true" ]]; then
-  budgie-daemon &
-fi
-
-# lxqt-session delegates these components to XDG autostart. That is not
-# consistently available on headless runners without a user systemd session,
-# so start the missing core components explicitly.
-if [[ "$ENVIRONMENT" == "lxqt" ]]; then
-  if ! pgrep -x "$OPENBOX" > /dev/null 2>&1; then
-    "$OPENBOX" &
-  fi
-  if ! pgrep -x "pcmanfm-qt" > /dev/null 2>&1; then
-    pcmanfm-qt --desktop --profile=lxqt &
-  fi
+# lxqt-session delegates desktop startup to XDG autostart. Give it time to
+# start PCManFM before using a fallback on headless runners. The session owns
+# Openbox startup; launching another instance here races with its manager.
+if [[ "$ENVIRONMENT" == "$LXQT" ]] && ! wait_for_process "pcmanfm-qt" "$PROCESS_START_TIMEOUT"; then
+  pcmanfm-qt --desktop --profile=lxqt &
 fi
 
 # Give session managers more time to start all components
-if [[ "$ENVIRONMENT" == "budgie" ]] || [[ "$ENVIRONMENT" == "$CINNAMON" ]] || \
-   [[ "$ENVIRONMENT" == "gnome" ]] || [[ "$ENVIRONMENT" == "lxde" ]] || \
-   [[ "$ENVIRONMENT" == "lxqt" ]] || [[ "$ENVIRONMENT" == "mate" ]] || \
-   [[ "$ENVIRONMENT" == "plasma" ]] || [[ "$ENVIRONMENT" == "xfce" ]]; then
+if [[ "$ENVIRONMENT" == "$CINNAMON" ]] || [[ "$ENVIRONMENT" == "$LXDE" ]] || \
+   [[ "$ENVIRONMENT" == "$LXQT" ]] || [[ "$ENVIRONMENT" == "mate" ]] || \
+   [[ "$ENVIRONMENT" == "$PLASMA" ]] || [[ "$ENVIRONMENT" == "xfce" ]]; then
   sleep 5  # Session managers need more time to start panels, notification daemons, etc.
 else
   sleep 2
@@ -487,16 +477,34 @@ fi
 if [[ "$ENVIRONMENT" == "xfce" ]] && [[ -n "${INDICATOR_SERVICE:-}" ]]; then
   echo -e "${BLUE}Configuring XFCE panel for AppIndicator support...${RESET}"
 
-  # Wait for panel to be fully initialized
-  sleep 2
+  # The panel process can exist before its D-Bus service is ready. Restarting
+  # it before that service is registered opens an interactive dialog.
+  PANEL_READY=false
+  for ((attempt = 0; attempt < PROCESS_START_TIMEOUT; attempt++)); do
+    if dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
+      --reply-timeout=1000 /org/freedesktop/DBus org.freedesktop.DBus.NameHasOwner \
+      string:org.xfce.Panel | grep -q "boolean true"; then
+      PANEL_READY=true
+      break
+    fi
+    sleep 1
+  done
+
+  if [[ "$PANEL_READY" == "false" ]]; then
+    echo -e "${RED}Error: XFCE panel did not start (${PANEL_PROCESS})${RESET}" >&2
+    exit 1
+  fi
 
   # Add the indicator plugin to XFCE panel
   # The plugin ID is usually "indicator" and we add it to panel-1 (default panel)
   xfconf-query -c xfce4-panel -p /panels/panel-1/plugin-ids -t int -s 1 -t int -s 2 -t int -s 3 -t int -s 4 -t int -s 5 -t int -s 99 --create 2>/dev/null || true
   xfconf-query -c xfce4-panel -p /plugins/plugin-99 -t string -s indicator --create 2>/dev/null || true
 
-  # Restart xfce4-panel to apply changes
-  xfce4-panel -r 2>/dev/null || true
+  # Bound the restart in case the panel exits or opens an error dialog.
+  if ! timeout --kill-after=5s "${PROCESS_START_TIMEOUT}s" xfce4-panel -r 2>/dev/null; then
+    echo -e "${RED}Error: Failed to restart XFCE panel${RESET}" >&2
+    exit 1
+  fi
   sleep 2
 
   echo -e "${GREEN}✓ XFCE panel configured for indicators${RESET}"
@@ -533,12 +541,6 @@ if ! wait_for_process "$PANEL_PROCESS" "$PROCESS_START_TIMEOUT"; then
   exit 1
 fi
 
-if [[ "$START_BUDGIE_COMPONENTS" == "true" ]] && \
-   ! wait_for_process "budgie-daemon" "$PROCESS_START_TIMEOUT"; then
-  echo -e "${RED}Error: Budgie background service did not start (budgie-daemon)${RESET}" >&2
-  exit 1
-fi
-
 # Start notification daemon
 if [[ -n "$NOTIF_COMMAND" ]]; then
   NOTIF_PROCESS=$(basename "${NOTIF_COMMAND%% *}")
@@ -562,16 +564,6 @@ if [[ -n "$NOTIF_COMMAND" ]]; then
       echo -e "${YELLOW}⚠ Notification daemon not found: ${NOTIF_COMMAND}${RESET}"
     fi
   fi
-fi
-
-# GNOME's fallback must own the notification service before downstream steps
-# run because notify-send fails immediately when no implementation is present.
-if [[ "$VERIFY_NOTIFICATION_SERVICE" == "true" ]] && \
-   ! dbus-send --session --dest=org.freedesktop.DBus --type=method_call --print-reply \
-     /org/freedesktop/DBus org.freedesktop.DBus.NameHasOwner \
-     string:org.freedesktop.Notifications | grep -q "boolean true"; then
-  echo -e "${RED}Error: GNOME notification service did not start${RESET}" >&2
-  exit 1
 fi
 
 # Start indicator application service (for AppIndicator support)
