@@ -33,15 +33,21 @@ Requirements:
 See [action.yml](action.yml)
 
 ### Linux - CUDA 13.1.0
+
+CUDA 13.1 supports Ubuntu 22.04 and 24.04. Use `ubuntu-24.04` (or `ubuntu-24.04-arm` for ARM64):
+
 ```yaml
-steps:
-  - name: Setup CUDA 13.1.0
-    uses: LizardByte/actions/actions/setup_cuda@master
-    with:
-      cuda-version: '13.1.0'
-      driver-version: '590.44.01'  # Required for Linux
-  - name: Verify CUDA Version
-    run: nvcc --version
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Setup CUDA 13.1.0
+        uses: LizardByte/actions/actions/setup_cuda@master
+        with:
+          cuda-version: '13.1.0'
+          driver-version: '590.44.01'  # Required for Linux
+      - name: Verify CUDA Version
+        run: nvcc --version
 ```
 
 ### Custom Installation Path
@@ -109,6 +115,10 @@ jobs:
 
 The requested CUDA Toolkit release must be available from NVIDIA's installer archive. Ensure the selected runner's
 host compiler is supported by that CUDA release.
+
+For CUDA 13.1, use the Ubuntu versions listed in [NVIDIA's Linux system requirements](https://docs.nvidia.com/cuda/archive/13.1.0/cuda-installation-guide-linux/index.html#system-requirements).
+The runfile installer requires `libxml2.so.2`, which Ubuntu 26.04 does not provide. The `ubuntu-latest` runner uses
+Ubuntu 26.04, so CI uses `ubuntu-24.04` and `ubuntu-24.04-arm` for this CUDA release.
 
 | Platform       | Installer Type    | Driver Version |
 |----------------|-------------------|----------------|
