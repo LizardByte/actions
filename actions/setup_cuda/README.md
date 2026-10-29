@@ -34,12 +34,10 @@ See [action.yml](action.yml)
 
 ### Linux - CUDA 13.1.0
 
-CUDA 13.1 supports Ubuntu 22.04 and 24.04. Use `ubuntu-24.04` (or `ubuntu-24.04-arm` for ARM64):
-
 ```yaml
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Setup CUDA 13.1.0
         uses: LizardByte/actions/actions/setup_cuda@master
@@ -116,9 +114,11 @@ jobs:
 The requested CUDA Toolkit release must be available from NVIDIA's installer archive. Ensure the selected runner's
 host compiler is supported by that CUDA release.
 
-For CUDA 13.1, use the Ubuntu versions listed in [NVIDIA's Linux system requirements](https://docs.nvidia.com/cuda/archive/13.1.0/cuda-installation-guide-linux/index.html#system-requirements).
-The runfile installer requires `libxml2.so.2`, which Ubuntu 26.04 does not provide. The `ubuntu-latest` runner uses
-Ubuntu 26.04, so CI uses `ubuntu-24.04` and `ubuntu-24.04-arm` for this CUDA release.
+The Linux runfile installer requires the older `libxml2.so.2` ABI. When it is missing (including on Ubuntu 26.04),
+the action downloads Ubuntu 24.04's signed `libxml2` and `libicu74` packages into a temporary directory and uses
+them only while running the installer. Package versions come from Ubuntu's current updates and security repositories.
+The temporary libraries are removed afterward; system packages, APT sources, and subsequent workflow steps are unchanged.
+This lets the action run on `ubuntu-latest`. The selected CUDA release must still support your host compiler.
 
 | Platform       | Installer Type    | Driver Version |
 |----------------|-------------------|----------------|

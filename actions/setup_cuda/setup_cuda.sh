@@ -186,6 +186,82 @@ get_download_url() {
     return 0
 }
 
+# Return a private library path when Ubuntu no longer ships the runfile's ABI.
+# Download signed, current Noble packages without changing the host's APT state
+# or installing older libraries system-wide. ICU is libxml2's matching dependency.
+prepare_linux_installer_runtime() {
+    local tmp_dir="$1"
+    local arch="$2"
+    local deb_arch
+    local multiarch
+    local loader_arch
+    local archive_url="https://archive.ubuntu.com/ubuntu"
+    local security_url="https://security.ubuntu.com/ubuntu"
+
+    case "$arch" in
+        x86_64)
+            deb_arch="amd64"
+            multiarch="x86_64-linux-gnu"
+            loader_arch="x86-64"
+            ;;
+        aarch64)
+            deb_arch="arm64"
+            multiarch="aarch64-linux-gnu"
+            loader_arch="AArch64"
+            archive_url="https://ports.ubuntu.com/ubuntu-ports"
+            security_url="$archive_url"
+            ;;
+        *)
+            echo "Error: Unsupported installer runtime architecture: $arch" >&2
+            return 1
+            ;;
+    esac
+
+    if ldconfig -p 2>/dev/null | awk -v arch="$loader_arch" \
+            '$1 == "libxml2.so.2" && index($0, arch) { found = 1 } END { exit !found }'; then
+        return 0
+    fi
+
+    echo "Preparing temporary libxml2.so.2 compatibility libraries for the CUDA installer..." >&2
+    local runtime_dir="${tmp_dir}/installer-runtime"
+    local library_path="${runtime_dir}/root/usr/lib/${multiarch}"
+    mkdir -p "${runtime_dir}/lists/partial" "${runtime_dir}/cache" || return 1
+
+    # APT_CONFIG is read before system configuration, so disable host hooks too.
+    printf 'Dir::Etc::parts "-";\nDir::Etc::main "-";\n' > "${runtime_dir}/apt.conf" || return 1
+    local source_options="arch=${deb_arch} signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg"
+    {
+        printf 'deb [%s] %s noble main\n' "$source_options" "$archive_url"
+        printf 'deb [%s] %s noble-updates main\n' "$source_options" "$archive_url"
+        printf 'deb [%s] %s noble-security main\n' "$source_options" "$security_url"
+    } > "${runtime_dir}/sources.list" || return 1
+
+    local -a apt_options=(
+        -o "Dir::Etc::sourcelist=${runtime_dir}/sources.list"
+        -o "Dir::Etc::sourceparts=-"
+        -o "Dir::State::lists=${runtime_dir}/lists"
+        -o "Dir::Cache=${runtime_dir}/cache"
+        -o "APT::Architecture=${deb_arch}"
+        -o "Acquire::Languages=none"
+    )
+    (
+        cd "$runtime_dir" &&
+        APT_CONFIG="${runtime_dir}/apt.conf" apt-get "${apt_options[@]}" update --error-on=any >&2 &&
+        APT_CONFIG="${runtime_dir}/apt.conf" apt-get "${apt_options[@]}" \
+            download "libxml2:${deb_arch}" "libicu74:${deb_arch}" >&2
+    ) || return 1
+
+    local package
+    for package in "${runtime_dir}"/*.deb; do
+        dpkg-deb --extract "$package" "${runtime_dir}/root" || return 1
+    done
+    if [[ ! -f "${library_path}/libxml2.so.2" ]]; then
+        echo "Error: Downloaded packages do not provide libxml2.so.2" >&2
+        return 1
+    fi
+    printf '%s\n' "$library_path"
+}
+
 # Function to download and install CUDA
 install_cuda() {
     local version="$1"
@@ -243,6 +319,17 @@ install_cuda() {
         fi
     else
         # Linux installation
+        local installer_library_path
+        if ! installer_library_path=$(prepare_linux_installer_runtime "$tmp_dir" "$arch"); then
+            echo -e "${RED}Error: Failed to prepare CUDA installer dependencies${RESET}" >&2
+            rm -rf "$tmp_dir"
+            exit 1
+        fi
+        local -a installer_command=(sudo)
+        if [[ -n "$installer_library_path" ]]; then
+            installer_command+=(env "LD_LIBRARY_PATH=${installer_library_path}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}")
+        fi
+
         # Make the runfile executable
         chmod +x "$installer_path"
 
@@ -254,7 +341,8 @@ install_cuda() {
         # --toolkit: install toolkit only
         # --toolkitpath: specify installation path
         # --no-opengl-libs: don't install OpenGL libraries (not needed for compilation)
-        if ! sudo "$installer_path" --silent --toolkit --toolkitpath="$install_path" --no-opengl-libs; then
+        if ! "${installer_command[@]}" "$installer_path" --silent --toolkit \
+                --toolkitpath="$install_path" --no-opengl-libs; then
             echo -e "${RED}Error: CUDA installation failed${RESET}" >&2
             rm -rf "$tmp_dir"
             exit 1
