@@ -13,25 +13,12 @@ import pytest
 
 # local imports
 from actions.release_homebrew import main
-from tests.release_homebrew.render_formula import render_formula
+from tests.release_homebrew.render_formula import get_source_reference, render_formula
 
 
 def test_formula_uses_fetchable_revision(release_homebrew_formula):
-    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    repository = os.environ['GITHUB_REPOSITORY']
-    if os.getenv('GITHUB_EVENT_NAME') in {'pull_request', 'pull_request_target'}:
-        event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text(encoding='utf-8'))
-        head = event['pull_request']['head']
-        repository = head['repo']['full_name']
-        revision = head['sha']
-    else:
-        revision = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
+    repo_root = Path(__file__).resolve().parents[2]
+    repository, revision = get_source_reference(repo_root)
     with open(release_homebrew_formula) as formula_file:
         formula = formula_file.read()
 
@@ -39,6 +26,33 @@ def test_formula_uses_fetchable_revision(release_homebrew_formula):
     assert f'url "https://github.com/{repository}.git"' in formula
     assert '@GIT_REVISION@' not in formula
     assert '@GIT_REPOSITORY@' not in formula
+
+
+@pytest.mark.parametrize('event_name', [None, 'push', 'workflow_dispatch'])
+@pytest.mark.parametrize('repository', [None, 'contributor/actions'])
+def test_get_source_reference_uses_checkout(tmp_path, monkeypatch, event_name, repository):
+    revision = 'a' * 40
+    monkeypatch.setenv('GITHUB_SHA', 'b' * 40)
+    if event_name is None:
+        monkeypatch.delenv('GITHUB_EVENT_NAME', raising=False)
+    else:
+        monkeypatch.setenv('GITHUB_EVENT_NAME', event_name)
+    if repository is None:
+        monkeypatch.delenv('GITHUB_REPOSITORY', raising=False)
+    else:
+        monkeypatch.setenv('GITHUB_REPOSITORY', repository)
+
+    with patch('tests.release_homebrew.render_formula.subprocess.run') as git:
+        git.return_value.stdout = f'{revision}\n'
+
+        assert get_source_reference(tmp_path) == (repository or 'LizardByte/actions', revision)
+        git.assert_called_once_with(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
 
 
 def test_pre_ci_renders_each_checkout_revision(tmp_path, operating_system, monkeypatch):
@@ -93,8 +107,11 @@ def test_render_formula_uses_pr_head(tmp_path, monkeypatch, event_name, reposito
     merge_revision = 'b' * 40
     event_file = tmp_path / 'event.json'
     event_file.write_text(json.dumps({
-        'pull_request': {'head': {'sha': revision, 'repo': {'full_name': repository}}},
-    }))
+        'pull_request': {
+            'head': {'sha': revision, 'repo': {'full_name': repository}},
+            'body': 'Thanks for the bugfixes \U0001f44f',
+        },
+    }, ensure_ascii=False), encoding='utf-8')
     monkeypatch.setenv('GITHUB_EVENT_NAME', event_name)
     monkeypatch.setenv('GITHUB_EVENT_PATH', str(event_file))
     monkeypatch.setenv('GITHUB_SHA', merge_revision)

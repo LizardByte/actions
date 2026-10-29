@@ -7,8 +7,8 @@ import subprocess
 import sys
 
 
-def render_formula(repo_root: Path, formula_path: Path) -> Path:
-    """Pin the generated formula to the PR head or the ordinary checkout."""
+def get_source_reference(repo_root: Path) -> tuple[str, str]:
+    """Return the fetchable repository and revision for the PR or ordinary checkout."""
     repository = os.getenv('GITHUB_REPOSITORY', 'LizardByte/actions')
     if os.getenv('GITHUB_EVENT_NAME') in {'pull_request', 'pull_request_target'}:
         # Homebrew clones branch and tag refs, which exclude GitHub's temporary merge commit.
@@ -25,6 +25,12 @@ def render_formula(repo_root: Path, formula_path: Path) -> Path:
             check=True,
         ).stdout.strip()
 
+    return repository, revision
+
+
+def render_formula(repo_root: Path, formula_path: Path) -> Path:
+    """Pin the generated formula to the PR head or the ordinary checkout."""
+    repository, revision = get_source_reference(repo_root)
     template_path = repo_root / 'tests' / 'release_homebrew' / 'Formula' / 'hello_world.rb'
     formula = template_path.read_text(encoding='utf-8')
     formula = formula.replace('@GIT_REPOSITORY@', repository).replace('@GIT_REVISION@', revision)
