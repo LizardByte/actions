@@ -70,6 +70,32 @@ apt-cache() {{
     assert excluded not in dependencies
 
 
+@pytest.mark.parametrize('initial_socket,keyring_socket', [
+    (None, None),
+    ('', None),
+    ('/tmp/existing-agent.sock', None),
+    (None, '/tmp/keyring/ssh'),
+])
+def test_lxde_exports_ssh_socket_only_when_available(tmp_path, monkeypatch, initial_socket, keyring_socket):
+    output = tmp_path / 'github_env'
+    output.touch()
+    monkeypatch.setenv('GITHUB_ENV', output.as_posix())
+    monkeypatch.delenv('SSH_AUTH_SOCK', raising=False)
+    if initial_socket is not None:
+        monkeypatch.setenv('SSH_AUTH_SOCK', initial_socket)
+    keyring_output = f'SSH_AUTH_SOCK={keyring_socket}; export SSH_AUTH_SOCK;' if keyring_socket else ''
+    monkeypatch.setenv('TEST_KEYRING_OUTPUT', keyring_output)
+
+    preamble = SCRIPT.split('# Desktop environment specific packages', 1)[0]
+    block = SCRIPT.split('# Start gnome-keyring for credential management', 1)[1].split('# Composited desktops', 1)[0]
+    mocks = 'gnome-keyring-daemon() { printf "%s\\n" "$TEST_KEYRING_OUTPUT"; }\n'
+    result = run_bash(preamble + mocks + block, '--environment=lxde')
+
+    assert result.returncode == 0, result.stderr
+    socket = keyring_socket or initial_socket
+    assert output.read_text(encoding='utf-8') == (f'SSH_AUTH_SOCK={socket}\n' if socket else '')
+
+
 def run_xfce_configuration(ready_after, restart_status=0):
     # Execute the configuration block with a panel whose process exists before
     # its D-Bus service is ready, as happens during slow session startup.

@@ -15,6 +15,7 @@ AYATANA="ayatana"
 CINNAMON="cinnamon"
 LEGACY="legacy"
 OPENBOX="openbox"
+PLASMA="plasma"
 PROCESS_START_TIMEOUT=15
 
 # Default values
@@ -46,7 +47,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate environment
-VALID_ENVIRONMENTS=("$CINNAMON" "fluxbox" "lxde" "lxqt" "mate" "$OPENBOX" "plasma" "xfce")
+VALID_ENVIRONMENTS=("$CINNAMON" "fluxbox" "lxde" "lxqt" "mate" "$OPENBOX" "$PLASMA" "xfce")
 VALID=false
 for env in "${VALID_ENVIRONMENTS[@]}"; do
   if [[ "$ENVIRONMENT" == "$env" ]]; then
@@ -254,7 +255,7 @@ case "$ENVIRONMENT" in
     INDICATOR_SERVICE=""
     ;;
 
-  plasma)
+  "$PLASMA")
     # KDE Plasma - modern Qt desktop with an integrated panel and notifications
     ENV_DEPS=(
       kwin-x11
@@ -302,7 +303,7 @@ sudo apt-get update -qq
 
 # Plasma 6 packages the X11 session launcher separately. Older releases ship
 # startplasma-x11 in plasma-workspace and do not have this package.
-if [[ "$ENVIRONMENT" == "plasma" ]] && apt-cache show plasma-session-x11 > /dev/null 2>&1; then
+if [[ "$ENVIRONMENT" == "$PLASMA" ]] && apt-cache show plasma-session-x11 > /dev/null 2>&1; then
   ALL_DEPS+=(plasma-session-x11)
 fi
 
@@ -386,12 +387,15 @@ pactl load-module module-null-sink sink_name=dummy > /dev/null 2>&1 || true
 if [[ "$ENVIRONMENT" == "lxde" ]]; then
   echo -e "${BLUE}Starting gnome-keyring daemon...${RESET}"
   eval "$(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh 2>/dev/null)"
-  export SSH_AUTH_SOCK
-  echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+  # Keyring versions without an SSH agent do not provide a socket.
+  if [[ -n "${SSH_AUTH_SOCK:-}" ]]; then
+    export SSH_AUTH_SOCK
+    echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+  fi
 fi
 
 # Composited desktops need Mesa software rendering when running under Xvfb.
-if [[ "$ENVIRONMENT" == "$CINNAMON" ]] || [[ "$ENVIRONMENT" == "plasma" ]]; then
+if [[ "$ENVIRONMENT" == "$CINNAMON" ]] || [[ "$ENVIRONMENT" == "$PLASMA" ]]; then
   export LIBGL_ALWAYS_SOFTWARE=1
 fi
 
@@ -416,7 +420,7 @@ fi
 # Give session managers more time to start all components
 if [[ "$ENVIRONMENT" == "$CINNAMON" ]] || [[ "$ENVIRONMENT" == "lxde" ]] || \
    [[ "$ENVIRONMENT" == "lxqt" ]] || [[ "$ENVIRONMENT" == "mate" ]] || \
-   [[ "$ENVIRONMENT" == "plasma" ]] || [[ "$ENVIRONMENT" == "xfce" ]]; then
+   [[ "$ENVIRONMENT" == "$PLASMA" ]] || [[ "$ENVIRONMENT" == "xfce" ]]; then
   sleep 5  # Session managers need more time to start panels, notification daemons, etc.
 else
   sleep 2
