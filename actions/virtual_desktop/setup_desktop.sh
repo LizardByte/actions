@@ -450,14 +450,11 @@ echo -e "${BLUE}Starting ${ENVIRONMENT} window manager...${RESET}"
 $WM_COMMAND &
 WM_PID=$!
 
-# lxqt-session delegates these components to XDG autostart. That is not
-# consistently available on headless runners without a user systemd session,
-# so start the missing core components explicitly.
+# lxqt-session delegates desktop startup to XDG autostart. Give it time to
+# start PCManFM before using a fallback on headless runners. The session owns
+# Openbox startup; launching another instance here races with its manager.
 if [[ "$ENVIRONMENT" == "$LXQT" ]]; then
-  if ! pgrep -x "$OPENBOX" > /dev/null 2>&1; then
-    "$OPENBOX" &
-  fi
-  if ! pgrep -x "pcmanfm-qt" > /dev/null 2>&1; then
+  if ! wait_for_process "pcmanfm-qt" "$PROCESS_START_TIMEOUT"; then
     pcmanfm-qt --desktop --profile=lxqt &
   fi
 fi

@@ -168,6 +168,22 @@ crudini() {
         assert not copy_log.exists()
 
 
+@pytest.mark.parametrize('desktop_running', [False, True])
+def test_lxqt_session_owns_window_manager_startup(desktop_running):
+    block = SCRIPT.split('# lxqt-session delegates', 1)[1].split('\n', 1)[1].split('# Give session managers', 1)[0]
+    mocks = f'''
+pgrep() {{ return {0 if desktop_running else 1}; }}
+sleep() {{ :; }}
+openbox() {{ echo MANUAL_WINDOW_MANAGER; }}
+pcmanfm-qt() {{ echo DESKTOP_STARTED; }}
+'''
+    result = run_bash(SETUP_PREAMBLE + mocks + block, '--environment=lxqt')
+
+    assert result.returncode == 0, result.stderr
+    assert 'MANUAL_WINDOW_MANAGER' not in result.stdout
+    assert ('DESKTOP_STARTED' in result.stdout) is not desktop_running
+
+
 def run_xfce_configuration(ready_after, restart_status=0):
     # Execute the configuration block with a panel whose process exists before
     # its D-Bus service is ready, as happens during slow session startup.
