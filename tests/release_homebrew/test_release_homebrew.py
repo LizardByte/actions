@@ -20,7 +20,7 @@ def test_formula_uses_fetchable_revision(release_homebrew_formula):
     repo_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     repository = os.environ['GITHUB_REPOSITORY']
     if os.getenv('GITHUB_EVENT_NAME') in {'pull_request', 'pull_request_target'}:
-        with open(os.environ['GITHUB_EVENT_PATH']) as event_file:
+        with open(os.environ['GITHUB_EVENT_PATH'], encoding='utf-8') as event_file:
             head = json.load(event_file)['pull_request']['head']
         repository = head['repo']['full_name']
         revision = head['sha']
