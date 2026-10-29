@@ -17,7 +17,7 @@
     "actions"
   ],
   "devDependencies": {
-    "@babel/core": "8.0.7",
+    "@babel/core": "8.0.10",
     "@babel/preset-env": "8.0.7",
     "@eslint/js": "10.0.1",
     "@jest/globals": "30.5.2",
@@ -26,7 +26,7 @@
     "globals": "^17.0.0",
     "jest": "30.5.2",
     "jest-junit": "17.0.0",
-    "npm-run-all2": "9.0.3"
+    "npm-run-all2": "9.0.4"
   },
   "scripts": {
     "test": "npm-run-all test:unit test:report test:lint",
