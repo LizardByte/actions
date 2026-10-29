@@ -453,10 +453,8 @@ WM_PID=$!
 # lxqt-session delegates desktop startup to XDG autostart. Give it time to
 # start PCManFM before using a fallback on headless runners. The session owns
 # Openbox startup; launching another instance here races with its manager.
-if [[ "$ENVIRONMENT" == "$LXQT" ]]; then
-  if ! wait_for_process "pcmanfm-qt" "$PROCESS_START_TIMEOUT"; then
-    pcmanfm-qt --desktop --profile=lxqt &
-  fi
+if [[ "$ENVIRONMENT" == "$LXQT" ]] && ! wait_for_process "pcmanfm-qt" "$PROCESS_START_TIMEOUT"; then
+  pcmanfm-qt --desktop --profile=lxqt &
 fi
 
 # Give session managers more time to start all components
