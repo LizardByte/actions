@@ -6,7 +6,8 @@ import { jest } from '@jest/globals';
 const { blobSha, STATE_PATH } = require('../../actions/org_sync/config.js');
 
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'org-sync-'));
+  // Match the action's canonical paths when the temporary directory is an alias.
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'org-sync-')));
   const repos = new Map();
   const blobs = new Map();
   const trees = new Map();
