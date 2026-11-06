@@ -92,6 +92,7 @@ def test_apt_mirror_fallback_preserves_other_sources(tmp_path, monkeypatch, runn
     assert result.returncode == 0, result.stderr
     expected = fallbacks if runner_environment == 'github-hosted' else azure + fallbacks
     assert mirror_list.read_text(encoding='utf-8') == expected
+    assert list(tmp_path.iterdir()) == [mirror_list]
 
 
 @pytest.mark.parametrize('contents', [

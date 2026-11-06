@@ -143,7 +143,9 @@ configure_apt_mirrors() {
     grep -qE '^https?://azure\.archive\.ubuntu\.com/' "$mirror_list" &&
     grep -qE '^https?://(archive|security)\.ubuntu\.com/' "$mirror_list"; then
     echo -e "${BLUE}Using Ubuntu archive fallbacks instead of the Azure mirror${RESET}"
-    sudo sed -i -E '/^https?:\/\/azure\.archive\.ubuntu\.com\//d' "$mirror_list"
+    # An explicit backup suffix works with both GNU and BSD sed.
+    sudo sed -i.bak -E '/^https?:\/\/azure\.archive\.ubuntu\.com\//d' "$mirror_list"
+    sudo rm -f "${mirror_list}.bak"
   fi
 }
 
