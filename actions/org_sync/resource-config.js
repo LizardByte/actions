@@ -1,6 +1,6 @@
 const { check, keys, names, object } = require('./admin-common.js');
 
-const DEFAULTS = ['all', 'none', 'public', 'private_and_internal'];
+const DEFAULTS = new Set(['all', 'none', 'public', 'private_and_internal']);
 const validUrl = value => typeof value === 'string' && URL.canParse(value) && ['https:', 'http:'].includes(new URL(value).protocol);
 
 function webhook(entry, organizations, scope, defaults) {
@@ -49,7 +49,7 @@ function resourcePolicies(config, organizations, scope) {
     check(entry.source_name === undefined || typeof entry.source_name === 'string' && entry.source_name.length > 0,
       'Invalid source security configuration name');
     object(entry.values ?? {}, 'security configuration values');
-    check(entry.default_for_new_repos === undefined || DEFAULTS.includes(entry.default_for_new_repos), 'Invalid security default scope');
+    check(entry.default_for_new_repos === undefined || DEFAULTS.has(entry.default_for_new_repos), 'Invalid security default scope');
     check(entry.copy_default === undefined || typeof entry.copy_default === 'boolean', 'Invalid copy_default');
     check(!entry.copy_default || entry.source_name, 'copy_default requires source_name');
     check(!entry.copy_default || entry.default_for_new_repos === undefined, 'Choose copy_default or an explicit security default');

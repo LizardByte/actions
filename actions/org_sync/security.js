@@ -1,23 +1,23 @@
 const { check, keys, get, list, api, same, pick, operation } = require('./admin-common.js');
 const { mapConcurrent } = require('./concurrency.js');
 
-const FEATURES = ['code_security', 'dependency_graph', 'dependency_graph_autosubmit_action', 'dependabot_alerts',
+const FEATURES = new Set(['code_security', 'dependency_graph', 'dependency_graph_autosubmit_action', 'dependabot_alerts',
   'dependabot_reachability', 'dependabot_security_updates', 'dependabot_delegated_alert_dismissal',
   'code_scanning_default_setup', 'code_scanning_delegated_alert_dismissal', 'secret_protection', 'secret_scanning',
   'secret_scanning_push_protection', 'secret_scanning_delegated_bypass', 'secret_scanning_validity_checks',
   'secret_scanning_non_provider_patterns', 'secret_scanning_generic_secrets', 'secret_scanning_generic_secrets_push_protection',
-  'secret_scanning_delegated_alert_dismissal', 'secret_scanning_extended_metadata', 'private_vulnerability_reporting'];
-const OPTIONS = ['dependency_graph_autosubmit_action_options', 'code_scanning_options',
-  'code_scanning_default_setup_options', 'secret_scanning_delegated_bypass_options'];
+  'secret_scanning_delegated_alert_dismissal', 'secret_scanning_extended_metadata', 'private_vulnerability_reporting']);
+const OPTIONS = new Set(['dependency_graph_autosubmit_action_options', 'code_scanning_options',
+  'code_scanning_default_setup_options', 'secret_scanning_delegated_bypass_options']);
 const FIELDS = ['name', 'description', 'advanced_security', 'enforcement', ...FEATURES, ...OPTIONS];
 const BASE = '/orgs/{org}/code-security/configurations';
-const DEFAULT_SCOPES = ['all', 'none', 'public', 'private_and_internal'];
+const DEFAULT_SCOPES = new Set(['all', 'none', 'public', 'private_and_internal']);
 
 function validate(values) {
   keys(values, FIELDS, 'code-security values');
   for (const [field, value] of Object.entries(values)) {
-    if (FEATURES.includes(field)) check(['enabled', 'disabled', 'not_set'].includes(value), `Invalid security feature: ${field}`);
-    else if (OPTIONS.includes(field)) check(value === null || value && typeof value === 'object' && !Array.isArray(value),
+    if (FEATURES.has(field)) check(['enabled', 'disabled', 'not_set'].includes(value), `Invalid security feature: ${field}`);
+    else if (OPTIONS.has(field)) check(value === null || value && typeof value === 'object' && !Array.isArray(value),
       `Invalid security options: ${field}`);
     else if (field === 'advanced_security') check(['enabled', 'disabled', 'code_security', 'secret_protection'].includes(value),
       'Invalid advanced_security setting');
@@ -32,7 +32,7 @@ function defaultConfiguration(value) { return value.configuration?.value ?? valu
 function defaultScope(defaults, id) {
   if (id === undefined) return 'none';
   const scopes = defaults.filter(value => defaultConfiguration(value)?.id === id).map(value => value.default_for_new_repos);
-  check(scopes.every(scope => DEFAULT_SCOPES.includes(scope)), 'Unsupported security default response');
+  check(scopes.every(scope => DEFAULT_SCOPES.has(scope)), 'Unsupported security default response');
   if (scopes.includes('all') || scopes.includes('public') && scopes.includes('private_and_internal')) return 'all';
   return scopes.find(scope => scope !== 'none') ?? 'none';
 }
@@ -44,7 +44,7 @@ function defaultIdentity(defaults) {
 
 function snapshot(value) {
   if (value === null) return null;
-  const result = JSON.parse(JSON.stringify(value));
+  const result = structuredClone(value);
   const options = result.secret_scanning_delegated_bypass_options;
   if (options?.reviewers) options.reviewers = options.reviewers.map(reviewer => ({ reviewer_type: reviewer.reviewer_type }));
   return result;

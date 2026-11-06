@@ -87,8 +87,8 @@ async function planResources(github, org, config, values, dryRun, warnings) {
     check(matches.length <= 1, `Ambiguous target webhook: ${entry.id}`);
     return planHook(github, org, entry, matches[0], values, dryRun, warnings);
   });
-  operations.push(...hookPlans.filter(Boolean));
-  operations.push(...await planSecurity(github, org, config.security_configurations.filter(entry => scoped(entry, org))));
+  operations.push(...hookPlans.filter(Boolean),
+    ...await planSecurity(github, org, config.security_configurations.filter(entry => scoped(entry, org))));
   return operations;
 }
 

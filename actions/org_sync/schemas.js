@@ -2,7 +2,7 @@ const { check, keys, get, list, api, same, operation } = require('./admin-common
 
 const FIELDS = ['property_name', 'value_type', 'required', 'default_value', 'description', 'allowed_values',
   'values_editable_by', 'require_explicit_values'];
-const TYPES = ['string', 'single_select', 'multi_select', 'true_false', 'url'];
+const TYPES = new Set(['string', 'single_select', 'multi_select', 'true_false', 'url']);
 
 function selection(value, choices, multiple) {
   if (value === null) return true;
@@ -33,7 +33,7 @@ function validateScalar(result) {
 function definition(value, strict = true) {
   if (strict) keys(value, FIELDS, 'property definition');
   check(typeof value.property_name === 'string' && /^[\w-]{1,75}$/.test(value.property_name), 'Invalid property name');
-  check(TYPES.includes(value.value_type), `Unsupported property type: ${value.property_name}`);
+  check(TYPES.has(value.value_type), `Unsupported property type: ${value.property_name}`);
   const result = { property_name: value.property_name, value_type: value.value_type,
     required: value.required ?? false, default_value: value.default_value ?? null,
     description: value.description ?? null, allowed_values: value.allowed_values ?? null,
@@ -66,14 +66,14 @@ async function planSchemas(github, org, desired) {
     const current = existing.find(value => value.property_name === after.property_name);
     const before = current ? definition(current, false) : null;
     if (same(before, after)) continue;
-    check(!current || current.source_type === undefined || current.source_type === 'organization',
+    check(current?.source_type === undefined || current.source_type === 'organization',
       `Cannot modify inherited property: ${after.property_name}`);
     check(!before || before.value_type === after.value_type, `Property type changes require migration: ${after.property_name}`);
     if (before?.allowed_values?.some(value => !after.allowed_values.includes(value))) removed.push(after);
     const op = operation('schema', after.property_name, before, after, async () => {
       const latest = await get(github, '/orgs/{org}/properties/schema', { org });
       const live = latest.find(value => value.property_name === after.property_name);
-      check(!live || live.source_type === undefined || live.source_type === 'organization',
+      check(live?.source_type === undefined || live.source_type === 'organization',
         `Cannot modify inherited property: ${after.property_name}`);
       check(same(live ? definition(live, false) : null, before), `Property changed during planning: ${after.property_name}`);
       if (removed.includes(after)) await validateValues(github, org, [after]);

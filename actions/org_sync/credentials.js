@@ -15,7 +15,7 @@ async function repositoryIds(github, org, repositoryNames) {
 }
 
 async function selectedIds(github, base, parameters, value) {
-  if (!value || value.visibility !== 'selected') return [];
+  if (value?.visibility !== 'selected') return [];
   return (await list(github, `${base}/repositories`, parameters)).map(repo => repo.id);
 }
 
