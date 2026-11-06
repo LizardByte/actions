@@ -28,6 +28,7 @@
 | [get_changed_files](actions/get_changed_files#readme) | Get the list of changed files in a pull request                                 | composite | javascript       |
 | [monitor_space](actions/monitor_space#readme)         | Monitor and track minimum free disk space                                       | composite | bash             |
 | [more_space](actions/more_space#readme)               | Free up disk space in GitHub Actions runners                                    | composite | bash             |
+| [org_sync](actions/org_sync#readme)                   | Replicate shared files across orgs using repository custom properties           | composite | javascript       |
 | [pinact](actions/pinact#readme)                       | Run pinact against repositories in an organization and create PRs for updates   | composite | javascript       |
 | [release_changelog](actions/release_changelog#readme) | Generate a changelog for the latest release                                     | composite | javascript       |
 | [release_create](actions/release_create#readme)       | Create a new release                                                            | composite | bash, javascript |

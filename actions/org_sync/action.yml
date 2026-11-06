@@ -1,0 +1,93 @@
+---
+name: "Organization sync"
+description: "Replicate shared files across organizations using repository custom properties."
+author: "LizardByte"
+
+branding:
+  icon: copy
+  color: green
+
+inputs:
+  branch:
+    description: 'Dedicated bot branch used for one sync pull request per repository.'
+    required: false
+    default: 'bot/org-sync-files'
+  concurrency:
+    description: 'Maximum number of repositories processed concurrently, from 1 to 10.'
+    required: false
+    default: '3'
+  config:
+    description: 'Path to the JSON file replication policy, relative to source_directory.'
+    required: false
+    default: '.github/file-sync.json'
+  dry_run:
+    description: 'Report planned changes without creating Git objects, branches, or pull requests.'
+    required: false
+    default: 'false'
+  organization:
+    description: 'Limit this run to one organization already present in organizations_file.'
+    required: false
+    default: ''
+  organizations_file:
+    description: 'JSON array of allowed organization names, relative to source_directory.'
+    required: false
+    default: 'organizations.json'
+  pr_title:
+    description: 'Title for synchronization commits and pull requests.'
+    required: false
+    default: 'chore: sync shared files'
+  repository:
+    description: 'Limit this run to one configured owner/repository without enumerating the organization.'
+    required: false
+    default: ''
+  source_directory:
+    description: 'Directory containing the trusted source files and policy. Defaults to the workflow workspace.'
+    required: false
+    default: ${{ github.workspace }}
+  sync_mode_property:
+    description: 'Single-select repository custom property with included/excluded values.'
+    required: false
+    default: 'sync_mode'
+  token:
+    description: 'Token authorized to read properties and deliver file pull requests to the selected targets.'
+    required: true
+  workflow_profiles_property:
+    description: 'Multi-select repository custom property whose values match file rule profiles.'
+    required: false
+    default: 'workflow_profiles'
+
+outputs:
+  changed_repositories:
+    description: 'Number of repositories updated, closed, or reporting planned changes.'
+    value: ${{ steps.sync.outputs.changed_repositories }}
+  failed_repositories:
+    description: 'Number of repositories that failed synchronization.'
+    value: ${{ steps.sync.outputs.failed_repositories }}
+  results:
+    description: 'JSON array of per-repository results and planned file changes. Private target details are omitted.'
+    value: ${{ steps.sync.outputs.results }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Synchronize files
+      id: sync
+      env:
+        INPUT_BRANCH: ${{ inputs.branch }}
+        INPUT_CONCURRENCY: ${{ inputs.concurrency }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        INPUT_ORGANIZATION: ${{ inputs.organization }}
+        INPUT_ORGANIZATIONS_FILE: ${{ inputs.organizations_file }}
+        INPUT_PR_TITLE: ${{ inputs.pr_title }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_SOURCE_DIRECTORY: ${{ inputs.source_directory }}
+        INPUT_SYNC_MODE_PROPERTY: ${{ inputs.sync_mode_property }}
+        INPUT_WORKFLOW_PROFILES_PROPERTY: ${{ inputs.workflow_profiles_property }}
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+      with:
+        github-token: ${{ inputs.token }}
+        retries: 3
+        script: |
+          const script = require('${{ github.action_path }}/org_sync.js');
+          await script({ github, context, core });
