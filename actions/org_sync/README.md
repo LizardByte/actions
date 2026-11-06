@@ -1,8 +1,13 @@
 # org_sync
 
-Replicate shared files across GitHub organizations using repository custom properties. Changes are delivered
-through one bot branch and pull request per repository. This first version synchronizes files; secrets and
-organization settings are separate capabilities.
+Synchronize shared files, repository custom-property schemas, organization settings, Actions variables,
+supplied organization secrets, blocked users, webhooks, and security configurations across GitHub organizations.
+File changes use one bot branch and PR per repo;
+administrative changes use the GitHub API directly. File-only behavior remains the default.
+
+See [Organization administration](administration.md) for schemas, settings, credential policies, permissions,
+and a combined synchronization job. No administration API is called unless `properties_file` or `admin_config`
+is supplied. `sync_files: 'false'` runs administration without requiring a file policy or initialized target repos.
 
 ## 🛠️ Prep Work
 
@@ -165,7 +170,7 @@ access is also reported without blocking other orgs. API retries are handled by 
 | `config`                     | `.github/file-sync.json`   | File policy, relative to the source directory.             |
 | `organizations_file`         | `organizations.json`       | Allowed org-name list, relative to the source directory.   |
 | `source_directory`           | Workflow workspace         | Trusted source checkout.                                   |
-| `token`                      | Required                   | GitHub API credential.                                     |
+| `token`                      | Workflow token             | File API credential; use a cross-repo token for delivery.  |
 | `organization`               | All configured orgs        | Narrow the run to one org.                                 |
 | `repository`                 | All configured targets     | Narrow the run to one `owner/repo`.                        |
 | `dry_run`                    | `false`                    | Read-only planning, with no Git object or PR writes.       |
@@ -174,6 +179,12 @@ access is also reported without blocking other orgs. API retries are handled by 
 | `concurrency`                | `3`                        | Repository workers, from 1 to 10.                          |
 | `sync_mode_property`         | `sync_mode`                | Single-select property controlling repository inclusion.   |
 | `workflow_profiles_property` | `workflow_profiles`        | Multi-select property matched by each rule's `profile`.    |
+| `sync_files`                 | `true`                     | Enable file replication; disable for admin-only jobs.      |
+| `properties_file`            | Empty                      | JSON property definitions to reconcile across orgs.        |
+| `admin_config`               | Empty                      | Explicit settings, variables, and secret policy.           |
+| `admin_token`                | `token`, then job token    | Credential for administrative API calls.                   |
+| `source_token`               | Administrative credential  | Optional separate source-org read credential.              |
+| `secret_values`              | Empty                      | Optional JSON secret map; prefer environment mappings.     |
 
 ## 📤 Outputs
 
@@ -185,13 +196,20 @@ into success. Multiple invocations in the same job receive separate report files
 Reports use the already redacted `results` output, so private target details remain omitted. No consumer-side
 report script or upload step is needed. Creating reports/artifacts does not write to target repositories.
 
-| Output                 | Purpose                                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------------------- |
-| `results`              | JSON array of repository statuses, changes, warnings, errors, and PR URLs where applicable. |
-| `changed_repositories` | Count of updated/closed PRs or repositories with planned changes.                           |
-| `failed_repositories`  | Count of failed targets.                                                                    |
-| `report_file`          | Runner-local path to the complete JSON report.                                              |
-| `artifact_name`        | Unique uploaded report artifact name.                                                       |
+| Output                  | Purpose                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------- |
+| `results`               | JSON array of repository statuses, changes, warnings, errors, and PR URLs where applicable. |
+| `changed_repositories`  | Count of updated/closed PRs or repositories with planned changes.                           |
+| `failed_repositories`   | Count of failed targets.                                                                    |
+| `report_file`           | Runner-local path to the complete JSON report.                                              |
+| `artifact_name`         | Unique uploaded report artifact name.                                                       |
+| `organization_results`  | JSON organization changes/results with secret/variable values omitted.                      |
+| `changed_organizations` | Count of updated organizations or orgs with planned changes.                                |
+| `failed_organizations`  | Count of failed administrative targets.                                                     |
+
+Administrative reports include per-operation status and managed schema/settings before/after values. File
+outputs keep their existing meanings. Missing configuration values and read failures fail closed. Files are
+skipped when a preceding administrative phase fails; use separate jobs for separate credentials and phases.
 
 Schedule full runs to catch property changes; property edits do not change source files. Before replacing an
 existing replicator, migrate exclusions/profiles, compare dry-run results, and disable its writer.

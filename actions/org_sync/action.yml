@@ -1,6 +1,6 @@
 ---
 name: "Organization sync"
-description: "Replicate shared files across organizations using repository custom properties."
+description: "Sync shared files, property schemas, organization policies, variables, and supplied secrets."
 author: "LizardByte"
 
 branding:
@@ -8,12 +8,20 @@ branding:
   color: green
 
 inputs:
+  admin_config:
+    description: 'Optional path to an explicit organization settings, credentials, webhooks, and security policy.'
+    required: false
+    default: ''
+  admin_token:
+    description: 'Optional organization administration credential; falls back to token.'
+    required: false
+    default: ''
   branch:
     description: 'Dedicated bot branch used for one sync pull request per repository.'
     required: false
     default: 'bot/org-sync-files'
   concurrency:
-    description: 'Maximum number of repositories processed concurrently, from 1 to 10.'
+    description: 'Maximum number of organizations or repositories processed concurrently, from 1 to 10.'
     required: false
     default: '3'
   config:
@@ -21,7 +29,7 @@ inputs:
     required: false
     default: '.github/file-sync.json'
   dry_run:
-    description: 'Report planned changes without creating Git objects, branches, or pull requests.'
+    description: 'Plan all selected operations without writing organization or repository state.'
     required: false
     default: 'false'
   organization:
@@ -36,6 +44,10 @@ inputs:
     description: 'Title for synchronization commits and pull requests.'
     required: false
     default: 'chore: sync shared files'
+  properties_file:
+    description: 'Optional JSON property definitions to reconcile in the selected organizations.'
+    required: false
+    default: ''
   repository:
     description: 'Limit this run to one configured owner/repository without enumerating the organization.'
     required: false
@@ -44,19 +56,41 @@ inputs:
     description: 'Directory containing the trusted source files and policy. Defaults to the workflow workspace.'
     required: false
     default: ${{ github.workspace }}
+  source_token:
+    description: 'Optional credential for reading variables/settings from source_organization.'
+    required: false
+    default: ''
+  secret_values:
+    description: 'JSON map of supplied secret values, referenced by value_key in admin_config. Never commit this map.'
+    required: false
+    default: ''
+  sync_files:
+    description: 'Enable file replication. Set false for an administration-only job.'
+    required: false
+    default: 'true'
   sync_mode_property:
     description: 'Single-select repository custom property with included/excluded values.'
     required: false
     default: 'sync_mode'
   token:
-    description: 'Token authorized to read properties and deliver file pull requests to the selected targets.'
-    required: true
+    description: 'File delivery credential; also used for administration when admin_token is omitted.'
+    required: false
+    default: ''
   workflow_profiles_property:
     description: 'Multi-select repository custom property whose values match file rule profiles.'
     required: false
     default: 'workflow_profiles'
 
 outputs:
+  organization_results:
+    description: 'JSON organization plans/results. Secret and variable values are omitted.'
+    value: ${{ steps.admin.outputs.organization_results }}
+  changed_organizations:
+    description: 'Number of organizations updated or reporting planned administration changes.'
+    value: ${{ steps.admin.outputs.changed_organizations }}
+  failed_organizations:
+    description: 'Number of organizations whose administration failed.'
+    value: ${{ steps.admin.outputs.failed_organizations }}
   changed_repositories:
     description: 'Number of repositories updated, closed, or reporting planned changes.'
     value: ${{ steps.sync.outputs.changed_repositories }}
@@ -76,8 +110,39 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: Install secret encryption library
+      id: runtime
+      if: inputs.admin_config != '' && inputs.dry_run == 'false'
+      shell: bash
+      env:
+        ACTION_DIRECTORY: ${{ github.action_path }}
+      run: npm ci --ignore-scripts --omit=dev --no-audit --no-fund --prefix "${ACTION_DIRECTORY}"
+
+    - name: Synchronize organization configuration
+      id: admin
+      env:
+        INPUT_ADMIN_CONFIG: ${{ inputs.admin_config }}
+        INPUT_CONCURRENCY: ${{ inputs.concurrency }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        INPUT_ORGANIZATION: ${{ inputs.organization }}
+        INPUT_ORGANIZATIONS_FILE: ${{ inputs.organizations_file }}
+        INPUT_PROPERTIES_FILE: ${{ inputs.properties_file }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_SECRET_VALUES: ${{ inputs.secret_values }}
+        INPUT_SOURCE_DIRECTORY: ${{ inputs.source_directory }}
+        INPUT_SOURCE_TOKEN: ${{ inputs.source_token }}
+        INPUT_SYNC_FILES: ${{ inputs.sync_files }}
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+      with:
+        github-token: ${{ inputs.admin_token || inputs.token || github.token }}
+        retries: 3
+        script: |
+          const script = require('${{ github.action_path }}/admin.js');
+          await script({ github, core });
+
     - name: Synchronize files
       id: sync
+      if: inputs.sync_files == 'true'
       env:
         INPUT_BRANCH: ${{ inputs.branch }}
         INPUT_CONCURRENCY: ${{ inputs.concurrency }}
@@ -92,7 +157,7 @@ runs:
         INPUT_WORKFLOW_PROFILES_PROPERTY: ${{ inputs.workflow_profiles_property }}
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
       with:
-        github-token: ${{ inputs.token }}
+        github-token: ${{ inputs.token || github.token }}
         retries: 3
         script: |
           const script = require('${{ github.action_path }}/org_sync.js');
@@ -102,8 +167,14 @@ runs:
       id: report
       if: >-
         always() && !cancelled() &&
-        (steps.sync.outcome == 'success' || steps.sync.outcome == 'failure')
+        (steps.admin.outcome != 'skipped' || steps.sync.outcome != 'skipped' || steps.runtime.outcome == 'failure')
       env:
+        SYNC_ADMIN_ENABLED: ${{ inputs.properties_file != '' || inputs.admin_config != '' }}
+        SYNC_ADMIN_OUTCOME: ${{ steps.admin.outcome }}
+        SYNC_ADMIN_RESULTS: ${{ steps.admin.outputs.organization_results }}
+        SYNC_ADMIN_CHANGED: ${{ steps.admin.outputs.changed_organizations }}
+        SYNC_ADMIN_FAILED: ${{ steps.admin.outputs.failed_organizations }}
+        SYNC_PREPARATION_OUTCOME: ${{ steps.runtime.outcome }}
         SYNC_DRY_RUN: ${{ inputs.dry_run }}
         SYNC_RESULTS: ${{ steps.sync.outputs.results }}
         SYNC_OUTCOME: ${{ steps.sync.outcome }}

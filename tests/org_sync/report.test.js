@@ -100,3 +100,36 @@ test('uses the composite action environment when no explicit environment is pass
   const report = await writeSyncReport({ core, context, outputDirectory: directory });
   expect(report.dry_run).toBe(true);
 });
+
+test.each(['true', 'false'])('administration reports preserve separate results/counts in mode %s', async dryRun => {
+  const organizations = [{ organization: 'org', status: 'planned', changes: [{ kind: 'schema', name: 'mode' }] },
+    { organization: 'blocked', status: 'failed' }];
+  const report = await writeSyncReport({ core, context, outputDirectory: directory, env: {
+    SYNC_DRY_RUN: dryRun, SYNC_ADMIN_ENABLED: 'true', SYNC_ADMIN_RESULTS: JSON.stringify(organizations),
+    SYNC_ADMIN_CHANGED: '1', SYNC_ADMIN_FAILED: '1', SYNC_ADMIN_OUTCOME: 'failure', SYNC_OUTCOME: 'skipped',
+  } });
+  expect(report.outcome).toBe('failure');
+  expect(report.organization_results).toEqual(organizations);
+  expect(report.changed_organizations).toBe(1);
+  expect(report.failed_organizations).toBe(1);
+  expect(core.summary.addHeading).toHaveBeenCalledWith('Organization synchronization');
+  expect(core.summary.addTable).toHaveBeenCalledTimes(2);
+  expect(core.summary.addTable.mock.calls[1][0].slice(1)).toEqual([['org', 'planned', '1'], ['blocked', 'failed', '0']]);
+});
+
+test('successful schema-only runs and runtime preparation failures have accurate outcomes', async () => {
+  let report = await writeSyncReport({ core, context, outputDirectory: directory,
+    env: { SYNC_DRY_RUN: 'true', SYNC_ADMIN_ENABLED: 'true', SYNC_ADMIN_OUTCOME: 'success', SYNC_OUTCOME: 'skipped' } });
+  expect(report.outcome).toBe('success');
+  expect(report.changed_organizations).toBe(0);
+  expect(report.failed_organizations).toBe(0);
+  report = await writeSyncReport({ core, context, outputDirectory: directory,
+    env: { SYNC_DRY_RUN: 'false', SYNC_PREPARATION_OUTCOME: 'failure' } });
+  expect(report.outcome).toBe('failure');
+});
+
+test('malformed organization output fails before publishing a report', async () => {
+  await expect(writeSyncReport({ core, context, env: { SYNC_DRY_RUN: 'true', SYNC_ADMIN_RESULTS: '{}' } }))
+    .rejects.toThrow('Expected an array of organization sync results');
+  expect(core.setOutput).not.toHaveBeenCalled();
+});

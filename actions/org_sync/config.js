@@ -41,11 +41,16 @@ function stringList(value, label, validator) {
   return value;
 }
 
-function loadConfig({ sourceDirectory, configFile, organizationsFile }) {
-  const root = fs.realpathSync(sourceDirectory);
+function loadOrganizations(root, organizationsFile) {
   const organizations = stringList(JSON.parse(fs.readFileSync(localPath(root, organizationsFile), 'utf8')),
     'organizations', item => NAME.test(item));
   assert(organizations.length > 0, 'At least one organization is required');
+  return organizations;
+}
+
+function loadConfig({ sourceDirectory, configFile, organizationsFile }) {
+  const root = fs.realpathSync(sourceDirectory);
+  const organizations = loadOrganizations(root, organizationsFile);
   const policy = JSON.parse(fs.readFileSync(localPath(root, configFile), 'utf8'));
   assert(policy?.version === 1 && Array.isArray(policy.rules) && policy.rules.length > 0,
     'Expected a version 1 policy with at least one rule');
@@ -121,4 +126,4 @@ function properties(values, { syncModeProperty = 'sync_mode', workflowProfilesPr
   return { included: sync[0].value === 'included', profiles: new Set(selected) };
 }
 
-module.exports = { STATE_PATH, assert, blobSha, filePath, loadConfig, matches, properties };
+module.exports = { STATE_PATH, assert, blobSha, filePath, loadConfig, loadOrganizations, localPath, matches, properties };

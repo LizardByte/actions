@@ -5,8 +5,8 @@
       "config": "build/org-sync-ci/policy.json",
       "dry_run": "true",
       "organizations_file": "build/org-sync-ci/organizations.json",
-      "repository": "${ github.repository }",
-      "token": "${ secrets.GITHUB_TOKEN }"
+      "properties_file": "build/org-sync-ci/properties.json",
+      "token": "${ secrets.GH_BOT_TOKEN }"
     }
   }
 ]
