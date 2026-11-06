@@ -1,6 +1,7 @@
 const path = require('node:path');
 const { assert, loadConfig } = require('./config.js');
 const { discover, syncRepository } = require('./github.js');
+const { mapConcurrent } = require('./concurrency.js');
 
 function booleanInput(value, defaultValue) {
   if (value === undefined || value === '') return defaultValue;
@@ -33,22 +34,18 @@ async function run({ github, context, core, env = process.env }) {
     const policy = loadConfig({ sourceDirectory: path.resolve(env.INPUT_SOURCE_DIRECTORY || env.GITHUB_WORKSPACE || '.'),
       configFile: env.INPUT_CONFIG || '.github/file-sync.json', organizationsFile: env.INPUT_ORGANIZATIONS_FILE || 'organizations.json' });
     const found = await discover(github, policy, { ...settings, source: `${context.repo.owner}/${context.repo.repo}` });
-    let index = 0;
     const results = found.results;
-    await Promise.all(Array.from({ length: Math.min(settings.concurrency, found.candidates.length) }, async () => {
-      while (index < found.candidates.length) {
-        const candidate = found.candidates[index++];
-        let result;
-        try {
-          result = await syncRepository(github, policy, candidate, settings);
-        } catch (error) {
-          result = { repository: candidate.repo.full_name, status: 'failed', error: error.message };
-        }
-        if (candidate.repo.private) {
-          result = { repository: '[private repository]', status: result.status };
-        }
-        results.push(result);
+    results.push(...await mapConcurrent(found.candidates, settings.concurrency, async candidate => {
+      let result;
+      try {
+        result = await syncRepository(github, policy, candidate, settings);
+      } catch (error) {
+        result = { repository: candidate.repo.full_name, status: 'failed', error: error.message };
       }
+      if (candidate.repo.private) {
+        result = { repository: '[private repository]', status: result.status };
+      }
+      return result;
     }));
     results.sort((left, right) => left.repository.localeCompare(right.repository));
     core.setOutput('results', JSON.stringify(results));

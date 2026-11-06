@@ -12,15 +12,16 @@ function assert(condition, message) {
 
 function filePath(value) {
   assert(typeof value === 'string' && value.length > 0, 'File paths must be non-empty strings');
-  assert(!/[\\:]/.test(value) && [...value].every(character => character.charCodeAt(0) >= 32
-    && character.charCodeAt(0) !== 127) && value === value.trim(), 'Invalid file path');
+  assert(!/[\\:]/.test(value) && [...value].every(character => character.codePointAt(0) >= 32
+    && character.codePointAt(0) !== 127) && value === value.trim(), 'Invalid file path');
   assert(value.split('/').every(part => part && part !== '.' && part !== '..' && part.toLowerCase() !== '.git'),
     'Paths must stay inside the repository');
   return value;
 }
 
 function blobSha(content) {
-  return createHash('sha1').update(`blob ${content.length}\0`).update(content).digest('hex');
+  const hash = createHash('sha1'); // NOSONAR(javascript:S4790): Git blob IDs require SHA-1 for protocol compatibility.
+  return hash.update(`blob ${content.length}\0`).update(content).digest('hex');
 }
 
 function localPath(root, relative) {
@@ -46,7 +47,7 @@ function loadConfig({ sourceDirectory, configFile, organizationsFile }) {
     'organizations', item => NAME.test(item));
   assert(organizations.length > 0, 'At least one organization is required');
   const policy = JSON.parse(fs.readFileSync(localPath(root, configFile), 'utf8'));
-  assert(policy && policy.version === 1 && Array.isArray(policy.rules) && policy.rules.length > 0,
+  assert(policy?.version === 1 && Array.isArray(policy.rules) && policy.rules.length > 0,
     'Expected a version 1 policy with at least one rule');
   const id = policy.id ?? 'org-sync';
   assert(typeof id === 'string' && /^[a-z\d][a-z\d_-]{0,63}$/i.test(id), 'Invalid policy id');

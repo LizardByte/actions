@@ -6,6 +6,8 @@ const { fixture } = require('./fixture.js');
 const { STATE_PATH, blobSha, loadConfig, properties } = require('../../actions/org_sync/config.js');
 const { readState, differences, regular } = require('../../actions/org_sync/planner.js');
 const { booleanInput, options } = require('../../actions/org_sync/org_sync.js');
+const { mapConcurrent } = require('../../actions/org_sync/concurrency.js');
+const { discover } = require('../../actions/org_sync/github.js');
 
 let f;
 beforeEach(() => { f = fixture(); f.policy(); });
@@ -207,6 +209,69 @@ describe('file replication and profile lifecycle', () => {
 });
 
 describe('scope and operational behavior', () => {
+  test('deduplicates mixed discovery scopes and limits exact targets to the requested organization', async () => {
+    policy([
+      { id: 'general', organizations: ['org'], files: [mapping()] },
+      { id: 'exact', repositories: ['org/app', 'other/special'], files: [mapping()] },
+    ]);
+    f.add('org/app');
+    f.add('other/special');
+    f.add('other/unrelated');
+    const loaded = loadConfig({ sourceDirectory: f.root, configFile: 'policy.json', organizationsFile: 'organizations.json' });
+    const narrowed = await discover(f.github, loaded, { organization: 'org', source: 'org/source' });
+    expect(narrowed.candidates.map(candidate => candidate.repo.full_name)).toEqual(['org/app']);
+    expect(calls('GET /repos/{owner}/{repo}')).toHaveLength(0);
+    const results = await f.run({ INPUT_DRY_RUN: 'true' });
+    expect(results.map(result => result.repository)).toEqual(['org/app', 'other/special']);
+    expect(calls('GET /repos/{owner}/{repo}')).toHaveLength(1);
+  });
+
+  test('bounds concurrent work, retains input order, and accepts an empty inventory', async () => {
+    let active = 0;
+    let peak = 0;
+    const processed = [];
+    const results = await mapConcurrent([1, 2, 3, 4, 5], 2, async value => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise(resolve => setImmediate(resolve));
+      active--;
+      processed.push(value);
+      return value * 2;
+    });
+    expect(results).toEqual([2, 4, 6, 8, 10]);
+    expect(processed).toHaveLength(5);
+    expect(new Set(processed).size).toBe(5);
+    expect(peak).toBe(2);
+    const operation = jest.fn();
+    expect(await mapConcurrent([], 3, operation)).toEqual([]);
+    expect(operation).not.toHaveBeenCalled();
+  });
+
+  test('waits for in-flight work before propagating a concurrent failure', async () => {
+    let completed = false;
+    const work = mapConcurrent([1, 2], 2, async value => {
+      if (value === 1) throw new Error('upload failed');
+      await new Promise(resolve => setImmediate(resolve));
+      completed = true;
+    });
+    await expect(work).rejects.toThrow('upload failed');
+    expect(completed).toBe(true);
+  });
+
+  test.each([
+    ['reordered', ['docker', 'docs'], 'updated'],
+    ['replaced', ['docker', 'other'], 'failed'],
+  ])('rechecks profile membership when same-size selections are %s', async (_label, fresh, status) => {
+    const repo = f.add('org/app', {}, ['docs', 'docker']);
+    f.hook = route => { if (route.endsWith('/properties/values')) repo.profiles = fresh; };
+    const result = (await f.run())[0];
+    expect(result.status).toBe(status);
+    if (status === 'failed') {
+      expect(result.error).toBe('Properties changed; rerun synchronization');
+      expect(f.writes()).toHaveLength(0);
+    }
+  });
+
   test.each(['organization', 'repository'])('uses configurable property names through %s discovery and deselection', async scope => {
     const repo = f.add('org/app');
     repo.values = [

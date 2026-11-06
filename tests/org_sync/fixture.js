@@ -12,7 +12,7 @@ function fixture() {
   const trees = new Map();
   const commits = new Map();
   let serial = 0;
-  const hash = value => createHash('sha1').update(JSON.stringify(value)).digest('hex');
+  const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
   const makeBlob = content => {
     const buffer = Buffer.from(content);
     const sha = blobSha(buffer);
@@ -20,7 +20,7 @@ function fixture() {
     return sha;
   };
   const makeCommit = (entries, parents = []) => {
-    const treeSha = hash([...entries].sort());
+    const treeSha = hash([...entries].sort(([left], [right]) => left.localeCompare(right)));
     trees.set(treeSha, new Map(entries));
     const sha = hash({ treeSha, parents, serial: serial++ });
     commits.set(sha, { sha, tree: { sha: treeSha }, parents });
@@ -55,8 +55,7 @@ function fixture() {
   const ancestors = sha => {
     const found = new Map();
     const queue = [[sha, 0]];
-    for (let index = 0; index < queue.length; index++) {
-      const [current, depth] = queue[index];
+    for (const [current, depth] of queue) {
       if (found.has(current)) continue;
       found.set(current, depth);
       for (const parent of commits.get(current).parents) queue.push([parent, depth + 1]);
@@ -73,7 +72,8 @@ function fixture() {
       fs.mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
       fs.writeFileSync(path.join(root, name), content);
     },
-    policy(policy = { version: 1, rules: [{ id: 'docs', profile: 'docs', files: [{ source: 'workflow.yml', destination: '.github/workflows/docs.yml' }] }] }) {
+    policy(value) {
+      const policy = value ?? { version: 1, rules: [{ id: 'docs', profile: 'docs', files: [{ source: 'workflow.yml', destination: '.github/workflows/docs.yml' }] }] };
       api.write('organizations.json', JSON.stringify(['org', 'other']));
       api.write('policy.json', JSON.stringify(policy));
       api.write('workflow.yml', 'shared workflow\n');
@@ -144,7 +144,7 @@ function fixture() {
             if (entry.sha === null) tree.delete(entry.path);
             else tree.set(entry.path, entry);
           }
-          const sha = hash([...tree].sort());
+          const sha = hash([...tree].sort(([left], [right]) => left.localeCompare(right)));
           trees.set(sha, tree);
           return get({ sha });
         }
