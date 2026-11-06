@@ -71,6 +71,53 @@ apt-cache() {{
     assert excluded not in dependencies
 
 
+@pytest.mark.parametrize('runner_environment', [None, 'self-hosted', 'github-hosted'])
+@pytest.mark.parametrize('azure_scheme', ['http', 'https'])
+def test_apt_mirror_fallback_preserves_other_sources(tmp_path, monkeypatch, runner_environment, azure_scheme):
+    mirror_list = tmp_path / 'apt mirrors.txt'
+    azure = f'{azure_scheme}://azure.archive.ubuntu.com/ubuntu/\tpriority:1\n'
+    fallbacks = ('# Official Ubuntu fallbacks\n'
+                 'https://archive.ubuntu.com/ubuntu/\tpriority:2\n'
+                 'https://security.ubuntu.com/ubuntu/\tpriority:3\n'
+                 'https://example.com/ubuntu/\tpriority:4\n')
+    mirror_list.write_text(azure + fallbacks, encoding='utf-8')
+    monkeypatch.delenv('RUNNER_ENVIRONMENT', raising=False)
+    if runner_environment is not None:
+        monkeypatch.setenv('RUNNER_ENVIRONMENT', runner_environment)
+    monkeypatch.setenv('TEST_APT_MIRRORS', mirror_list.as_posix())
+
+    mocks = 'sudo() { "$@"; }\n'
+    result = run_bash(SETUP_PREAMBLE + mocks + 'configure_apt_mirrors "$TEST_APT_MIRRORS"\n', '--environment=mate')
+
+    assert result.returncode == 0, result.stderr
+    expected = fallbacks if runner_environment == 'github-hosted' else azure + fallbacks
+    assert mirror_list.read_text(encoding='utf-8') == expected
+
+
+@pytest.mark.parametrize('contents', [
+    None,
+    'http://azure.archive.ubuntu.com/ubuntu/\tpriority:1\n',
+    'https://archive.ubuntu.com/ubuntu/\tpriority:2\n',
+    ('http://azure.archive.ubuntu.com/ubuntu/\tpriority:1\n'
+     'https://example.com/ubuntu/\tpriority:2\n'),
+])
+def test_apt_mirror_fallback_leaves_unrecognized_configuration_unchanged(tmp_path, monkeypatch, contents):
+    mirror_list = tmp_path / 'apt-mirrors.txt'
+    if contents is not None:
+        mirror_list.write_text(contents, encoding='utf-8')
+    monkeypatch.setenv('RUNNER_ENVIRONMENT', 'github-hosted')
+    monkeypatch.setenv('TEST_APT_MIRRORS', mirror_list.as_posix())
+    mocks = 'sudo() { echo UNEXPECTED_SYSTEM_CHANGE; return 99; }\n'
+    result = run_bash(SETUP_PREAMBLE + mocks + 'configure_apt_mirrors "$TEST_APT_MIRRORS"\n', '--environment=mate')
+
+    assert result.returncode == 0, result.stderr
+    assert 'UNEXPECTED_SYSTEM_CHANGE' not in result.stdout
+    if contents is None:
+        assert not mirror_list.exists()
+    else:
+        assert mirror_list.read_text(encoding='utf-8') == contents
+
+
 @pytest.mark.parametrize('initial_socket,keyring_socket', [
     (None, None),
     ('', None),

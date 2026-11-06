@@ -84,8 +84,8 @@ runs:
         echo "${END_GROUP}"
 
         echo "::group::Install test dependencies"
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq \
+        sudo apt-get update
+        sudo apt-get install -y \
           imagemagick \
           python3-gi \
           xterm \

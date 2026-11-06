@@ -133,6 +133,20 @@ configure_appindicator() {
   return 0
 }
 
+# Azure's Ubuntu mirror can keep sending data too slowly to trigger APT's
+# inactivity timeout. Use the runner's official fallbacks until this is fixed:
+# https://github.com/actions/runner-images/issues/14823
+configure_apt_mirrors() {
+  local mirror_list="$1"
+
+  if [[ "${RUNNER_ENVIRONMENT:-}" == "github-hosted" ]] && [[ -f "$mirror_list" ]] &&
+    grep -qE '^https?://azure\.archive\.ubuntu\.com/' "$mirror_list" &&
+    grep -qE '^https?://(archive|security)\.ubuntu\.com/' "$mirror_list"; then
+    echo -e "${BLUE}Using Ubuntu archive fallbacks instead of the Azure mirror${RESET}"
+    sudo sed -i -E '/^https?:\/\/azure\.archive\.ubuntu\.com\//d' "$mirror_list"
+  fi
+}
+
 # Session managers start their window manager and panel asynchronously. Wait
 # for each required process instead of treating a fixed startup delay as proof
 # that it failed.
@@ -342,7 +356,8 @@ ALL_DEPS=("${BASE_DEPS[@]}" "${ENV_DEPS[@]}")
 
 # Install all dependencies in one command
 echo "::group::Installing dependencies"
-sudo apt-get update -qq
+configure_apt_mirrors /etc/apt/apt-mirrors.txt
+sudo apt-get update
 
 # Plasma 6 packages the X11 session launcher separately. Older releases ship
 # startplasma-x11 in plasma-workspace and do not have this package.
@@ -351,7 +366,7 @@ if [[ "$ENVIRONMENT" == "$PLASMA" ]] && apt-cache show plasma-session-x11 > /dev
 fi
 
 echo -e "${BLUE}Installing all dependencies (${#ALL_DEPS[@]} packages)...${RESET}"
-sudo apt-get install -y -qq "${ALL_DEPS[@]}"
+sudo apt-get install -y "${ALL_DEPS[@]}"
 echo "::endgroup::"
 
 # Clean up apt cache
