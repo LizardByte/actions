@@ -350,6 +350,51 @@ describe('scope and operational behavior', () => {
     expect(f.github.paginate).not.toHaveBeenCalled();
   });
 
+  test('repository-name rules automatically follow the organization list and skip absent repos', async () => {
+    policy([{ id: 'pr-template', repository_names: ['.GitHub'], files: [mapping()] }]);
+    f.write('organizations.json', JSON.stringify(['org', 'other', 'new-org', 'empty-org']));
+    f.add('org/.github');
+    f.add('other/.github');
+    f.add('new-org/.github');
+    f.add('org/app');
+    f.add('org/.github-extra');
+    const result = await f.run({ INPUT_DRY_RUN: 'true' });
+    expect(result.map(item => item.repository)).toEqual(['new-org/.github', 'org/.github', 'other/.github']);
+    expect(f.core.setFailed).not.toHaveBeenCalled();
+    expect(f.writes()).toHaveLength(0);
+  });
+
+  test('name selectors combine with organization scope and exact-repository input', async () => {
+    policy([{ id: 'pr-template', organizations: ['org'], repository_names: ['.github'], files: [mapping()] }]);
+    f.add('org/.github');
+    f.add('other/.github');
+    f.add('org/app');
+    expect((await f.run({ INPUT_DRY_RUN: 'true' })).map(item => item.repository)).toEqual(['org/.github']);
+    expect((await f.run({ INPUT_DRY_RUN: 'true', INPUT_ORGANIZATION: 'other' }))).toEqual([]);
+    f.github.paginate.mockClear();
+    expect((await f.run({ INPUT_DRY_RUN: 'true', INPUT_REPOSITORY: 'org/.github' }))[0].status).toBe('planned');
+    expect(f.github.paginate).not.toHaveBeenCalled();
+    expect(await f.run({ INPUT_DRY_RUN: 'true', INPUT_REPOSITORY: 'org/app' })).toEqual([]);
+    expect(f.core.setFailed).toHaveBeenLastCalledWith('Requested repository is outside the configured policy');
+  });
+
+  test('general rules and name-specific templates remain separate during delivery', async () => {
+    policy([
+      { id: 'general', files: [mapping({ destination: 'shared.yml' })] },
+      { id: 'pr-template', repository_names: ['.github'], files: [mapping({ destination: 'template.md' })] },
+    ]);
+    const defaults = f.add('org/.github');
+    const project = f.add('org/app');
+    defaults.syncMode = 'excluded';
+    expect((await f.run()).find(item => item.repository === 'org/.github').status).toBe('excluded');
+    defaults.syncMode = 'included';
+    await f.run();
+    expect(f.content(defaults, 'template.md')).toBe('shared workflow\n');
+    expect(f.content(defaults, 'shared.yml')).toBe('shared workflow\n');
+    expect(f.content(project, 'shared.yml')).toBe('shared workflow\n');
+    expect(f.content(project, 'template.md')).toBeNull();
+  });
+
   test('narrows by organization and respects per-rule organization selectors', async () => {
     policy([{ id: 'one-org', organizations: ['org'], files: [mapping()] }]);
     f.add('org/app');
@@ -530,6 +575,9 @@ describe('configuration validation', () => {
     { version: 1, rules: [{ id: 'x', profile: 'bad profile', files: [mapping()] }] },
     { version: 1, rules: [{ id: 'x', repositories: ['elsewhere/app'], files: [mapping()] }] },
     { version: 1, rules: [{ id: 'x', repositories: [], files: [mapping()] }] },
+    ...[[], ['.'], ['..'], ['*'], ['org/.github'], ['.github', '.GitHub'], 'not-an-array'].map(repository_names =>
+      ({ version: 1, rules: [{ id: 'x', repository_names, files: [mapping()] }] })),
+    { version: 1, rules: [{ id: 'x', repositories: ['org/app'], repository_names: ['app'], files: [mapping()] }] },
     { version: 1, rules: [{ id: 'x', repositories: ['org/app'], organizations: ['org'], files: [mapping()] }] },
     { version: 1, rules: [{ id: 'x', files: [null] }] },
     { version: 1, rules: [{ id: 'x', files: [mapping({ mode: 'unexpected' })] }] },
