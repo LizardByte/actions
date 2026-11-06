@@ -59,11 +59,11 @@ The organization list is a plain JSON array of names, matching the existing `Liz
 
 ```json
 [
+  "KokoStreamTV",
   "LizardByte",
   "LizardByte-infrastructure",
   "SunshineStream",
-  "Themerr",
-  "KokoStreamTV"
+  "Themerr"
 ]
 ```
 
@@ -92,7 +92,7 @@ a rule to some of these names; it does not replace or change the format of `orga
     },
     {
       "id": "organization-pr-template",
-      "repositories": ["SunshineStream/.github", "Themerr/.github", "KokoStreamTV/.github"],
+      "repository_names": [".github"],
       "files": [
         {"source": ".github/pull_request_template.md"}
       ]
@@ -111,6 +111,10 @@ a rule to some of these names; it does not replace or change the format of `orga
 - Each rule has a unique `id`, an optional `profile`, and a nonempty `files` array.
 - A rule applies to all listed orgs by default. Narrow it with either `organizations` or exact `repositories`.
   These selectors must stay inside `organizations.json`.
+- `repository_names` matches exact repo names, case-insensitively, within the configured organizations. For
+  example, `[".github"]` follows additions to `organizations.json` automatically and skips organizations that
+  do not yet contain that repo. It can be combined with `organizations`, but not with exact `repositories`.
+  Name selectors still respect repository eligibility and custom properties. Globs are not supported.
 - The `repository` action input narrows the policy to one exact repo without listing org repositories.
 - `profile` matches membership in the property selected by `workflow_profiles_property` (default
   `workflow_profiles`). Discovery considers inactive profile rules too, so deselection is reconciled on the next run.
@@ -173,11 +177,21 @@ access is also reported without blocking other orgs. API retries are handled by 
 
 ## 📤 Outputs
 
+Every invocation writes a run summary and uploads a JSON report artifact with a unique `file-sync-` name,
+including dry-run/delivery mode, source revision, scope, counts, and per-target results. Reports are retained
+for 14 days. Partial results and fatal sync failures are reported too; a report does not turn a failed sync
+into success. Multiple invocations in the same job receive separate report files/artifacts.
+
+Reports use the already redacted `results` output, so private target details remain omitted. No consumer-side
+report script or upload step is needed. Creating reports/artifacts does not write to target repositories.
+
 | Output                 | Purpose                                                                                     |
 | ---------------------- | ------------------------------------------------------------------------------------------- |
 | `results`              | JSON array of repository statuses, changes, warnings, errors, and PR URLs where applicable. |
 | `changed_repositories` | Count of updated/closed PRs or repositories with planned changes.                           |
 | `failed_repositories`  | Count of failed targets.                                                                    |
+| `report_file`          | Runner-local path to the complete JSON report.                                              |
+| `artifact_name`        | Unique uploaded report artifact name.                                                       |
 
 Schedule full runs to catch property changes; property edits do not change source files. Before replacing an
 existing replicator, migrate exclusions/profiles, compare dry-run results, and disable its writer.

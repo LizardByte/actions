@@ -66,6 +66,12 @@ outputs:
   results:
     description: 'JSON array of per-repository results and planned file changes. Private target details are omitted.'
     value: ${{ steps.sync.outputs.results }}
+  report_file:
+    description: 'Runner-local path to the JSON report, including source, mode, scope, and per-target results.'
+    value: ${{ steps.report.outputs.report_file }}
+  artifact_name:
+    description: 'Unique name of the JSON report artifact uploaded by this invocation.'
+    value: ${{ steps.report.outputs.artifact_name }}
 
 runs:
   using: "composite"
@@ -91,3 +97,31 @@ runs:
         script: |
           const script = require('${{ github.action_path }}/org_sync.js');
           await script({ github, context, core });
+
+    - name: Save synchronization report
+      id: report
+      if: >-
+        always() && !cancelled() &&
+        (steps.sync.outcome == 'success' || steps.sync.outcome == 'failure')
+      env:
+        SYNC_DRY_RUN: ${{ inputs.dry_run }}
+        SYNC_RESULTS: ${{ steps.sync.outputs.results }}
+        SYNC_OUTCOME: ${{ steps.sync.outcome }}
+        SYNC_CHANGED: ${{ steps.sync.outputs.changed_repositories }}
+        SYNC_FAILED: ${{ steps.sync.outputs.failed_repositories }}
+        SYNC_ORGANIZATION: ${{ inputs.organization }}
+        SYNC_REPOSITORY: ${{ inputs.repository }}
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+      with:
+        script: |
+          const writeSyncReport = require('${{ github.action_path }}/report.js');
+          await writeSyncReport({ core, context });
+
+    - name: Upload synchronization report
+      if: always() && !cancelled() && steps.report.outcome == 'success'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+      with:
+        name: ${{ steps.report.outputs.artifact_name }}
+        path: ${{ steps.report.outputs.report_file }}
+        if-no-files-found: error
+        retention-days: 14

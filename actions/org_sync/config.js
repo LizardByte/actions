@@ -68,11 +68,15 @@ function loadConfig({ sourceDirectory, configFile, organizationsFile }) {
     assert(rule.profile === undefined || (typeof rule.profile === 'string' && /^[\w-]+$/.test(rule.profile)),
       'Invalid workflow profile');
     assert(!(rule.organizations && rule.repositories), 'A rule cannot specify both organizations and repositories');
+    assert(!(rule.repositories && rule.repository_names), 'A rule cannot specify both repositories and repository_names');
     const orgs = rule.organizations === undefined ? organizations : stringList(rule.organizations,
       'rule organizations', item => NAME.test(item) && orgNames.has(item.toLowerCase()));
     const repos = rule.repositories === undefined ? null : stringList(rule.repositories, 'rule repositories',
       item => REPOSITORY.test(item) && orgNames.has(item.split('/')[0].toLowerCase()));
+    const names = rule.repository_names === undefined ? null : stringList(rule.repository_names, 'repository names',
+      item => /^[\w.-]+$/.test(item) && !['.', '..'].includes(item));
     assert(orgs.length > 0 && (repos === null || repos.length > 0), 'Rules must have targets');
+    assert(names === null || names.length > 0, 'Repository names must have targets');
     assert(Array.isArray(rule.files) && rule.files.length > 0, 'Each rule needs files');
     const files = rule.files.map(file => {
       assert(file && typeof file === 'object' && !Array.isArray(file), 'Invalid file mapping');
@@ -93,15 +97,17 @@ function loadConfig({ sourceDirectory, configFile, organizationsFile }) {
       }
       return { destination, mode, source, ...sources.get(source), permissions: file.permissions ?? sources.get(source).permissions };
     });
-    return { id: rule.id, profile: rule.profile, organizations: orgs, repositories: repos, files };
+    return { id: rule.id, profile: rule.profile, organizations: orgs, repositories: repos, repository_names: names, files };
   });
   return { id, organizations, rules, ...filters };
 }
 
 function matches(rule, fullName) {
   const normalized = fullName.toLowerCase();
-  return rule.repositories ? rule.repositories.some(repo => repo.toLowerCase() === normalized)
-    : rule.organizations.some(org => org.toLowerCase() === normalized.split('/')[0]);
+  const [owner, name] = normalized.split('/');
+  const inScope = rule.repositories ? rule.repositories.some(repo => repo.toLowerCase() === normalized)
+    : rule.organizations.some(org => org.toLowerCase() === owner);
+  return inScope && (!rule.repository_names || rule.repository_names.some(repo => repo.toLowerCase() === name));
 }
 
 function properties(values, { syncModeProperty = 'sync_mode', workflowProfilesProperty = 'workflow_profiles' } = {}) {
