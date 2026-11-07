@@ -3,12 +3,23 @@ const { check, keys, names, object } = require('./admin-common.js');
 const DEFAULTS = new Set(['all', 'none', 'public', 'private_and_internal']);
 const validUrl = value => typeof value === 'string' && URL.canParse(value) && ['https:', 'http:'].includes(new URL(value).protocol);
 
+function webhookSource(entry) {
+  check(validUrl(entry.url ?? entry.source_url ?? entry.source_url_prefix), 'Webhook URL must be an HTTP(S) URL');
+  check(entry.source_url === undefined || validUrl(entry.source_url), 'Invalid source webhook URL');
+  if (entry.source_url_prefix === undefined) return undefined;
+  check(entry.source_url === undefined && entry.url === undefined, 'Webhook prefixes cannot be combined with exact URLs');
+  check(validUrl(entry.source_url_prefix), 'Invalid source webhook prefix');
+  const prefix = new URL(entry.source_url_prefix);
+  check(!prefix.username && !prefix.password && !prefix.search && !prefix.hash && prefix.pathname.endsWith('/'),
+    'Webhook prefixes require a directory URL without credentials, query, or fragment');
+  return prefix.href;
+}
+
 function webhook(entry, organizations, scope, defaults) {
-  keys(entry, ['id', 'source_url', 'url', 'events', 'active', 'content_type', 'insecure_ssl', 'secret_env',
+  keys(entry, ['id', 'source_url', 'source_url_prefix', 'url', 'events', 'active', 'content_type', 'insecure_ssl', 'secret_env',
     'secret_value_key', 'unsigned', 'mode', 'organizations'], 'webhook');
   check(typeof entry.id === 'string' && /^[\w-]+$/.test(entry.id), 'Webhook id is required');
-  check(validUrl(entry.url ?? entry.source_url), 'Webhook URL must be an HTTP(S) URL');
-  check(entry.source_url === undefined || validUrl(entry.source_url), 'Invalid source webhook URL');
+  const prefix = webhookSource(entry);
   check(entry.active === undefined || typeof entry.active === 'boolean', 'Invalid webhook active flag');
   check(entry.content_type === undefined || ['json', 'form'].includes(entry.content_type), 'Invalid webhook content_type');
   check(entry.insecure_ssl === undefined || ['0', '1'].includes(entry.insecure_ssl), 'Invalid webhook insecure_ssl');
@@ -24,7 +35,7 @@ function webhook(entry, organizations, scope, defaults) {
   check(targets !== undefined, 'Webhook distribution requires explicit organizations in the policy');
   const mode = entry.mode ?? 'sync';
   check(['sync', 'create_if_missing'].includes(mode), 'Invalid webhook sync mode');
-  return { ...entry, mode, unsigned, organizations: scope(targets, organizations),
+  return { ...entry, source_url_prefix: prefix, mode, unsigned, organizations: scope(targets, organizations),
     value_env: entry.secret_env, value_key: entry.secret_value_key };
 }
 
@@ -40,7 +51,7 @@ function resourcePolicies(config, organizations, scope) {
   check(Array.isArray(config.webhooks ?? []), 'Expected a webhooks array');
   const hooks = (config.webhooks ?? []).map(entry => webhook(entry, organizations, scope, config.organizations));
   check(new Set(hooks.map(entry => entry.id)).size === hooks.length, 'Duplicate webhook ids');
-  check(new Set(hooks.map(entry => entry.url ?? entry.source_url)).size === hooks.length, 'Duplicate webhook URLs');
+  check(new Set(hooks.map(entry => entry.url ?? entry.source_url ?? entry.source_url_prefix)).size === hooks.length, 'Duplicate webhook URLs');
   check(Array.isArray(config.security_configurations ?? []), 'Expected a security_configurations array');
   const security = (config.security_configurations ?? []).map(entry => {
     keys(entry, ['name', 'source_name', 'values', 'default_for_new_repos', 'copy_default', 'organizations'], 'security configuration');

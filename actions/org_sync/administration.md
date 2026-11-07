@@ -238,6 +238,19 @@ it. Both are reapplied because GitHub cannot reliably expose signing-secret stat
 values prevent delivery; dry runs report a warning. Hook URLs, signing secrets, and IDs are omitted from reports.
 All destinations must be explicitly listed at policy or entry level.
 
+Use `source_url_prefix` instead of exact URLs to select a group without committing receiver credentials:
+
+```json
+{"webhooks": [{"id": "notifications", "source_url_prefix": "https://hooks.example.com/receivers/", "unsigned": true}]}
+```
+
+The prefix must be an HTTP(S) directory URL ending in `/`, without user information, query, or fragment.
+It selects only `web` hooks under that origin/path and preserves each matching hook's URL, events, and activity.
+It cannot be combined with `source_url` or a destination `url`. Overlapping selections are rejected. An empty
+source group fails before delivery, because an OAuth-filtered response is not proof that no hooks exist.
+Use a credential that can read the original hooks; GitHub's OAuth webhook restrictions can hide hooks created
+outside that OAuth app even when `admin:org_hook` is granted. URLs and signing secrets remain absent from reports.
+
 ### Code-security configurations
 
 ```json

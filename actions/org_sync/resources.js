@@ -10,6 +10,29 @@ function hookMetadata(hook) {
     content_type: hook.config.content_type, insecure_ssl: String(hook.config.insecure_ssl ?? '0') };
 }
 
+function resolvedHook(entry, source, index) {
+  const configValues = { url: entry.url ?? source?.config.url, content_type: entry.content_type ?? source?.config.content_type ?? 'json',
+    insecure_ssl: String(entry.insecure_ssl ?? source?.config.insecure_ssl ?? '0') };
+  return { ...entry, id: entry.source_url_prefix ? `${entry.id}-${index + 1}` : entry.id,
+    desired: { name: 'web', events: entry.events ?? source?.events ?? ['push'],
+      active: entry.active ?? source?.active ?? true, config: configValues } };
+}
+
+function resolveHooks(entry, sourceHooks) {
+  const matches = sourceHooks.filter(hook => {
+    if (hook.name !== 'web') return false;
+    if (entry.source_url) return hook.config.url === entry.source_url;
+    return entry.source_url_prefix && URL.canParse(hook.config.url)
+      && new URL(hook.config.url).href.startsWith(entry.source_url_prefix);
+  });
+  if (entry.source_url_prefix) {
+    check(matches.length > 0, `Source webhook group is empty or inaccessible: ${entry.id}`);
+    return matches.map((source, index) => resolvedHook(entry, source, index));
+  }
+  check(!entry.source_url || matches.length === 1, `Source webhook is missing or ambiguous: ${entry.id}`);
+  return [resolvedHook(entry, matches[0], 0)];
+}
+
 async function resolveResources(github, config) {
   let blocked = config.blocked_users;
   if (blocked?.from_source) {
@@ -18,19 +41,11 @@ async function resolveResources(github, config) {
     const users = [...blocked.users, ...source.map(user => user.login)].map(user => user.toLowerCase());
     blocked = { ...blocked, users: [...new Set(users)] };
   }
-  const needsHooks = config.webhooks.some(entry => entry.source_url);
+  const needsHooks = config.webhooks.some(entry => entry.source_url || entry.source_url_prefix);
   check(!needsHooks || config.source_organization, 'source_organization is required for webhook copying');
   const sourceHooks = needsHooks ? await list(github, '/orgs/{org}/hooks', { org: config.source_organization }) : [];
-  const hooks = config.webhooks.map(entry => {
-    const matches = sourceHooks.filter(hook => hook.config.url === entry.source_url && hook.name === 'web');
-    check(!entry.source_url || matches.length === 1, `Source webhook is missing or ambiguous: ${entry.id}`);
-    const source = matches[0];
-    const configValues = { url: entry.url ?? source?.config.url, content_type: entry.content_type ?? source?.config.content_type ?? 'json',
-      insecure_ssl: String(entry.insecure_ssl ?? source?.config.insecure_ssl ?? '0') };
-    const resolved = { ...entry, desired: { name: 'web', events: entry.events ?? source?.events ?? ['push'],
-      active: entry.active ?? source?.active ?? true, config: configValues } };
-    return resolved;
-  });
+  const hooks = config.webhooks.flatMap(entry => resolveHooks(entry, sourceHooks));
+  check(new Set(hooks.map(entry => entry.desired.config.url)).size === hooks.length, 'Overlapping webhook selections');
   return resolveSecurity(github, { ...config, blocked_users: blocked, webhooks: hooks });
 }
 
