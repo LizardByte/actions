@@ -100,7 +100,10 @@ async function fieldOperation(github, org, kind, name, route, desired, validator
     // PUT endpoints can reset omitted fields: retain all supported fields read immediately before writing.
     const retained = Object.fromEntries(Object.keys(validators).filter(field => Object.hasOwn(live, field))
       .map(field => [field, live[field]]));
-    const body = kind === 'organization_settings' ? desired : { ...retained, ...desired };
+    // PATCH only changed fields: some readback fields are rejected on plans that cannot configure them.
+    const body = kind === 'organization_settings'
+      ? Object.fromEntries(Object.entries(desired).filter(([field, value]) => !same(before[field], value)))
+      : { ...retained, ...desired };
     await api(github, `${kind === 'organization_settings' ? 'PATCH' : 'PUT'} ${route}`, { org, ...body });
     const saved = await get(github, route, { org });
     check(same(snapshot(saved), desired), `Settings verification failed: ${name}`);

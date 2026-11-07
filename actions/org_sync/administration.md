@@ -197,7 +197,13 @@ report visibility/counts rather than exposing discovered private repository IDs 
 ### Organization and Actions settings
 
 `settings.from_source` names fields to copy from the source org; `settings.values` supplies explicit overrides.
-Only specified fields are managed. Supported organization fields are:
+Only specified fields are managed. Organization PATCH requests send only changed fields. Unchanged settings
+remain in the report, concurrency checks, and read-back verification, but are not resent: GitHub can return
+plan-restricted settings that it rejects on writes, even when their value is unchanged. Actual changes to such
+settings still require the destination to support them. Actions PUT requests retain supported fields to avoid
+resetting omitted settings. A dry run computes plans without exercising GitHub's write validation.
+
+Supported organization fields are:
 
 - `default_repository_permission`, `web_commit_signoff_required`, `deploy_keys_enabled_for_repositories`;
 - `has_organization_projects`, `has_repository_projects`;

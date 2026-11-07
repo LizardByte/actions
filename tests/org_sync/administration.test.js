@@ -152,6 +152,54 @@ test('settings copy explicit source fields, preserve destination-specific fields
   expect((await f.run(env))[0].status).toBe('unchanged');
 });
 
+test('organization PATCH omits unchanged settings rejected by non-enterprise organizations', async () => {
+  const source = f.organizations.get('source');
+  const target = f.organizations.get('target');
+  Object.assign(source.settings, { members_can_create_internal_repositories: false,
+    members_can_create_private_repositories: false, twitter_username: 'SharedAccount' });
+  Object.assign(target.settings, { members_can_create_internal_repositories: false,
+    members_can_create_private_repositories: true, twitter_username: null });
+  policy({ source_organization: 'source', settings: { from_source: [
+    'members_can_create_internal_repositories', 'members_can_create_private_repositories', 'twitter_username',
+  ] } });
+  f.hook = (route, args) => {
+    if (route === 'PATCH /orgs/{org}' && Object.hasOwn(args, 'members_can_create_internal_repositories')) {
+      throw Object.assign(new Error('This organization does not support internal repositories.'), { status: 422 });
+    }
+  };
+  const preview = (await f.run({ ...env, INPUT_DRY_RUN: 'true' }))[0];
+  expect(preview.status).toBe('planned');
+  expect(f.writes).toHaveLength(0);
+  const result = (await f.run(env))[0];
+  expect(result.status).toBe('updated');
+  expect(f.writes).toEqual([{ route: 'PATCH /orgs/{org}', org: 'target',
+    members_can_create_private_repositories: false, twitter_username: 'SharedAccount' }]);
+  expect(result.changes[0]).toMatchObject({ before: { members_can_create_internal_repositories: false },
+    after: { members_can_create_internal_repositories: false }, status: 'updated' });
+  expect((await f.run(env))[0].status).toBe('unchanged');
+});
+
+test('organization PATCH still sends an explicitly changed enterprise setting when disabling it', async () => {
+  f.organizations.get('target').settings.members_can_create_internal_repositories = true;
+  policy({ settings: { values: { members_can_create_internal_repositories: false } } });
+  expect((await f.run(env))[0].status).toBe('updated');
+  expect(f.writes).toEqual([{ route: 'PATCH /orgs/{org}', org: 'target', members_can_create_internal_repositories: false }]);
+});
+
+test('organization PATCH detects concurrent changes even to managed fields omitted from the payload', async () => {
+  const target = f.organizations.get('target');
+  target.settings.members_can_create_internal_repositories = false;
+  policy({ settings: { values: { members_can_create_internal_repositories: false, web_commit_signoff_required: true } } });
+  let reads = 0;
+  f.hook = (route, args) => {
+    if (route === 'GET /orgs/{org}' && args.org === 'target' && ++reads === 2) {
+      target.settings.members_can_create_internal_repositories = true;
+    }
+  };
+  expect((await f.run(env))[0].error).toContain('Settings changed during planning');
+  expect(f.writes).toHaveLength(0);
+});
+
 test('Actions policies retain unspecified fields and resolve selected repositories inside each organization', async () => {
   const repo = f.repo('target', '.github');
   f.organizations.get('target').permissions.sha_pinning_required = true;
