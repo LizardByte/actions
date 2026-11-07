@@ -119,10 +119,13 @@ function fixture(publicKey) {
       return state.repositories.filter(repo => (state.access.get(key) ?? []).includes(repo.id));
     }
     if (method !== 'GET') {
-      const metadata = { name, visibility: args.visibility, updated_at: String(api.writes.length) };
+      const metadata = { ...(method === 'PATCH' ? store.get(key) : {}), name,
+        ...(args.visibility === undefined ? {} : { visibility: args.visibility }), updated_at: String(api.writes.length) };
       if (type === 'variables') metadata.value = args.value;
       store.set(key, metadata);
-      state.access.set(key, args.selected_repository_ids ?? []);
+      if (method !== 'PATCH' || args.visibility !== undefined || args.selected_repository_ids !== undefined) {
+        state.access.set(key, args.selected_repository_ids ?? []);
+      }
       if (type === 'secrets') state.ciphertext.set(key, args.encrypted_value);
     }
     if (!suffix) return [...store.values()].filter(value => type !== 'secrets' || state.secrets.get(`${kind}/${value.name}`) === value);

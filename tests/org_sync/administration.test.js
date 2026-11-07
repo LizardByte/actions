@@ -125,7 +125,7 @@ test('file-only mode performs no administration reads and invalid modes/configur
 
 test.each([
   { secrets: [{ name: 'TOKEN', value: 'never-inline', value_key: 'token', visibility: 'all' }] },
-  { secrets: [{ name: 'TOKEN', value_key: 'token' }] },
+  { secrets: [{ name: 'TOKEN', value_key: 'token', visibility: null }] },
   { variables: [{ name: 'GITHUB_RESERVED', value: 'x', visibility: 'all' }] },
   { variables: [{ name: 'VAR', value: 'x', from_source: 'X', visibility: 'all' }] },
   { variables: [{ name: 'VAR', value: 'x', visibility: 'all', organizations: ['outside'] }] },
