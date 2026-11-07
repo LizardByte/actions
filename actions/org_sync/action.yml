@@ -9,7 +9,8 @@ branding:
 
 inputs:
   admin_config:
-    description: 'Optional path to a combined policy or a separate administration policy; enables organization administration.'
+    description: >-
+      Optional path to a combined policy or a separate administration policy; enables organization administration.
     required: false
     default: ''
   admin_token:
