@@ -4,6 +4,14 @@ const { mapConcurrent } = require('./concurrency.js');
 
 const boolean = value => typeof value === 'boolean';
 const text = value => typeof value === 'string';
+const PROFILE_FIELDS = new Set(['company', 'blog', 'location', 'name', 'description', 'twitter_username']);
+
+// GitHub represents unset profile strings as null, including after clearing them with an empty string.
+function profileValues(values) {
+  return Object.fromEntries(Object.entries(values).map(([field, value]) =>
+    [field, PROFILE_FIELDS.has(field) && value === null ? '' : value]));
+}
+
 const choice = options => value => options.includes(value);
 const days = value => Number.isInteger(value) && value >= 1 && value <= 400;
 const ORGANIZATION = Object.fromEntries([
@@ -57,7 +65,7 @@ async function resolveSettings(github, config) {
   let settings = {};
   if (fields.length) {
     const source = await get(github, '/orgs/{org}', { org: config.source_organization });
-    settings = validateFields(pick(source, fields), ORGANIZATION, 'source organization settings');
+    settings = validateFields(profileValues(pick(source, fields)), ORGANIZATION, 'source organization settings');
   }
   Object.assign(settings, config.settings?.values ?? {});
   const actions = {};
@@ -81,20 +89,21 @@ async function resolveSettings(github, config) {
 async function fieldOperation(github, org, kind, name, route, desired, validators) {
   const fields = Object.keys(desired);
   if (!fields.length) return null;
+  const snapshot = value => kind === 'organization_settings' ? profileValues(pick(value, fields)) : pick(value, fields);
   const current = await get(github, route, { org });
-  const before = pick(current, fields);
+  const before = snapshot(current);
   validateFields(before, validators, `${name} readback`);
   if (same(before, desired)) return null;
   return operation(kind, name, before, desired, async () => {
     const live = await get(github, route, { org });
-    check(same(pick(live, fields), before), `Settings changed during planning: ${name}`);
+    check(same(snapshot(live), before), `Settings changed during planning: ${name}`);
     // PUT endpoints can reset omitted fields: retain all supported fields read immediately before writing.
     const retained = Object.fromEntries(Object.keys(validators).filter(field => Object.hasOwn(live, field))
       .map(field => [field, live[field]]));
     const body = kind === 'organization_settings' ? desired : { ...retained, ...desired };
     await api(github, `${kind === 'organization_settings' ? 'PATCH' : 'PUT'} ${route}`, { org, ...body });
     const saved = await get(github, route, { org });
-    check(same(pick(saved, fields), desired), `Settings verification failed: ${name}`);
+    check(same(snapshot(saved), desired), `Settings verification failed: ${name}`);
   });
 }
 

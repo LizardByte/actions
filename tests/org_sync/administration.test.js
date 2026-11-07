@@ -14,6 +14,21 @@ const property = { property_name: 'sync_mode', value_type: 'single_select', allo
 const policy = config => f.write('admin.json', { organizations: ['target'], ...config });
 const env = { INPUT_PROPERTIES_FILE: '', INPUT_ADMIN_CONFIG: 'admin.json', INPUT_ORGANIZATION: 'target' };
 
+test('unset organization profiles copy, clear, and verify using GitHub null/empty-string equivalence', async () => {
+  const source = f.organizations.get('source');
+  const target = f.organizations.get('target');
+  source.settings.company = null;
+  source.settings.twitter_username = 'SharedAccount';
+  target.settings.company = 'Old company';
+  target.settings.twitter_username = null;
+  policy({ source_organization: 'source', settings: { from_source: ['company', 'twitter_username'] } });
+  const result = (await f.run(env))[0];
+  expect(result.status).toBe('updated');
+  expect(target.settings).toMatchObject({ company: '', twitter_username: 'SharedAccount' });
+  target.settings.company = null;
+  expect((await f.run(env))[0].status).toBe('unchanged');
+});
+
 beforeAll(async () => { await sodium.ready; keypair = sodium.crypto_box_keypair(); });
 beforeEach(() => {
   f = fixture({ key_id: 'public-key', key: sodium.to_base64(keypair.publicKey, sodium.base64_variants.ORIGINAL) });
