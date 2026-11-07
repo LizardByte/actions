@@ -15,7 +15,8 @@ async function resolveResources(github, config) {
   if (blocked?.from_source) {
     check(config.source_organization, 'source_organization is required for blocked-user copying');
     const source = await list(github, '/orgs/{org}/blocks', { org: config.source_organization });
-    blocked = { ...blocked, users: [...new Set([...blocked.users, ...source.map(user => user.login.toLowerCase())])] };
+    const users = [...blocked.users, ...source.map(user => user.login)].map(user => user.toLowerCase());
+    blocked = { ...blocked, users: [...new Set(users)] };
   }
   const needsHooks = config.webhooks.some(entry => entry.source_url);
   check(!needsHooks || config.source_organization, 'source_organization is required for webhook copying');

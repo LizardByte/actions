@@ -17,7 +17,7 @@ afterEach(() => { f.remove(); jest.restoreAllMocks(); });
 
 test('blocked-user copying is additive and dry runs never block or unblock', async () => {
   source.blocks = ['Source-User']; target.blocks = ['local-user'];
-  policy({ blocked_users: { from_source: true, users: ['extra-user'] } });
+  policy({ blocked_users: { from_source: true, users: ['extra-user', 'SOURCE-USER'] } });
   expect((await result({ INPUT_DRY_RUN: 'true' })).changes).toHaveLength(2);
   expect(f.writes).toHaveLength(0);
   expect((await result()).status).toBe('updated');
