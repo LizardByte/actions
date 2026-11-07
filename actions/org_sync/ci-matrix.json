@@ -5,7 +5,8 @@
       "config": "build/org-sync-ci/policy.json",
       "dry_run": "true",
       "organizations_file": "build/org-sync-ci/organizations.json",
-      "properties_file": "build/org-sync-ci/properties.json",
+      "properties_file": "build/org-sync-ci/policy.json",
+      "admin_config": "build/org-sync-ci/policy.json",
       "token": "${ secrets.GH_BOT_TOKEN }"
     }
   }

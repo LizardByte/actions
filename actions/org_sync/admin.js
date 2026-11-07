@@ -22,6 +22,7 @@ async function prepare(github, loaded, env) {
   const config = { ...loaded.config, variables: loaded.config.variables.filter(entry =>
     entry.organizations.some(org => active.some(target => target.toLowerCase() === org.toLowerCase()))) };
   validateSettings(config);
+  if (!active.length) return config;
   const source = env.INPUT_SOURCE_TOKEN ? new github.constructor({ auth: env.INPUT_SOURCE_TOKEN,
     baseUrl: env.GITHUB_API_URL || 'https://api.github.com' }) : github;
   return variableValues(source, await resolveResources(source, await resolveSettings(source, config)));

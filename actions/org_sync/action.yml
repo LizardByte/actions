@@ -9,7 +9,7 @@ branding:
 
 inputs:
   admin_config:
-    description: 'Optional path to an explicit organization settings, credentials, webhooks, and security policy.'
+    description: 'Optional path to a combined policy or a separate administration policy; enables organization administration.'
     required: false
     default: ''
   admin_token:
@@ -25,7 +25,7 @@ inputs:
     required: false
     default: '3'
   config:
-    description: 'Path to the JSON file replication policy, relative to source_directory.'
+    description: 'Path to a combined policy or a separate file replication policy, relative to source_directory.'
     required: false
     default: '.github/file-sync.json'
   dry_run:
@@ -45,7 +45,7 @@ inputs:
     required: false
     default: 'chore: sync shared files'
   properties_file:
-    description: 'Optional JSON property definitions to reconcile in the selected organizations.'
+    description: 'Optional path to a combined policy or separate property definitions; enables schema reconciliation.'
     required: false
     default: ''
   repository:

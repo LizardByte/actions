@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
+const { section } = require('./policy.js');
 
 const STATE_PATH = '.github/org-sync-state.json';
 const NAME = /^[a-z\d](?:[a-z\d-]*[a-z\d])?$/i;
@@ -51,7 +52,7 @@ function loadOrganizations(root, organizationsFile) {
 function loadConfig({ sourceDirectory, configFile, organizationsFile }) {
   const root = fs.realpathSync(sourceDirectory);
   const organizations = loadOrganizations(root, organizationsFile);
-  const policy = JSON.parse(fs.readFileSync(localPath(root, configFile), 'utf8'));
+  const policy = section(JSON.parse(fs.readFileSync(localPath(root, configFile), 'utf8')), 'files');
   assert(policy?.version === 1 && Array.isArray(policy.rules) && policy.rules.length > 0,
     'Expected a version 1 policy with at least one rule');
   const id = policy.id ?? 'org-sync';
