@@ -49,6 +49,12 @@ function blocks(state, method, args) {
   return state.blocks.map(login => ({ login }));
 }
 
+function credentialMetadata(previous, method, args, updatedAt) {
+  return { ...(method === 'PATCH' ? previous : {}), name: args.name ?? args.secret_name,
+    ...(args.visibility === undefined ? {} : { visibility: args.visibility }), updated_at: String(updatedAt),
+    ...(args.value === undefined ? {} : { value: args.value }) };
+}
+
 function fixture(publicKey) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'org-sync-admin-')));
   const organizations = new Map();
@@ -119,10 +125,10 @@ function fixture(publicKey) {
       return state.repositories.filter(repo => (state.access.get(key) ?? []).includes(repo.id));
     }
     if (method !== 'GET') {
-      const metadata = { name, visibility: args.visibility, updated_at: String(api.writes.length) };
-      if (type === 'variables') metadata.value = args.value;
-      store.set(key, metadata);
-      state.access.set(key, args.selected_repository_ids ?? []);
+      store.set(key, credentialMetadata(store.get(key), method, args, api.writes.length));
+      if (method !== 'PATCH' || args.visibility !== undefined || args.selected_repository_ids !== undefined) {
+        state.access.set(key, args.selected_repository_ids ?? []);
+      }
       if (type === 'secrets') state.ciphertext.set(key, args.encrypted_value);
     }
     if (!suffix) return [...store.values()].filter(value => type !== 'secrets' || state.secrets.get(`${kind}/${value.name}`) === value);

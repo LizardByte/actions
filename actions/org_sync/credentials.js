@@ -36,6 +36,18 @@ function access(value, ids) {
 
 const reportedAccess = (value, ids) => value ? { visibility: value.visibility, selected_repository_count: ids.length } : null;
 
+async function credentialAccess(github, org, entry, existing, base, coordinates, warnings) {
+  const oldIds = await selectedIds(github, base, coordinates, existing);
+  if (existing && !entry.manage_access) return { desired: existing, ids: oldIds, oldIds };
+  const ids = await credentialRepositories(github, org, entry, warnings);
+  return ids === null ? null : { desired: entry, ids, oldIds };
+}
+
+function accessBody(value, ids) {
+  return { visibility: value.visibility,
+    ...(value.visibility === 'selected' ? { selected_repository_ids: ids } : {}) };
+}
+
 async function encrypt(value, publicKey) {
   // GitHub requires a libsodium sealed box, using the recipient organization's public key.
   const sodium = require('libsodium-wrappers');
@@ -66,61 +78,61 @@ async function variableValues(sourceGithub, config) {
 async function planVariable(github, org, entry, existing, warnings) {
   const base = '/orgs/{org}/actions/variables/{name}';
   const coordinates = { org, name: entry.name };
-  const ids = await credentialRepositories(github, org, entry, warnings);
-  if (ids === null) return null;
-  const oldIds = await selectedIds(github, base, coordinates, existing);
-  if (existing?.value === entry.value && same(access(existing, oldIds), access(entry, ids))) return null;
-  const op = operation('variable', entry.name, reportedAccess(existing, oldIds), reportedAccess(entry, ids), async () => {
+  const planned = await credentialAccess(github, org, entry, existing, base, coordinates, warnings);
+  if (!planned) return null;
+  const { desired, ids, oldIds } = planned;
+  if (existing?.value === entry.value && same(access(existing, oldIds), access(desired, ids))) return null;
+  const op = operation('variable', entry.name, reportedAccess(existing, oldIds), reportedAccess(desired, ids), async () => {
     const latest = await list(github, '/orgs/{org}/actions/variables', { org, per_page: 30 });
     const current = latest.find(value => value.name.toUpperCase() === entry.name);
     check(same(current, existing), `Variable changed during planning: ${entry.name}`);
     const currentIds = await selectedIds(github, base, coordinates, current);
     check(same(sortedIds(currentIds), sortedIds(oldIds)), `Variable access changed during planning: ${entry.name}`);
-    if (entry.visibility === 'selected') {
+    if (entry.manage_access && entry.visibility === 'selected') {
       check(same(await credentialRepositories(github, org, entry), ids), 'Selected repository identity changed');
     }
-    const body = { name: entry.name, value: entry.value, visibility: entry.visibility,
-      ...(entry.visibility === 'selected' ? { selected_repository_ids: ids } : {}) };
+    const body = { name: entry.name, value: entry.value,
+      ...(!existing || entry.manage_access ? accessBody(desired, ids) : {}) };
     const route = existing ? `PATCH ${base}` : 'POST /orgs/{org}/actions/variables';
     await api(github, route, { ...coordinates, ...body });
     const saved = await get(github, base, coordinates);
     const savedIds = await selectedIds(github, base, coordinates, saved);
-    check(saved.value === entry.value && same(access(saved, savedIds), access(entry, ids)),
+    check(saved.value === entry.value && same(access(saved, savedIds), access(desired, ids)),
       `Variable verification failed: ${entry.name}`);
   });
   op.change.value_changed = !existing || existing.value !== entry.value;
-  op.change.access_changed = !same(access(existing, oldIds), access(entry, ids));
+  op.change.access_changed = !same(access(existing, oldIds), access(desired, ids));
   return op;
 }
 
 async function planSecret(github, org, entry, existing, values, dryRun, warnings) {
   const base = `/orgs/{org}/${entry.kind}/secrets/{secret_name}`;
   const coordinates = { org, secret_name: entry.name };
-  const ids = await credentialRepositories(github, org, entry, warnings);
-  if (ids === null) return null;
-  const oldIds = await selectedIds(github, base, coordinates, existing);
+  const planned = await credentialAccess(github, org, entry, existing, base, coordinates, warnings);
+  if (!planned) return null;
+  const { desired, ids, oldIds } = planned;
   const supplied = Object.hasOwn(values, entry.value_key);
   check(dryRun || supplied, `Missing supplied secret value: ${entry.value_env ?? entry.value_key}`);
   if (!supplied) warnings.push(`Secret value required for delivery: ${entry.kind}/${entry.name}`);
-  const op = operation('secret', `${entry.kind}/${entry.name}`, reportedAccess(existing, oldIds), reportedAccess(entry, ids), async () => {
+  const op = operation('secret', `${entry.kind}/${entry.name}`, reportedAccess(existing, oldIds), reportedAccess(desired, ids), async () => {
     const latest = await list(github, `/orgs/{org}/${entry.kind}/secrets`, { org });
     const current = latest.find(value => value.name.toUpperCase() === entry.name);
     const currentIds = await selectedIds(github, base, coordinates, current);
     check(same(current, existing) && same(sortedIds(currentIds), sortedIds(oldIds)),
       `Secret or access changed during planning: ${entry.kind}/${entry.name}`);
-    if (entry.visibility === 'selected') {
+    if (entry.manage_access && entry.visibility === 'selected') {
       check(same(await credentialRepositories(github, org, entry), ids), 'Selected repository identity changed');
     }
     const publicKey = await get(github, `/orgs/{org}/${entry.kind}/secrets/public-key`, { org });
     const encrypted = await encrypt(values[entry.value_key], publicKey);
     await api(github, `PUT ${base}`, { ...coordinates, key_id: publicKey.key_id, encrypted_value: encrypted,
-      visibility: entry.visibility, ...(entry.visibility === 'selected' ? { selected_repository_ids: ids } : {}) });
+      ...accessBody(desired, ids) });
     const saved = await get(github, base, coordinates);
     const savedIds = await selectedIds(github, base, coordinates, saved);
-    check(same(access(saved, savedIds), access(entry, ids)), `Secret access verification failed: ${entry.name}`);
+    check(same(access(saved, savedIds), access(desired, ids)), `Secret access verification failed: ${entry.name}`);
   });
   op.change.value_comparison = 'unavailable; supplied again on every sync';
-  op.change.access_changed = !same(access(existing, oldIds), access(entry, ids));
+  op.change.access_changed = !same(access(existing, oldIds), access(desired, ids));
   return op;
 }
 
