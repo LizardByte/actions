@@ -14,6 +14,41 @@ function jsonValue(value) {
   return value;
 }
 
+function schemas(state, method, args) {
+  if (method === 'PATCH') {
+    for (const value of args.properties) {
+      const index = state.schema.findIndex(item => item.property_name === value.property_name);
+      const saved = { ...definition(value), source_type: 'organization' };
+      if (index < 0) state.schema.push(saved); else state.schema[index] = saved;
+    }
+  }
+  return state.schema;
+}
+
+function settings(state, method, args) {
+  if (method === 'PATCH') Object.assign(state.settings, Object.fromEntries(Object.entries(args).filter(([key]) => key !== 'org')));
+  return { login: args.org, ...state.settings };
+}
+
+function actions(state, method, group, args) {
+  if (group === 'selected_actions' && state.permissions.allowed_actions !== 'selected') {
+    throw Object.assign(new Error('Selected-actions policy is inactive'), { status: 409 });
+  }
+  if (method === 'PUT') Object.assign(state[group], Object.fromEntries(Object.entries(args).filter(([key]) => key !== 'org')));
+  return state[group];
+}
+
+function actionsRepositories(state, method, args) {
+  if (method === 'PUT') state.actionsRepositories = args.selected_repository_ids;
+  return state.repositories.filter(repo => state.actionsRepositories.includes(repo.id));
+}
+
+function blocks(state, method, args) {
+  if (method === 'PUT') state.blocks.push(args.username);
+  if (method === 'DELETE') state.blocks = state.blocks.filter(user => user !== args.username);
+  return state.blocks.map(login => ({ login }));
+}
+
 function fixture(publicKey) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'org-sync-admin-')));
   const organizations = new Map();
@@ -45,16 +80,6 @@ function fixture(publicKey) {
     },
     remove() { fs.rmSync(root, { recursive: true, force: true }); },
   };
-  function schemas(state, method, args) {
-    if (method === 'PATCH') {
-      for (const value of args.properties) {
-        const index = state.schema.findIndex(item => item.property_name === value.property_name);
-        const saved = { ...definition(value), source_type: 'organization' };
-        if (index < 0) state.schema.push(saved); else state.schema[index] = saved;
-      }
-    }
-    return state.schema;
-  }
   function hooks(state, method, url, args) {
     let hook = state.hooks.find(value => value.id === args.hook_id);
     if (method === 'POST') { hook = { id: nextId++ }; state.hooks.push(hook); }
@@ -84,26 +109,6 @@ function fixture(publicKey) {
       Object.assign(configuration, Object.fromEntries(Object.entries(args).filter(([key]) => !['org', 'configuration_id'].includes(key))));
     }
     return args.configuration_id !== undefined || method === 'POST' ? configuration : state.security;
-  }
-  function settings(state, method, args) {
-    if (method === 'PATCH') Object.assign(state.settings, Object.fromEntries(Object.entries(args).filter(([key]) => key !== 'org')));
-    return { login: args.org, ...state.settings };
-  }
-  function actions(state, method, group, args) {
-    if (group === 'selected_actions' && state.permissions.allowed_actions !== 'selected') {
-      throw Object.assign(new Error('Selected-actions policy is inactive'), { status: 409 });
-    }
-    if (method === 'PUT') Object.assign(state[group], Object.fromEntries(Object.entries(args).filter(([key]) => key !== 'org')));
-    return state[group];
-  }
-  function actionsRepositories(state, method, args) {
-    if (method === 'PUT') state.actionsRepositories = args.selected_repository_ids;
-    return state.repositories.filter(repo => state.actionsRepositories.includes(repo.id));
-  }
-  function blocks(state, method, args) {
-    if (method === 'PUT') state.blocks.push(args.username);
-    if (method === 'DELETE') state.blocks = state.blocks.filter(user => user !== args.username);
-    return state.blocks.map(login => ({ login }));
   }
   function credentials(state, method, match, args) {
     const [, kind, type, suffix] = match;
