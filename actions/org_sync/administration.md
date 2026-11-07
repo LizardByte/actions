@@ -167,6 +167,17 @@ Both variables and secrets require explicit `visibility`: `all`, `private`, or `
 before writes; an explicit empty name list grants access to no repositories. IDs are rechecked before writes.
 Selected access lists are replaced by the configured list, never copied as source-org repository IDs.
 
+Same-name credential entries may specify different values or repository names for disjoint destination
+organizations. Overlapping destinations for the same kind/name are rejected. Repeated reads of one source
+variable are shared across entries.
+
+Missing/inaccessible named recipients fail by default. Set `missing_repositories: defer` on a `selected` entry
+when preparing repositories that will be created or transferred later. Only existing named recipients receive
+access, with warnings for the others. If none exist, that entire credential entry is deferred without writing
+or requiring its supplied secret. Existing credentials remain untouched until a recipient becomes available.
+An explicit empty list still manages an empty allowlist. Subsequent runs add named recipients as they appear;
+an identity change between planning and writing fails rather than granting access from an obsolete plan.
+
 The optional `mode` is `sync` by default. `create_if_missing` preserves the entire existing variable/secret,
 including its value and access policy. No secret/variable is deleted when omitted from configuration. Values,
 ciphertext, and recipient keys are excluded from results and artifacts; API errors are sanitized. Access diffs

@@ -41,13 +41,16 @@ function variableSource(entry) {
 }
 
 function credential(entry, kind, organizations, defaultTargets) {
-  keys(entry, ['name', 'value', 'value_key', 'value_env', 'from_source', 'visibility', 'repository_names', 'organizations', 'mode', 'kind'], kind);
+  keys(entry, ['name', 'value', 'value_key', 'value_env', 'from_source', 'visibility', 'repository_names', 'organizations', 'mode', 'kind',
+    'missing_repositories'], kind);
   check(typeof entry.name === 'string' && /^[a-z_][a-z\d_]*$/i.test(entry.name)
     && !entry.name.toUpperCase().startsWith('GITHUB_'), `Invalid ${kind} name`);
   const visibility = entry.visibility;
   check(['all', 'private', 'selected'].includes(visibility), `Explicit visibility is required for ${entry.name}`);
   const repositoryNames = entry.repository_names === undefined ? [] : names(entry.repository_names, 'repository names');
   check(visibility === 'selected' || repositoryNames.length === 0, 'Repository names require selected visibility');
+  check(['error', 'defer'].includes(entry.missing_repositories ?? 'error'), 'Invalid missing_repositories mode');
+  check(entry.missing_repositories === undefined || visibility === 'selected', 'missing_repositories requires selected visibility');
   const mode = entry.mode ?? 'sync';
   check(['sync', 'create_if_missing'].includes(mode), 'Invalid credential sync mode');
   if (kind === 'secret') secretSource(entry); else variableSource(entry);
@@ -60,8 +63,8 @@ function credential(entry, kind, organizations, defaultTargets) {
 function credentials(entries, kind, organizations, defaultTargets) {
   check(Array.isArray(entries), `Expected a ${kind} array`);
   const result = entries.map(entry => credential(entry, kind, organizations, defaultTargets));
-  const identities = result.map(entry => `${entry.kind ?? 'variable'}/${entry.name}`);
-  check(new Set(identities).size === result.length, `Duplicate ${kind} names`);
+  const identities = result.flatMap(entry => entry.organizations.map(org => `${entry.kind ?? 'variable'}/${entry.name}/${org.toLowerCase()}`));
+  check(new Set(identities).size === identities.length, `Duplicate ${kind} names for a target organization`);
   return result;
 }
 

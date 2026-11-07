@@ -1,17 +1,28 @@
 const { check, get, list, api, same, sortedIds, operation } = require('./admin-common.js');
 const { mapConcurrent } = require('./concurrency.js');
 
-async function repositoryIds(github, org, repositoryNames) {
+async function repositoryIds(github, org, repositoryNames, { defer = false } = {}) {
   if (!repositoryNames.length) return [];
   const repositories = await list(github, '/orgs/{org}/repos', { org, type: 'all' });
   const selected = repositoryNames.map(name => {
     const repo = repositories.find(repo => repo.name.toLowerCase() === name.toLowerCase());
+    if (!repo && defer) return null;
     check(repo && repo.owner.login.toLowerCase() === org.toLowerCase()
       && repo.full_name.toLowerCase() === `${org}/${name}`.toLowerCase()
       && Number.isSafeInteger(repo.id) && repo.id > 0, `Selected repository is missing or inaccessible in organization: ${org}`);
     return repo.id;
   });
-  return selected.sort((left, right) => left - right);
+  return selected.filter(id => id !== null).sort((left, right) => left - right);
+}
+
+async function credentialRepositories(github, org, entry, warnings) {
+  if (entry.visibility !== 'selected') return [];
+  const defer = entry.missing_repositories === 'defer';
+  const ids = await repositoryIds(github, org, entry.repository_names, { defer });
+  if (defer && ids.length < entry.repository_names.length && warnings) {
+    warnings.push(`Deferred ${entry.repository_names.length - ids.length} unavailable repository targets for ${entry.name}`);
+  }
+  return defer && entry.repository_names.length > 0 && ids.length === 0 ? null : ids;
 }
 
 async function selectedIds(github, base, parameters, value) {
@@ -39,21 +50,24 @@ async function encrypt(value, publicKey) {
 }
 
 async function variableValues(sourceGithub, config) {
+  const cache = new Map();
   const entries = await mapConcurrent(config.variables, 3, async entry => {
     if (!entry.from_source) return entry;
     check(config.source_organization, 'source_organization is required for copied variables');
-    const source = await get(sourceGithub, '/orgs/{org}/actions/variables/{name}',
-      { org: config.source_organization, name: entry.from_source });
+    if (!cache.has(entry.from_source)) cache.set(entry.from_source,
+      get(sourceGithub, '/orgs/{org}/actions/variables/{name}', { org: config.source_organization, name: entry.from_source }));
+    const source = await cache.get(entry.from_source);
     check(typeof source.value === 'string', 'Source variable value is unavailable');
     return { ...entry, value: source.value };
   });
   return { ...config, variables: entries };
 }
 
-async function planVariable(github, org, entry, existing) {
+async function planVariable(github, org, entry, existing, warnings) {
   const base = '/orgs/{org}/actions/variables/{name}';
   const coordinates = { org, name: entry.name };
-  const ids = entry.visibility === 'selected' ? await repositoryIds(github, org, entry.repository_names) : [];
+  const ids = await credentialRepositories(github, org, entry, warnings);
+  if (ids === null) return null;
   const oldIds = await selectedIds(github, base, coordinates, existing);
   if (existing?.value === entry.value && same(access(existing, oldIds), access(entry, ids))) return null;
   const op = operation('variable', entry.name, reportedAccess(existing, oldIds), reportedAccess(entry, ids), async () => {
@@ -63,7 +77,7 @@ async function planVariable(github, org, entry, existing) {
     const currentIds = await selectedIds(github, base, coordinates, current);
     check(same(sortedIds(currentIds), sortedIds(oldIds)), `Variable access changed during planning: ${entry.name}`);
     if (entry.visibility === 'selected') {
-      check(same(await repositoryIds(github, org, entry.repository_names), ids), 'Selected repository identity changed');
+      check(same(await credentialRepositories(github, org, entry), ids), 'Selected repository identity changed');
     }
     const body = { name: entry.name, value: entry.value, visibility: entry.visibility,
       ...(entry.visibility === 'selected' ? { selected_repository_ids: ids } : {}) };
@@ -82,7 +96,8 @@ async function planVariable(github, org, entry, existing) {
 async function planSecret(github, org, entry, existing, values, dryRun, warnings) {
   const base = `/orgs/{org}/${entry.kind}/secrets/{secret_name}`;
   const coordinates = { org, secret_name: entry.name };
-  const ids = entry.visibility === 'selected' ? await repositoryIds(github, org, entry.repository_names) : [];
+  const ids = await credentialRepositories(github, org, entry, warnings);
+  if (ids === null) return null;
   const oldIds = await selectedIds(github, base, coordinates, existing);
   const supplied = Object.hasOwn(values, entry.value_key);
   check(dryRun || supplied, `Missing supplied secret value: ${entry.value_env ?? entry.value_key}`);
@@ -94,7 +109,7 @@ async function planSecret(github, org, entry, existing, values, dryRun, warnings
     check(same(current, existing) && same(sortedIds(currentIds), sortedIds(oldIds)),
       `Secret or access changed during planning: ${entry.kind}/${entry.name}`);
     if (entry.visibility === 'selected') {
-      check(same(await repositoryIds(github, org, entry.repository_names), ids), 'Selected repository identity changed');
+      check(same(await credentialRepositories(github, org, entry), ids), 'Selected repository identity changed');
     }
     const publicKey = await get(github, `/orgs/{org}/${entry.kind}/secrets/public-key`, { org });
     const encrypted = await encrypt(values[entry.value_key], publicKey);
@@ -120,7 +135,7 @@ async function planCredentials(github, org, config, values, dryRun, warnings) {
   const operations = await mapConcurrent(entries, 3, async ({ entry, secret }) => {
     if (!secret) {
       const existing = existingVariables.find(value => value.name.toUpperCase() === entry.name);
-      return existing && entry.mode === 'create_if_missing' ? null : planVariable(github, org, entry, existing);
+      return existing && entry.mode === 'create_if_missing' ? null : planVariable(github, org, entry, existing, warnings);
     }
     const existing = existingSecrets.get(entry.kind).find(value => value.name.toUpperCase() === entry.name);
     return existing && entry.mode === 'create_if_missing' ? null
