@@ -18,13 +18,18 @@ jobs:
         env:
           SHARED_BOT_TOKEN: ${{ secrets.GH_BOT_TOKEN }}
         with:
-          config: .github/file-sync.json
-          properties_file: repository-properties.json
-          admin_config: .github/org-sync-admin.json
+          config: .github/org-sync.json
+          properties_file: .github/org-sync.json
+          admin_config: .github/org-sync.json
           organizations_file: organizations.json
           admin_token: ${{ secrets.ORG_SYNC_ADMIN_TOKEN }}
           dry_run: ${{ github.event_name == 'pull_request' }}
 ```
+
+All three policy inputs can point to one combined JSON file with `version: 1`, `files`, `properties`, and
+`administration` sections. They select capabilities, not separate files. `organizations.json` is the only shared
+org registry; default administration destinations are its entries excluding `source_organization`.
+Separate legacy file, schema, and administration documents remain supported.
 
 Use trusted source code with the administrative credential. A workflow must restrict which PRs can access
 credentials. Read-only previews can use a read-only credential; run delivery from reviewed source revisions.
@@ -60,7 +65,8 @@ Missing permission is an error, rather than a reason to skip a managed value or 
 
 ## Property definitions
 
-`repository-properties.json` uses GitHub's schema payload format:
+In a combined policy, put the definitions in the top-level `properties` array. A separate legacy schema file
+uses GitHub's schema payload format:
 
 ```json
 {
@@ -97,13 +103,12 @@ delete it from GitHub, and this action never copies or patches repository custom
 
 ## Administrative policy
 
-An example `.github/org-sync-admin.json`:
+An example `administration` section (also accepted as a separate legacy administration file):
 
 ```json
 {
   "version": 1,
   "source_organization": "LizardByte",
-  "organizations": ["KokoStreamTV", "LizardByte-infrastructure", "SunshineStream", "Themerr"],
   "settings": {
     "from_source": ["web_commit_signoff_required"],
     "values": {"default_repository_permission": "read"}
@@ -117,6 +122,7 @@ An example `.github/org-sync-admin.json`:
     {
       "name": "SHARED_USERNAME",
       "from_source": "GH_BOT_NAME",
+      "organizations": ["SunshineStream"],
       "visibility": "selected",
       "repository_names": [".github"]
     }
@@ -126,6 +132,7 @@ An example `.github/org-sync-admin.json`:
       "name": "GH_BOT_TOKEN",
       "kind": "actions",
       "value_env": "SHARED_BOT_TOKEN",
+      "organizations": ["SunshineStream"],
       "visibility": "selected",
       "repository_names": [".github"]
     }
@@ -133,11 +140,12 @@ An example `.github/org-sync-admin.json`:
 }
 ```
 
-Every org reference must be present in `organizations.json`. The policy-level `organizations` list limits
-settings and credential destinations; property schemas still cover the full selected registry. Credential
-entries may narrow their own `organizations` list. Secrets, variables, and webhooks require an explicit destination list at
-the policy or entry level; registry membership alone does not authorize credential distribution. Adding a
-new organization therefore provisions schemas automatically without silently extending credential access.
+Every org reference must be present in `organizations.json`. Settings, blocked users, webhooks, and security
+configurations follow that registry, excluding the source org by default. Property schemas cover the full
+selected registry, including the source. A legacy policy-level `organizations` override remains supported.
+Credential entries require explicit destinations at the entry or legacy override level; adding a registry
+entry provisions shared settings and schemas without silently extending secret or variable access. Resource
+entries can still narrow their own organization scope.
 
 Version 1 is the default if omitted. All sections are optional, but unknown keys, invalid types, conflicting
 value sources, duplicate credential names, and scopes outside the registry fail validation before delivery.

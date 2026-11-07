@@ -3,6 +3,10 @@ const { check, keys, names, object } = require('./admin-common.js');
 const DEFAULTS = new Set(['all', 'none', 'public', 'private_and_internal']);
 const validUrl = value => typeof value === 'string' && URL.canParse(value) && ['https:', 'http:'].includes(new URL(value).protocol);
 
+function resourceScope(value, defaults, organizations, scope) {
+  return value === undefined && defaults?.length === 0 ? [] : scope(value ?? defaults, organizations);
+}
+
 function webhookSource(entry) {
   check(validUrl(entry.url ?? entry.source_url ?? entry.source_url_prefix), 'Webhook URL must be an HTTP(S) URL');
   check(entry.source_url === undefined || validUrl(entry.source_url), 'Invalid source webhook URL');
@@ -35,7 +39,8 @@ function webhook(entry, organizations, scope, defaults) {
   check(targets !== undefined, 'Webhook distribution requires explicit organizations in the policy');
   const mode = entry.mode ?? 'sync';
   check(['sync', 'create_if_missing'].includes(mode), 'Invalid webhook sync mode');
-  return { ...entry, source_url_prefix: prefix, mode, unsigned, organizations: scope(targets, organizations),
+  return { ...entry, source_url_prefix: prefix, mode, unsigned,
+    organizations: resourceScope(entry.organizations, defaults, organizations, scope),
     value_env: entry.secret_env, value_key: entry.secret_value_key };
 }
 
@@ -64,7 +69,8 @@ function resourcePolicies(config, organizations, scope) {
     check(entry.copy_default === undefined || typeof entry.copy_default === 'boolean', 'Invalid copy_default');
     check(!entry.copy_default || entry.source_name, 'copy_default requires source_name');
     check(!entry.copy_default || entry.default_for_new_repos === undefined, 'Choose copy_default or an explicit security default');
-    return { ...entry, name, values: entry.values ?? {}, organizations: scope(entry.organizations, organizations) };
+    return { ...entry, name, values: entry.values ?? {},
+      organizations: resourceScope(entry.organizations, config.organizations, organizations, scope) };
   });
   check(new Set(security.map(entry => entry.name)).size === security.length, 'Duplicate security configuration names');
   return { blocked_users: blocked, webhooks: hooks, security_configurations: security };

@@ -5,16 +5,20 @@ supplied organization secrets, blocked users, webhooks, and security configurati
 File changes use one bot branch and PR per repo;
 administrative changes use the GitHub API directly. File-only behavior remains the default.
 
+Use one policy file for all synchronization and `organizations.json` as the shared organization registry.
+The same policy path can be passed to `config`, `properties_file`, and `admin_config`; these inputs enable
+different capabilities without requiring separate files. Legacy separate policies remain supported.
+
 See [Organization administration](administration.md) for schemas, settings, credential policies, permissions,
 and a combined synchronization job. No administration API is called unless `properties_file` or `admin_config`
 is supplied. `sync_files: 'false'` runs administration without requiring a file policy or initialized target repos.
 
 ## 🛠️ Prep Work
 
-Check out the trusted source repository, including its organization list and separate file policy:
+Check out the trusted source repository, including its organization registry and synchronization policy:
 
 - `organizations.json` lists the allowed organization names. The existing file in `LizardByte/.github` works unchanged.
-- `.github/file-sync.json` defines which files to replicate, their destinations, and any workflow-profile requirements.
+- `.github/org-sync.json` can contain file rules, property definitions, and administration settings together.
 
 Provision these repository custom properties in target orgs by default. Set `sync_mode_property` and
 `workflow_profiles_property` to use your own property names:
@@ -72,8 +76,44 @@ The organization list is a plain JSON array of names, matching the existing `Liz
 ]
 ```
 
-Keep replication rules in the separate file policy below. Its optional rule-level `organizations` list narrows
-a rule to some of these names; it does not replace or change the format of `organizations.json`.
+File discovery and property schemas use this registry. Administration also uses it, excluding
+`source_organization` by default. Adding an org requires one registry edit. Individual credentials retain
+explicit destination scopes; registry membership does not grant access to secrets or variables.
+Optional rule-level selectors or a legacy administration-level `organizations` override can narrow the registry.
+
+## Combined policy (`.github/org-sync.json`)
+
+```json
+{
+  "version": 1,
+  "files": {
+    "rules": [
+      {"id": "general", "files": [{"source": "renovate.json"}]}
+    ]
+  },
+  "properties": [
+    {"property_name": "sync_mode", "value_type": "single_select", "required": true,
+      "allowed_values": ["included", "excluded"], "default_value": "included"}
+  ],
+  "administration": {
+    "source_organization": "LizardByte",
+    "settings": {"from_source": ["web_commit_signoff_required"]}
+  }
+}
+```
+
+```yaml
+      config: .github/org-sync.json
+      properties_file: .github/org-sync.json
+      admin_config: .github/org-sync.json
+      organizations_file: organizations.json
+```
+
+`files` has the file-policy fields documented below, `properties` contains GitHub property definitions, and
+`administration` has the settings/resources/credentials documented in [the administration guide](administration.md).
+Omit `properties_file` and `admin_config` for a file-only run using the same combined policy. For administration
+only, set `sync_files: 'false'`. Schema reconciliation still includes the source org. Unknown combined-policy
+fields, conflicting versions, and malformed sections are rejected. The existing flat file-policy format remains valid.
 
 ## File policy (`.github/file-sync.json`)
 

@@ -3,6 +3,7 @@ const { loadOrganizations, localPath } = require('./config.js');
 const { check, keys, names, object, AdminError } = require('./admin-common.js');
 const { definitions } = require('./schemas.js');
 const { resourcePolicies } = require('./resource-config.js');
+const { section } = require('./policy.js');
 
 function secretValues(value, core) {
   if (!value) return {};
@@ -86,6 +87,18 @@ function environmentSecrets(entries, env, core, values) {
   }
 }
 
+function administrationTargets(config, organizations) {
+  if (config.source_organization !== undefined) {
+    check(typeof config.source_organization === 'string' &&
+      organizations.some(org => org.toLowerCase() === config.source_organization.toLowerCase()),
+    'Source organization is outside organizations_file');
+  }
+  const source = config.source_organization === undefined ? '' : config.source_organization.toLowerCase();
+  return config.organizations === undefined
+    ? organizations.filter(org => org.toLowerCase() !== source)
+    : scope(config.organizations, organizations);
+}
+
 function loadAdministration(env, core) {
   const values = secretValues(env.INPUT_SECRET_VALUES, core);
   const root = fs.realpathSync(env.INPUT_SOURCE_DIRECTORY || env.GITHUB_WORKSPACE || '.');
@@ -93,17 +106,14 @@ function loadAdministration(env, core) {
   check(!env.INPUT_REPOSITORY, 'Organization administration cannot be narrowed with repository; use organization');
   const targets = organizations.filter(org => !env.INPUT_ORGANIZATION || org.toLowerCase() === env.INPUT_ORGANIZATION.toLowerCase());
   check(targets.length > 0, 'Requested organization is outside the configured list');
-  const schema = env.INPUT_PROPERTIES_FILE ? definitions(read(root, env.INPUT_PROPERTIES_FILE)) : [];
-  const config = env.INPUT_ADMIN_CONFIG ? read(root, env.INPUT_ADMIN_CONFIG) : {};
+  const schema = env.INPUT_PROPERTIES_FILE ? definitions(section(read(root, env.INPUT_PROPERTIES_FILE), 'properties')) : [];
+  const config = env.INPUT_ADMIN_CONFIG ? section(read(root, env.INPUT_ADMIN_CONFIG), 'administration') : {};
   keys(config, ['version', 'source_organization', 'organizations', 'settings', 'actions', 'variables', 'secrets',
     'blocked_users', 'webhooks', 'security_configurations'], 'administration policy');
   check(config.version === undefined || config.version === 1, 'Unsupported administration policy version');
-  const scoped = scope(config.organizations, organizations);
-  if (config.source_organization !== undefined) {
-    check(organizations.some(org => org.toLowerCase() === config.source_organization.toLowerCase()),
-      'Source organization is outside organizations_file');
-  }
-  const result = { organizations: targets, schema, config: { ...config, ...resourcePolicies(config, organizations, scope), organizations: scoped,
+  const scoped = administrationTargets(config, organizations);
+  const result = { organizations: targets, schema, config: { ...config,
+    ...resourcePolicies({ ...config, organizations: scoped }, organizations, scope), organizations: scoped,
     variables: credentials(config.variables ?? [], 'variable', organizations, config.organizations),
     secrets: credentials(config.secrets ?? [], 'secret', organizations, config.organizations) }, secretValues: values };
   environmentSecrets([...result.config.secrets, ...result.config.webhooks], env, core, result.secretValues);
