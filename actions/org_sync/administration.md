@@ -122,9 +122,7 @@ An example `administration` section (also accepted as a separate legacy administ
     {
       "name": "SHARED_USERNAME",
       "from_source": "GH_BOT_NAME",
-      "organizations": ["SunshineStream"],
-      "visibility": "selected",
-      "repository_names": [".github"]
+      "organizations": ["SunshineStream"]
     }
   ],
   "secrets": [
@@ -132,9 +130,7 @@ An example `administration` section (also accepted as a separate legacy administ
       "name": "GH_BOT_TOKEN",
       "kind": "actions",
       "value_env": "SHARED_BOT_TOKEN",
-      "organizations": ["SunshineStream"],
-      "visibility": "selected",
-      "repository_names": [".github"]
+      "organizations": ["SunshineStream"]
     }
   ]
 }
@@ -170,7 +166,14 @@ or read back. In `sync` mode each apply intentionally sets the supplied value ag
 acceptance and the resulting access policy are verified; the report does not claim plaintext comparison.
 Dry runs can plan secrets without their values, with a warning that delivery requires them.
 
-Both variables and secrets require explicit `visibility`: `all`, `private`, or `selected`. `selected` resolves
+Secrets and variables are created at organization level, never as repository-level copies. Omit `visibility`
+to create new credentials with `all` repository access and preserve the access policy of existing credentials.
+Later value updates retain manually configured visibility and selected repositories, including an empty
+selection. This also applies to credentials that existed before their first sync. Variable updates omit access
+fields; secret updates resend the current access policy because GitHub requires visibility on every write.
+Concurrent value/metadata or access changes detected before delivery fail rather than overwrite a stale plan.
+
+To manage access explicitly, set `visibility`: `all`, `private`, or `selected`. `selected` resolves
 `repository_names` to IDs inside each destination org. Missing/inaccessible named repositories fail the org
 before writes; an explicit empty name list grants access to no repositories. IDs are rechecked before writes.
 Selected access lists are replaced by the configured list, never copied as source-org repository IDs.

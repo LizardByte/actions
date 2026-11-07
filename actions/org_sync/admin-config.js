@@ -46,8 +46,8 @@ function credential(entry, kind, organizations, defaultTargets) {
     'missing_repositories'], kind);
   check(typeof entry.name === 'string' && /^[a-z_][a-z\d_]*$/i.test(entry.name)
     && !entry.name.toUpperCase().startsWith('GITHUB_'), `Invalid ${kind} name`);
-  const visibility = entry.visibility;
-  check(['all', 'private', 'selected'].includes(visibility), `Explicit visibility is required for ${entry.name}`);
+  const visibility = entry.visibility === undefined ? 'all' : entry.visibility;
+  check(['all', 'private', 'selected'].includes(visibility), `Invalid visibility for ${entry.name}`);
   const repositoryNames = entry.repository_names === undefined ? [] : names(entry.repository_names, 'repository names');
   check(visibility === 'selected' || repositoryNames.length === 0, 'Repository names require selected visibility');
   check(['error', 'defer'].includes(entry.missing_repositories ?? 'error'), 'Invalid missing_repositories mode');
@@ -57,7 +57,8 @@ function credential(entry, kind, organizations, defaultTargets) {
   if (kind === 'secret') secretSource(entry); else variableSource(entry);
   const targets = entry.organizations ?? defaultTargets;
   check(targets !== undefined, 'Secret and variable distribution requires explicit organizations in the policy');
-  return { ...entry, name: entry.name.toUpperCase(), mode, visibility, repository_names: repositoryNames,
+  return { ...entry, name: entry.name.toUpperCase(), mode, visibility, manage_access: entry.visibility !== undefined,
+    repository_names: repositoryNames,
     organizations: scope(targets, organizations), ...(kind === 'secret' ? { kind: entry.kind ?? 'actions' } : {}) };
 }
 
