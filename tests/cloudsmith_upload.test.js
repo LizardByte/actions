@@ -145,8 +145,8 @@ describe('classifyPackage', () => {
     ['HelloWorld-1.2.3-1.suse.lp156.aarch64.rpm', 'rpm', 'opensuse', '15.6'],
     ['HelloWorld-1.2.3-1.suse.tw.x86_64.rpm', 'rpm', 'opensuse', 'tumbleweed'],
     ['HelloWorld-1.2.3-1.suse.tumbleweed.x86_64.rpm', 'rpm', 'opensuse', 'tumbleweed'],
-    ['Sunshine-2026.1122.155624-1.suse.tw20261118.aarch64.rpm', 'rpm', 'opensuse', 'tumbleweed'],
-    ['Sunshine-2026.1122.155624-1.suse.tw20261120.x86_64.rpm', 'rpm', 'opensuse', 'tumbleweed'],
+    ['HelloWorld-1.2.3-1.suse.tw20261118.aarch64.rpm', 'rpm', 'opensuse', 'tumbleweed'],
+    ['HelloWorld-1.2.3-1.suse.tw20261120.x86_64.rpm', 'rpm', 'opensuse', 'tumbleweed'],
   ])('classifies %s', (filename, format, distro, releaseHint) => {
     expect(classifyPackage(filename)).toMatchObject({filename, format, distro, releaseHint});
   });
@@ -156,9 +156,9 @@ describe('classifyPackage', () => {
     'package.deb',
     'package.rpm',
     'package.zip',
-    'Sunshine-2026.1122.155624-1.suse.tw2026112.x86_64.rpm',
-    'Sunshine-2026.1122.155624-1.suse.tw2026112x.x86_64.rpm',
-    'Sunshine-2026.1122.155624-1.suse.tw202611200.x86_64.rpm',
+    'HelloWorld-1.2.3-1.suse.tw2026112.x86_64.rpm',
+    'HelloWorld-1.2.3-1.suse.tw2026112x.x86_64.rpm',
+    'HelloWorld-1.2.3-1.suse.tw202611200.x86_64.rpm',
   ])('does not guess a target for %s', (filename) => {
     expect(classifyPackage(filename)).toBeNull();
   });
