@@ -121,7 +121,7 @@ function classifyPackage(packagePath) {
       };
     }
 
-    if (/\.suse\.(?:tw|tumbleweed)\.[^.]+\.rpm$/.test(normalized)) {
+    if (/\.suse\.(?:tw(?:[0-9]{8})?|tumbleweed)\.[^.]+\.rpm$/.test(normalized)) {
       return {
         distro: 'opensuse',
         file: packagePath,
