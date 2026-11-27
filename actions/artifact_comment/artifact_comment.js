@@ -77,7 +77,7 @@ function normalizePrNumber(value) {
  * @param {Object} context - GitHub Actions context object.
  * @param {Object} sourceRun - Source workflow run.
  * @param {number|string|null|undefined} providedPrNumber - Optional explicit PR number.
- * @returns {Promise<string>} Pull request number.
+ * @returns {Promise<string>} Pull request number, or an empty string when there is no unique match.
  */
 async function resolvePrNumber(github, context, sourceRun, providedPrNumber) {
   let prNumber = normalizePrNumber(providedPrNumber);
@@ -104,37 +104,31 @@ async function resolvePrNumber(github, context, sourceRun, providedPrNumber) {
     || '';
   const head = headOwner && headBranch ? `${headOwner}:${headBranch}` : '';
 
-  if (head) {
+  if (head && headRepositoryName && sourceRun.head_sha) {
     console.log(`workflow_run.pull_requests is empty; resolving PR from head ${head}.`);
     const pullRequests = await github.paginate(github.rest.pulls.list, {
       owner: context.repo.owner,
       repo: context.repo.repo,
       state: 'open',
       head,
-      sort: 'updated',
-      direction: 'desc',
       per_page: 100,
     });
-    const baseRepository = `${context.repo.owner}/${context.repo.repo}`;
-    const matchingSha = pullRequests.find(pullRequest => pullRequest.head?.sha === sourceRun.head_sha);
-    const matchingBase = pullRequests.find(
-      pullRequest => pullRequest.base?.repo?.full_name === baseRepository
+    const matchingPullRequests = pullRequests.filter(
+      pullRequest => pullRequest.head?.sha === sourceRun.head_sha
+        && pullRequest.head.repo?.full_name === headRepositoryName
     );
-    const pullRequest = matchingSha || matchingBase || pullRequests[0];
-    prNumber = normalizePrNumber(pullRequest?.number);
+    if (matchingPullRequests.length === 1) {
+      return normalizePrNumber(matchingPullRequests[0].number);
+    }
   }
 
-  if (!prNumber) {
-    throw new Error([
-      'Unable to determine PR number for pull_request workflow run.',
-      `head_repository=${headRepositoryName || '<unknown>'}`,
-      `head_branch=${headBranch || '<unknown>'}`,
-      `head_sha=${sourceRun.head_sha || '<unknown>'}`,
-      `payload_pull_requests=${sourceRun.pull_requests?.length || 0}`,
-    ].join(' '));
-  }
-
-  return prNumber;
+  console.log([
+    'Skipping artifact comment because there is no unique open pull request for the source run.',
+    `head_repository=${headRepositoryName || '<unknown>'}`,
+    `head_branch=${headBranch || '<unknown>'}`,
+    `head_sha=${sourceRun.head_sha || '<unknown>'}`,
+  ].join(' '));
+  return '';
 }
 
 /**
@@ -229,6 +223,9 @@ async function artifactCommentAction({ github, context, core }) {
       sourceRun,
       process.env.INPUT_PR_NUMBER
     );
+    if (!prNumber) {
+      return;
+    }
     const patterns = parsePatterns(process.env.INPUT_ARTIFACT_PATTERNS || '*');
     const artifacts = await listArtifacts(github, context, runId);
     const selectedArtifacts = selectArtifacts(artifacts, patterns);

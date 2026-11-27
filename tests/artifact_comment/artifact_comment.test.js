@@ -69,6 +69,10 @@ function createSourceRun(overrides = {}) {
   };
 }
 
+function createForkPullRequest(number, sha = 'head-sha', repository = 'contributor/test-repo') {
+  return { number, head: { sha, repo: { full_name: repository } } };
+}
+
 function createMockCore() {
   return {
     setFailed: jest.fn(),
@@ -164,13 +168,14 @@ describe('resolvePrNumber', () => {
     expect(github.paginate).not.toHaveBeenCalled();
   });
 
-  test('falls back to an open pull request with the matching head SHA', async () => {
+  test('falls back to an open pull request with the matching repository and head SHA', async () => {
     const github = createMockGithub();
     const context = createMockContext();
     const sourceRun = createSourceRun({ pull_requests: [] });
     github.paginate.mockResolvedValue([
-      { number: 10, head: { sha: 'other-sha' } },
-      { number: 20, head: { sha: 'head-sha' } },
+      createForkPullRequest(10, 'other-sha'),
+      createForkPullRequest(11, 'head-sha', 'contributor/other-repo'),
+      createForkPullRequest(20),
     ]);
 
     await expect(resolvePrNumber(github, context, sourceRun, '')).resolves.toBe('20');
@@ -179,13 +184,11 @@ describe('resolvePrNumber', () => {
       repo: 'test-repo',
       state: 'open',
       head: 'contributor:feature',
-      sort: 'updated',
-      direction: 'desc',
       per_page: 100,
     });
   });
 
-  test('prefers a pull request targeting the current repository when the SHA changed', async () => {
+  test('skips an outdated run when the open pull request has moved to a new head SHA', async () => {
     const github = createMockGithub();
     const context = createMockContext();
     const sourceRun = createSourceRun({
@@ -195,24 +198,27 @@ describe('resolvePrNumber', () => {
       },
       pull_requests: [],
     });
-    github.paginate.mockResolvedValue([
-      { number: 10, base: { repo: { full_name: 'somewhere/else' } } },
-      { number: 20, base: { repo: { full_name: 'test-org/test-repo' } } },
-    ]);
+    github.paginate.mockResolvedValue([createForkPullRequest(20, 'new-head-sha')]);
 
-    await expect(resolvePrNumber(github, context, sourceRun, '')).resolves.toBe('20');
+    await expect(resolvePrNumber(github, context, sourceRun, '')).resolves.toBe('');
+    expect(github.paginate).toHaveBeenCalledWith(
+      github.rest.pulls.list, expect.objectContaining({ head: 'contributor:feature' }),
+    );
   });
 
-  test('uses the most recently updated candidate as a final fallback', async () => {
+  test('skips publishing when several open pull requests share the same fork head', async () => {
     const github = createMockGithub();
     const context = createMockContext();
     const sourceRun = createSourceRun({
       head_repository: { full_name: 'contributor/test-repo' },
       pull_requests: [],
     });
-    github.paginate.mockResolvedValue([{ number: 10 }]);
+    github.paginate.mockResolvedValue([createForkPullRequest(10), createForkPullRequest(20)]);
 
-    await expect(resolvePrNumber(github, context, sourceRun, '')).resolves.toBe('10');
+    await expect(resolvePrNumber(github, context, sourceRun, '')).resolves.toBe('');
+    expect(github.paginate).toHaveBeenCalledWith(
+      github.rest.pulls.list, expect.objectContaining({ head: 'contributor:feature' }),
+    );
   });
 
   test('rejects a source workflow that was not triggered by a pull request', async () => {
@@ -233,7 +239,7 @@ describe('resolvePrNumber', () => {
     );
   });
 
-  test('reports source details when no pull request can be resolved', async () => {
+  test('reports source details and skips the lookup when the source head is absent', async () => {
     const github = createMockGithub();
     const context = createMockContext();
     const sourceRun = createSourceRun({
@@ -243,9 +249,10 @@ describe('resolvePrNumber', () => {
       pull_requests: [],
     });
 
-    await expect(resolvePrNumber(github, context, sourceRun, '')).rejects.toThrow(
-      'Unable to determine PR number for pull_request workflow run. '
-      + 'head_repository=<unknown> head_branch=<unknown> head_sha=<unknown> payload_pull_requests=0'
+    await expect(resolvePrNumber(github, context, sourceRun, '')).resolves.toBe('');
+    expect(github.paginate).not.toHaveBeenCalled();
+    expect(consoleMocks.consoleOutput).toContainEqual(
+      expect.stringContaining('head_repository=<unknown> head_branch=<unknown> head_sha=<unknown>')
     );
   });
 });
@@ -376,6 +383,41 @@ describe('artifactCommentAction', () => {
       expect.stringContaining('https://github.com/test-org/test-repo/actions/runs/123')
     );
     expect(core.setOutput).toHaveBeenCalledWith('PR_NUMBER', '42');
+  });
+
+  test('exposes the resolved PR number and artifact links for a fork run without a PR number', async () => {
+    const github = createMockGithub();
+    const context = createMockContext();
+    const core = createMockCore();
+    const sourceRun = createSourceRun({ pull_requests: [] });
+    github.rest.actions.getWorkflowRun.mockResolvedValue({ data: sourceRun });
+    github.paginate
+      .mockResolvedValueOnce([createForkPullRequest(20)])
+      .mockResolvedValueOnce([{ id: 7, name: 'build-linux' }]);
+
+    await artifactCommentAction({ github, context, core });
+
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(core.setOutput).toHaveBeenCalledWith('PR_NUMBER', '20');
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'COMMENT_BODY',
+      expect.stringContaining('https://github.com/test-org/test-repo/actions/runs/123/artifacts/7')
+    );
+  });
+
+  test('leaves publishing outputs empty when a fork PR closes before publication', async () => {
+    const github = createMockGithub();
+    const context = createMockContext();
+    const core = createMockCore();
+    const sourceRun = createSourceRun({ pull_requests: [] });
+    github.rest.actions.getWorkflowRun.mockResolvedValue({ data: sourceRun });
+    github.paginate.mockResolvedValue([]);
+
+    await artifactCommentAction({ github, context, core });
+
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(core.setOutput).not.toHaveBeenCalled();
+    expect(github.rest.actions.listWorkflowRunArtifacts.endpoint.merge).not.toHaveBeenCalled();
   });
 
   test('fails for an invalid workflow run ID', async () => {
