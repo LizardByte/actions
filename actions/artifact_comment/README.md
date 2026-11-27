@@ -49,8 +49,8 @@ jobs:
 Each non-empty line in `artifact_patterns` is matched against the complete artifact name. `*` matches any number of
 characters and `?` matches one character. A literal artifact name is therefore also a valid pattern.
 
-When the source workflow run was not triggered by an associated pull request, all steps in the action are skipped.
-Providing an explicit `pr_number` overrides this behavior.
+The action handles source workflow runs triggered by pull requests, including forks. Provide an explicit `pr_number`
+to publish artifacts for other events.
 
 ## 📥 Inputs
 
@@ -85,4 +85,5 @@ Providing an explicit `pr_number` overrides this behavior.
 - Artifact download links require the reader to sign in to GitHub and stop working when GitHub expires or deletes the
   artifact.
 - The action first uses the pull request attached to the source workflow run. If GitHub omits that association, it
-  resolves the open pull request from the source repository, branch, and head SHA.
+  looks for a unique open pull request matching the source repository, branch, and head SHA. The action skips
+  publishing when there is no unique match.
